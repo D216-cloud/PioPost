@@ -1,0 +1,177 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Pacifico&display=swap');
+@import "tailwindcss";
+
+
+:root {
+  --bg: #f6f8fc;
+  --bg-elev: rgba(255, 255, 255, 0.78);
+  --fg: #0f172a;
+  --muted: #5b6477;
+  --line: rgba(84, 99, 132, 0.22);
+  --brand-1: #2563eb;
+  --brand-2: #06b6d4;
+  --shadow: 0 20px 60px rgba(15, 23, 42, 0.12);
+}
+
+.dark {
+  --bg: #040913;
+  --bg-elev: rgba(10, 18, 35, 0.8);
+  --fg: #e7ecff;
+  --muted: #96a1be;
+  --line: rgba(142, 171, 240, 0.2);
+  --brand-1: #4f8dfd;
+  --brand-2: #2dd4bf;
+  --shadow: 0 24px 80px rgba(4, 6, 14, 0.55);
+}
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
+}
+
+* {
+  border-color: var(--line);
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(circle at 15% 5%, rgba(37, 99, 235, 0.18), transparent 45%),
+    radial-gradient(circle at 85% -5%, rgba(6, 182, 212, 0.2), transparent 35%),
+    linear-gradient(180deg, #ffffff 0%, var(--bg) 58%);
+  color: var(--fg);
+}
+
+.dark body {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(79, 141, 253, 0.18), transparent 42%),
+    radial-gradient(circle at 90% 0%, rgba(45, 212, 191, 0.16), transparent 34%),
+    linear-gradient(180deg, #02050b 0%, var(--bg) 62%);
+}
+
+.pattern-grid {
+  background-image:
+    linear-gradient(to right, rgba(37, 99, 235, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(37, 99, 235, 0.08) 1px, transparent 1px);
+  background-size: 38px 38px;
+}
+
+.glass {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(16px);
+}
+
+.logo-script {
+  font-family: var(--font-logo), cursive;
+}
+
+.text-muted {
+  color: var(--muted);
+}
+
+.gradient-primary {
+  background-image: linear-gradient(120deg, var(--brand-1), var(--brand-2));
+}
+
+.float-field {
+  position: relative;
+}
+
+.float-field input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 1.25rem 0.95rem 0.65rem;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dark .float-field input {
+  background: rgba(8, 13, 26, 0.86);
+}
+
+.float-field input:focus {
+  border-color: rgba(37, 99, 235, 0.5);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+}
+
+.float-field input::placeholder {
+  color: transparent;
+}
+
+.float-field input:focus::placeholder {
+  color: #9ca3af;
+}
+
+.float-field label {
+  position: absolute;
+  left: 0.9rem;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--muted);
+  transition: all 0.2s ease;
+  background: transparent;
+}
+
+.float-field input:focus + label,
+.float-field input:not(:placeholder-shown) + label {
+  top: 0.45rem;
+  transform: none;
+  font-size: 0.73rem;
+}
+
+.shimmer {
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.22), rgba(148, 163, 184, 0.48), rgba(148, 163, 184, 0.22));
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 160% 0;
+  }
+  100% {
+    background-position: -40% 0;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.6s ease-out forwards;
+}
+
+.animate-fade-up-delay {
+  animation: fade-up 0.6s ease-out 0.2s forwards;
+}
+
+:root {
+  --font-logo: "Pacifico", cursive;
+}
+
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.1); }
+}
+
+.animate-pulse-live {
+  animation: pulse-live 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
