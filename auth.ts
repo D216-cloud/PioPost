@@ -51,26 +51,51 @@ export const authOptions: NextAuthOptions = {
         try {
           const { supabaseAdmin } = await import("@/lib/supabase-admin");
           
-          const { error } = await supabaseAdmin
-            .from('profiles')
-            .upsert({
-              id: user.id,
-              display_name: user.name || user.email.split('@')[0],
-              avatar_url: user.image || '',
-              // Generate handle if not exists
-              handle: user.name 
-                ? user.name.toLowerCase().replace(/\s+/g, '_') + '_' + user.id.substring(0, 4)
-                : user.email.split('@')[0] + '_' + user.id.substring(0, 4)
-            }, { 
-              onConflict: 'id',
-              ignoreDuplicates: false 
+          // 1. Fetch existing users by email
+          const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+          let supabaseUser = users?.find((u) => u.email === user.email);
+          
+          // 2. If user doesn't exist in Supabase auth, create them
+          if (!supabaseUser) {
+            const { data, error: createError } = await supabaseAdmin.auth.admin.createUser({
+              email: user.email,
+              email_confirm: true,
+              user_metadata: {
+                full_name: user.name,
+                avatar_url: user.image
+              }
             });
+            
+            if (createError) {
+              console.error("Failed to create Supabase user:", createError);
+              return true; // still allow NextAuth login
+            }
+            supabaseUser = data.user;
+          }
 
-          if (error) {
-            console.error("Error syncing profile:", error);
+          // 3. Override NextAuth user.id with the valid Supabase UUID
+          if (supabaseUser) {
+            user.id = supabaseUser.id;
+            
+            // 4. Sync profile data manually in case trigger missed it or needs update
+            const { error: upsertError } = await supabaseAdmin
+              .from('profiles')
+              .upsert({
+                id: supabaseUser.id,
+                display_name: user.name || user.email.split('@')[0],
+                avatar_url: user.image || '',
+                updated_at: new Date().toISOString()
+              }, { 
+                onConflict: 'id',
+                ignoreDuplicates: false 
+              });
+
+            if (upsertError) {
+              console.error("Error syncing profile:", upsertError);
+            }
           }
         } catch (err) {
-          console.error("Failed to import supabaseAdmin:", err);
+          console.error("Failed to sync user with Supabase:", err);
         }
       }
       return true;

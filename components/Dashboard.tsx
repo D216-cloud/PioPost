@@ -297,17 +297,15 @@ export function Dashboard() {
   return (
     <div className="min-h-screen bg-[#f8fafc]">
       {/* Header */}
-      <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-slate-100 bg-white px-5 sm:px-6">
-        <div className="flex items-center">
-          <Link href="/" className="logo-script text-[26px] sm:text-[28px] text-slate-900">PinPost</Link>
+      <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6 shadow-sm">
+        <div className="flex items-center gap-4">
+          <Link href="/" className="logo-script text-[28px] text-slate-900">PinPost</Link>
         </div>
-        <div className="flex items-center">
-           <div className="h-9 w-9 rounded-full bg-[#e1f5fe] flex items-center justify-center text-[#0096d6] font-bold text-sm uppercase border border-[#b3e5fc] shadow-sm">
-             {user.name?.[0] || user.email?.[0] || "U"}
-           </div>
-           <span className="ml-2 text-[13px] font-medium text-slate-500 lowercase hidden sm:inline-block truncate max-w-[150px] lg:max-w-none">
-             {user.email}
-           </span>
+        <div className="flex items-center gap-2 bg-slate-50 pl-2 pr-4 py-1.5 rounded-full border border-slate-100">
+          <div className="h-6 w-6 rounded-full bg-[#e1f5fe] text-[#0096d6] border border-[#b3e5fc] flex items-center justify-center text-[12px] font-bold uppercase">
+            {user.email?.[0] || "A"}
+          </div>
+          <span className="text-[13px] font-semibold text-slate-600 truncate max-w-[150px]">{user.email || "amitmaheta2007@gmail.com"}</span>
         </div>
       </header>
 
