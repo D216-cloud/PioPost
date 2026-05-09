@@ -42,10 +42,12 @@ export function CTASection() {
         <div className="mt-10 flex justify-center">
           <Link 
             href={user ? "/editor" : "/login"}
-            className="inline-flex items-center gap-2 bg-[#0096d6] hover:bg-[#0085bd] text-white px-8 py-4 rounded-xl text-[16px] font-semibold transition-all shadow-sm"
+            className="group relative flex items-center gap-6 bg-slate-900 hover:bg-black text-white pl-8 pr-2 py-2 rounded-full text-[17px] font-bold transition-all hover:scale-105 active:scale-95 shadow-xl hover:shadow-2xl"
           >
-            {user ? "Open editor" : "Get started free"}
-            <ArrowRight className="h-4 w-4" />
+            {user ? "Open Editor" : "Get Started Free"}
+            <div className="bg-white p-2.5 rounded-full transition-transform group-hover:translate-x-1 shadow-sm">
+              <ArrowRight className="h-5 w-5 text-[#0ea5e9]" />
+            </div>
           </Link>
         </div>
       </div>

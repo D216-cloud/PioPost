@@ -11,7 +11,6 @@ import avatar from "@/assets/landing-avatar.jpg";
 
 export function HeroSection() {
   const { user } = useAuth();
-  const ctaLink = user ? "/editor" : "/login";
 
   return (
     <section className="relative overflow-hidden pt-32 pb-24 md:pt-40 md:pb-32 bg-white">
@@ -73,13 +72,25 @@ export function HeroSection() {
             all in one editor. Completely free, no catches.
           </p>
 
-          <div className="flex items-center justify-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
             <Link 
-              href={ctaLink}
-              className="inline-flex items-center gap-2 bg-[#0096d6] hover:bg-[#0085bd] text-white px-8 py-4 rounded-xl text-[16px] font-semibold transition-all shadow-sm"
+              href={user ? "/editor" : "/login"}
+              className="group relative flex items-center gap-6 bg-slate-900 hover:bg-black text-white pl-8 pr-2 py-2 rounded-full text-[17px] font-bold transition-all hover:scale-105 active:scale-95 shadow-xl hover:shadow-2xl"
             >
-              {user ? "Open editor" : "Get started — it's free"}
-              <ArrowRight className="h-4 w-4" />
+              {user ? "Go to Dashboard" : "Start Free"}
+              <div className="bg-white p-2.5 rounded-full transition-transform group-hover:translate-x-1 shadow-sm">
+                <ArrowRight className="h-5 w-5 text-[#0ea5e9]" />
+              </div>
+            </Link>
+
+            <Link 
+              href="/editor"
+              className="group relative flex items-center gap-6 bg-white hover:bg-slate-50 text-slate-900 pl-8 pr-2 py-2 rounded-full text-[17px] font-bold border border-slate-200 transition-all hover:scale-105 active:scale-95 shadow-sm hover:shadow-md"
+            >
+              Open Editor
+              <div className="bg-slate-900 p-2.5 rounded-full transition-transform group-hover:translate-x-1 shadow-sm">
+                <ArrowRight className="h-5 w-5 text-white" />
+              </div>
             </Link>
           </div>
         </div>

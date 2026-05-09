@@ -1,572 +1,773 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState, useRef, useEffect } from 'react';
 import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, Image as ImageIcon, Sparkles, Layout, MessageCircle, Repeat2, Heart, Share, MoreHorizontal, ChevronDown, Send, Save, User as UserIcon } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { 
+  Heart, MessageCircle, Send, Bookmark, ThumbsUp, Repeat2, 
+  BarChart, Music, Upload, X, Check, ChevronDown, Sparkles, 
+  Image as Photo, Share, MoreHorizontal, ArrowLeft 
+} from 'lucide-react';
+import { toast } from "sonner";
 
-type Platform = "all" | "instagram" | "linkedin" | "x" | "facebook" | "youtube";
+type Format = 'square' | 'portrait' | 'reels';
+type PlatformId = 'instagram' | 'linkedin' | 'x' | 'facebook';
 
-const FORMATS = ["Square", "Portrait", "Story", "Reel", "Landscape"];
+interface Profile {
+  name: string;
+  handle: string;
+  bio: string;
+  avatar?: string;
+}
 
-const PLATFORM_CONFIG = {
-  instagram: { name: "Instagram", icon: "📸", maxChars: 2200 },
-  linkedin: { name: "LinkedIn", icon: "💼", maxChars: 3000 },
-  x: { name: "X", icon: "𝕏", maxChars: 280 },
-  facebook: { name: "Facebook", icon: "📘", maxChars: 63206 },
-  youtube: { name: "YouTube", icon: "▶️", maxChars: 5000 },
+const sysFont = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+
+const InstagramCard = ({ profile, caption, mediaUrl, format }: { profile: Profile, caption: string, mediaUrl: string, format: Format }) => {
+  const isReels = format === 'reels';
+  const ratioStr = format === 'square' ? '1/1' : format === 'portrait' ? '4/5' : '9/16';
+  const maxH = format === 'square' ? '300px' : format === 'portrait' ? '340px' : '420px';
+
+  if (isReels) {
+    return (
+      <div className="w-full max-w-[380px] bg-black text-white relative rounded-[3px] overflow-hidden" style={{ fontFamily: sysFont }}>
+        <div className="w-full relative flex items-center justify-center bg-gray-900" style={{ aspectRatio: ratioStr, maxHeight: maxH }}>
+          {mediaUrl ? (
+            <img src={mediaUrl} className="absolute inset-0 w-full h-full object-cover" alt="Media" />
+          ) : (
+            <div className="flex flex-col items-center opacity-50"><Photo size={32}/><span className="text-xs mt-2">No image</span></div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent h-[45%] top-auto"></div>
+          
+          <div className="absolute top-4 left-4 flex items-center gap-2 z-10">
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#f09433] via-[#dc2743] to-[#bc1888] p-[1px]">
+              <div className="w-full h-full rounded-full border border-black bg-gradient-to-br from-[#667eea] to-[#764ba2] flex items-center justify-center overflow-hidden">
+                {profile.avatar ? (
+                  <img src={profile.avatar} className="w-full h-full object-cover" alt="avatar" />
+                ) : (
+                  <span className="text-[10px] font-bold text-white">{profile.name.charAt(0) || 'U'}</span>
+                )}
+              </div>
+            </div>
+            <span className="text-[13px] font-semibold drop-shadow-md">{profile.handle || '@handle'}</span>
+            <button className="border border-white/70 rounded px-2 py-0.5 text-[11px] font-semibold ml-1 bg-transparent drop-shadow-md">Follow</button>
+          </div>
+
+          <div className="absolute bottom-[60px] right-3 flex flex-col gap-4 items-center z-10 drop-shadow-md">
+            <div className="flex flex-col items-center gap-1"><Heart size={24} /><span className="text-[11px] font-medium">8.4K</span></div>
+            <div className="flex flex-col items-center gap-1"><MessageCircle size={24} className="transform scale-x-[-1]" /><span className="text-[11px] font-medium">247</span></div>
+            <div className="flex flex-col items-center gap-1"><Share size={24} /><span className="text-[11px] font-medium">1.2K</span></div>
+          </div>
+
+          <div className="absolute bottom-4 left-4 right-16 flex flex-col gap-1.5 z-10 drop-shadow-md">
+            <span className="text-[12px] font-semibold">{profile.handle || '@handle'}</span>
+            <p className="text-[13px] line-clamp-2 leading-tight">{caption}</p>
+            <div className="flex items-center gap-1.5 mt-1 opacity-80">
+              <Music size={12} />
+              <span className="text-[11px]">Original Audio · {profile.handle || '@handle'}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full max-w-[380px] bg-white border border-[#dbdbdb] rounded-[3px]" style={{ fontFamily: sysFont }}>
+      <div className="h-[54px] px-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full p-[2px] bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888]">
+            <div className="w-full h-full rounded-full border-[2px] border-white overflow-hidden bg-gradient-to-br from-[#667eea] to-[#764ba2] flex items-center justify-center text-white text-[10px] font-bold">
+              {profile.avatar ? <img src={profile.avatar} className="w-full h-full object-cover" alt="avatar" /> : profile.name.charAt(0) || 'U'}
+            </div>
+          </div>
+          <span className="text-[13px] font-semibold text-gray-900">{(profile.handle || '@handle').replace('@', '')}</span>
+        </div>
+        <MoreHorizontal size={18} className="text-gray-900" />
+      </div>
+      
+      <div className="w-full bg-gray-50 flex items-center justify-center overflow-hidden relative" style={{ aspectRatio: ratioStr, maxHeight: maxH }}>
+         {mediaUrl ? (
+            <img src={mediaUrl} className="absolute inset-0 w-full h-full object-cover" alt="Media" />
+          ) : (
+            <div className="flex flex-col items-center text-gray-400"><Photo size={32}/><span className="text-xs mt-2">No image</span></div>
+          )}
+      </div>
+
+      <div className="px-3 pt-3 pb-4">
+        <div className="flex items-center justify-between mb-2.5">
+          <div className="flex items-center gap-3">
+            <Heart size={22} className="text-gray-900" />
+            <MessageCircle size={22} className="text-gray-900 transform scale-x-[-1]" />
+            <Share size={22} className="text-gray-900" />
+          </div>
+          <Bookmark size={22} className="text-gray-900" />
+        </div>
+        <div className="text-[13px] font-semibold mb-1">2,451 likes</div>
+        <div className="text-[13px] leading-[18px]">
+          <span className="font-semibold mr-1.5">{(profile.handle || '@handle').replace('@', '')}</span>
+          <span>{caption}</span>
+        </div>
+        <div className="text-[12px] text-gray-500 mt-1.5">View all 48 comments</div>
+        <div className="text-[10px] text-gray-400 uppercase mt-1">2 hours ago</div>
+      </div>
+    </div>
+  );
 };
+
+const LinkedInCard = ({ profile, caption, mediaUrl, format }: { profile: Profile, caption: string, mediaUrl: string, format: Format }) => {
+  const isReels = format === 'reels';
+  const ratioStr = isReels ? '9/16' : '16/9';
+  const maxH = isReels ? '380px' : '180px';
+
+  return (
+    <div className="w-full max-w-[380px] bg-white border border-[#e0e0e0] rounded-lg" style={{ fontFamily: sysFont }}>
+      <div className="px-4 pt-3 pb-2 flex items-start gap-2">
+        <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#0A66C2] to-blue-300 flex items-center justify-center shrink-0 overflow-hidden">
+          {profile.avatar ? <img src={profile.avatar} className="w-full h-full object-cover" alt="avatar" /> : <span className="text-white font-bold text-sm">{profile.name.charAt(0) || 'U'}</span>}
+        </div>
+        <div className="flex-1 min-w-0 flex flex-col">
+          <div className="flex justify-between items-start">
+            <span className="text-[14px] font-semibold text-gray-900 truncate">{profile.name || 'User Name'}</span>
+            <div className="flex items-center gap-1 shrink-0 text-gray-500">
+              <span className="text-[#0A66C2] text-[13px] font-semibold cursor-pointer">+ Follow</span>
+              <MoreHorizontal size={16} className="ml-1" />
+            </div>
+          </div>
+          <span className="text-[11px] text-gray-500 truncate">{profile.bio || 'Bio'}</span>
+          <div className="text-[11px] text-gray-500 flex items-center gap-1 mt-0.5">
+            <span>2h • 🌐 Public</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-4 pb-2 text-[13px] leading-[1.55] text-gray-900 whitespace-pre-wrap">
+        {caption.length > 150 ? (
+          <>{caption.substring(0, 150)}<span className="text-[#0A66C2] hover:underline cursor-pointer">...see more</span></>
+        ) : caption}
+      </div>
+
+      <div className="w-full bg-[#f3f2ef] flex items-center justify-center overflow-hidden relative" style={{ aspectRatio: ratioStr, maxHeight: maxH }}>
+        {mediaUrl ? (
+          <img src={mediaUrl} className="absolute inset-0 w-full h-full object-cover" alt="Media" />
+        ) : (
+          <div className="flex flex-col items-center text-gray-400"><Photo size={32}/><span className="text-xs mt-2">No image</span></div>
+        )}
+      </div>
+
+      <div className="px-4 py-2 border-b border-gray-200 flex justify-between items-center text-[11px] text-gray-500">
+        <div className="flex items-center gap-1">
+          <span>👍❤️🎉</span>
+          <span>1,247</span>
+        </div>
+        <div>84 comments • 21 reposts</div>
+      </div>
+
+      <div className="px-2 py-1 flex items-center justify-around">
+        {[
+          { i: <ThumbsUp size={18} />, l: 'Like' },
+          { i: <MessageCircle size={18} />, l: 'Comment' },
+          { i: <Repeat2 size={18} />, l: 'Repost' },
+          { i: <Send size={18} />, l: 'Send' }
+        ].map(act => (
+          <button key={act.l} className="flex flex-col items-center justify-center p-2 rounded hover:bg-[#f3f2ef] text-[#666666] gap-1 flex-1 transition-colors">
+            {act.i}
+            <span className="text-[12px] font-semibold">{act.l}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const XCard = ({ profile, caption, mediaUrl, format }: { profile: Profile, caption: string, mediaUrl: string, format: Format }) => {
+  const ratioStr = format === 'square' ? '1/1' : format === 'portrait' ? '4/5' : '9/16';
+  const maxH = format === 'square' ? '300px' : format === 'portrait' ? '340px' : '420px';
+
+  return (
+    <div className="w-full max-w-[380px] bg-black border border-[#2f3336] rounded-xl text-[#e7e9ea]" style={{ fontFamily: sysFont }}>
+      <div className="p-3">
+        <div className="flex gap-2">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 shrink-0 flex items-center justify-center overflow-hidden">
+            {profile.avatar ? <img src={profile.avatar} className="w-full h-full object-cover" alt="avatar" /> : <span className="text-white font-bold">{profile.name.charAt(0) || 'U'}</span>}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex justify-between items-start">
+              <div className="flex items-center gap-1 text-[15px] truncate">
+                <span className="font-bold text-white">{profile.name || 'User Name'}</span>
+                <span className="text-[#1d9bf0] text-sm leading-none">✓</span>
+                <span className="text-[#71767b] text-[13px]">{profile.handle || '@handle'} · 2h</span>
+              </div>
+              <MoreHorizontal size={16} className="text-[#71767b] ml-2" />
+            </div>
+            <div className="text-[15px] leading-[1.55] mt-0.5 whitespace-pre-wrap">{caption}</div>
+          </div>
+        </div>
+      </div>
+      
+      <div className="mx-[14px] mb-3 rounded-xl border border-[#2f3336] bg-[#16181c] flex items-center justify-center overflow-hidden relative" style={{ aspectRatio: ratioStr, maxHeight: maxH }}>
+        {mediaUrl ? (
+          <img src={mediaUrl} className="absolute inset-0 w-full h-full object-cover" alt="Media" />
+        ) : (
+          <div className="flex flex-col items-center text-[#71767b]"><Photo size={32}/><span className="text-xs mt-2">No image</span></div>
+        )}
+      </div>
+
+      <div className="px-3 pb-3 flex justify-between items-center text-[#71767b]">
+        <div className="flex items-center gap-1.5 hover:text-[#1d9bf0] hover:bg-[rgba(29,161,242,0.1)] rounded-full px-2 py-1 cursor-pointer transition-colors"><MessageCircle size={16} /><span className="text-[13px]">247</span></div>
+        <div className="flex items-center gap-1.5 hover:text-[#00ba7c] hover:bg-[#00ba7c]/10 rounded-full px-2 py-1 cursor-pointer transition-colors"><Repeat2 size={16} /><span className="text-[13px]">1.2K</span></div>
+        <div className="flex items-center gap-1.5 hover:text-[#f91880] hover:bg-[#f91880]/10 rounded-full px-2 py-1 cursor-pointer transition-colors"><Heart size={16} /><span className="text-[13px]">8.4K</span></div>
+        <div className="flex items-center gap-1.5 hover:text-[#1d9bf0] hover:bg-[rgba(29,161,242,0.1)] rounded-full px-2 py-1 cursor-pointer transition-colors"><BarChart size={16} /><span className="text-[13px]">94.2K</span></div>
+        <div className="hover:text-[#1d9bf0] hover:bg-[rgba(29,161,242,0.1)] rounded-full p-1 cursor-pointer transition-colors"><Bookmark size={16} /></div>
+      </div>
+    </div>
+  );
+};
+
+const FacebookCard = ({ profile, caption, mediaUrl, format }: { profile: Profile, caption: string, mediaUrl: string, format: Format }) => {
+  const ratioStr = format === 'square' ? '1/1' : format === 'portrait' ? '4/5' : '9/16';
+  const maxH = format === 'square' ? '300px' : format === 'portrait' ? '340px' : '420px';
+
+  return (
+    <div className="w-full max-w-[380px] bg-white border border-[#ddd] rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.08)] overflow-hidden" style={{ fontFamily: sysFont }}>
+      <div className="px-4 pt-3 flex items-start gap-2 mb-1.5">
+        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1877F2] to-[#42b0ff] shrink-0 flex items-center justify-center overflow-hidden">
+           {profile.avatar ? <img src={profile.avatar} className="w-full h-full object-cover" alt="avatar" /> : <span className="text-white font-bold">{profile.name.charAt(0) || 'U'}</span>}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex justify-between items-start">
+             <span className="font-bold text-[#050505] text-[14px]">{profile.name || 'User Name'}</span>
+             <MoreHorizontal size={18} className="text-[#65676b]" />
+          </div>
+          <div className="text-[12px] text-[#65676b]">2h • 🌐</div>
+        </div>
+      </div>
+
+      <div className="px-4 pb-2.5 text-[14px] text-[#050505] leading-[1.6] whitespace-pre-wrap">{caption}</div>
+
+      <div className="w-full bg-[#f0f2f5] flex items-center justify-center relative" style={{ aspectRatio: ratioStr, maxHeight: maxH }}>
+         {mediaUrl ? (
+            <img src={mediaUrl} className="absolute inset-0 w-full h-full object-cover" alt="Media" />
+          ) : (
+            <div className="flex flex-col items-center text-gray-400"><Photo size={32}/><span className="text-xs mt-2">No image</span></div>
+          )}
+      </div>
+
+      <div className="px-4 py-2.5 border-b border-[#e4e6eb] flex justify-between items-center text-[13px] text-[#65676b]">
+        <div>👍❤️😂 3,821</div>
+        <div>142 comments • 38 shares</div>
+      </div>
+
+      <div className="px-2 py-1 flex items-center justify-around">
+        {[
+          { i: <ThumbsUp size={18} />, l: 'Like' },
+          { i: <MessageCircle size={18} />, l: 'Comment' },
+          { i: <Share size={18} />, l: 'Share' }
+        ].map(act => (
+          <button key={act.l} className="flex items-center justify-center p-1.5 rounded hover:bg-[#f0f2f5] text-[#65676b] gap-2 flex-1 font-semibold text-[14px] transition-colors">
+            {act.i}
+            <span>{act.l}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 
 export function PostEditor() {
   const { data: session } = useSession();
-  const router = useRouter();
-  const [text, setText] = useState("");
-  const [activeTab, setActiveTab] = useState<Platform>("all");
-  const [format, setFormat] = useState("Square");
-  const [saving, setSaving] = useState(false);
-  const [mediaPreview, setMediaPreview] = useState<string | null>(null);
-  const [mediaFile, setMediaFile] = useState<File | null>(null);
-  
-  const [enhancing, setEnhancing] = useState(false);
-  const [aiOptions, setAiOptions] = useState<string[]>([]);
+  const user = session?.user;
+  const searchParams = useSearchParams();
+  const draftId = searchParams.get("draft");
 
-  // Inputs for testing preview mapping
-  const [previewName, setPreviewName] = useState(session?.user?.name || "deepak maheta");
-  const [previewHandle, setPreviewHandle] = useState("@" + (session?.user?.name?.toLowerCase().replace(/\s+/g, "_") || "deepak_maheta"));
+  const [state, setState] = useState({
+    profile: { name: '', handle: '', bio: '', avatar: '' },
+    caption: '',
+    format: 'square' as Format,
+    mediaUrl: '',
+    mediaFile: null as File | null,
+    platforms: ['instagram', 'linkedin', 'x', 'facebook'] as PlatformId[],
+    aiTone: 'Professional'
+  });
 
-  const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  useEffect(() => {
+    if (!user?.id) return;
+    
+    // Fetch profile
+    fetch(`/api/profile?userId=${user.id}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data?.data) {
+          setState(s => ({
+            ...s,
+            profile: {
+              ...s.profile,
+              name: data.data.display_name || user.name || '',
+              handle: data.data.handle || '',
+              avatar: data.data.avatar_url || user.image || ''
+            }
+          }));
+        } else {
+          setState(s => ({
+            ...s,
+            profile: { ...s.profile, name: user.name || '', avatar: user.image || '' }
+          }));
+        }
+      })
+      .catch(console.error);
+
+    // Fetch draft if exists
+    if (draftId) {
+      fetch(`/api/draft?userId=${user.id}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data?.data) {
+            const draft = data.data.find((d: any) => d.id === draftId);
+            if (draft) {
+              setState(s => ({
+                ...s,
+                caption: draft.text || '',
+                format: draft.format_key.replace('post_', '') as Format,
+                mediaUrl: draft.thumbnailUrl || ''
+              }));
+            }
+          }
+        })
+        .catch(console.error);
+    }
+  }, [user, draftId]);
+
+  const [sectionsOpen, setSectionsOpen] = useState({
+    profile: true,
+    content: true,
+    format: true,
+    media: true,
+    platforms: true
+  });
+
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [isEnhancing, setIsEnhancing] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const togglePlatform = (id: PlatformId) => {
+    setState(s => ({
+      ...s,
+      platforms: s.platforms.includes(id) 
+        ? s.platforms.filter(p => p !== id) 
+        : [...s.platforms, id]
+    }));
+  };
+
+  const toggleSection = (key: keyof typeof sectionsOpen) => {
+    setSectionsOpen(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleMediaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setMediaFile(file);
-      setMediaPreview(URL.createObjectURL(file));
+      const url = URL.createObjectURL(file);
+      setState(s => ({ ...s, mediaUrl: url, mediaFile: file }));
     }
   };
 
   const handleEnhance = async () => {
-    if (!text.trim()) return;
-    setEnhancing(true);
-    setAiOptions([]);
+    setIsEnhancing(true);
     try {
-      const res = await fetch("/api/enhance", {
+      const response = await fetch("/api/enhance", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text })
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          text: state.caption,
+          tone: state.aiTone
+        })
       });
-      const data = await res.json();
-      
-      if (data.error) {
-        alert("Gemini API Error: " + data.error);
-      } else if (data.options) {
-        setAiOptions(data.options);
-      }
-    } catch (e: any) {
-      console.error(e);
-      alert("Failed to connect to the enhancement API.");
-    } finally {
-      setEnhancing(false);
-    }
-  };
 
-  const handleSave = async () => {
-    if (!session?.user?.id) return;
-    setSaving(true);
-    try {
-      const formatKey = format === "Square" ? "post_square" : format === "Portrait" ? "post_portrait" : format === "Story" ? "story" : "post_square";
-      
-      const { data: draft, error: draftError } = await supabase.from("drafts").insert({
-        user_id: session.user.id,
-        title: text ? text.slice(0, 30) + (text.length > 30 ? "..." : "") : "Untitled draft",
-        text: text,
-        format_key: formatKey,
-      }).select().single();
-
-      if (draftError) throw draftError;
-
-      if (mediaFile && draft) {
-        const fileExt = mediaFile.name.split('.').pop();
-        const fileName = `${draft.id}_${Date.now()}.${fileExt}`;
-        const filePath = `${session.user.id}/${fileName}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from("draft-media")
-          .upload(filePath, mediaFile);
-
-        if (uploadError) throw uploadError;
-
-        await supabase.from("draft_media").insert({
-          draft_id: draft.id,
-          storage_path: filePath,
-          file_type: mediaFile.type.startsWith("video/") ? "video" : "image",
-          sort_order: 0,
-          uploaded: true
-        });
+      if (!response.ok) {
+        throw new Error(`API error ${response.status}`);
       }
 
-      router.push("/dashboard");
+      const data = await response.json();
+      if (data?.text) {
+        setState(s => ({ ...s, caption: data.text }));
+      } else if (data?.options && data.options.length > 0) {
+        setState(s => ({ ...s, caption: data.options[0] }));
+      }
     } catch (e) {
-      console.error("Error saving draft:", e);
-      alert("Failed to save draft. Check console for details.");
+      console.error("AI Enhance failed:", e);
+      setState(s => ({ ...s, caption: `[${s.aiTone} tone] ✨\n${s.caption}` }));
     } finally {
-      setSaving(false);
+      setIsEnhancing(false);
+      setIsAiModalOpen(false);
     }
   };
 
-  const renderPlatformCard = (key: string) => {
-    const pText = text || "Write your post here...";
-    const pName = previewName;
-    const pHandle = previewHandle;
-    const pImage = session?.user?.image || "";
-    const isReels = format === "Reels";
-
-    let content = null;
-
-    if (key === "instagram") {
-      if (isReels) {
-        content = (
-          <div className="relative w-full aspect-[9/16] bg-gradient-to-b from-[#2b1834] to-[#120716] overflow-hidden text-white font-sans rounded-b-xl sm:rounded-b-none">
-            {mediaPreview && (
-              <img src={mediaPreview} className="absolute inset-0 w-full h-full object-cover opacity-60" alt="Media" />
-            )}
-            <div className="absolute top-4 left-4 font-bold text-[18px] z-10 drop-shadow-md">Reels</div>
-            <div className="absolute top-4 right-4 z-10 drop-shadow-md"><ImageIcon size={24} className="text-white"/></div>
-            
-            <div className="absolute bottom-20 right-4 flex flex-col items-center gap-5 z-10 drop-shadow-md">
-              <div className="flex flex-col items-center gap-1">
-                <Heart size={28} className="text-white" />
-                <span className="text-[13px] font-medium">12.4K</span>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <MessageCircle size={28} className="text-white" />
-                <span className="text-[13px] font-medium">320</span>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <Send size={28} className="text-white" />
-                <span className="text-[13px] font-medium">Share</span>
-              </div>
-              <MoreHorizontal size={24} className="text-white mt-2" />
-            </div>
-
-            <div className="absolute bottom-4 left-4 right-16 z-10 drop-shadow-md">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="h-9 w-9 rounded-full bg-slate-200 overflow-hidden">
-                  {pImage ? <img src={pImage} alt="User" /> : <UserIcon className="w-full h-full text-slate-800 p-1.5" />}
-                </div>
-                <span className="text-[14px] font-bold text-white">{pHandle.replace("@", "")}</span>
-                <button className="border border-white/60 rounded-md px-3 py-1 text-[12px] font-bold hover:bg-white/10 backdrop-blur-sm">Follow</button>
-              </div>
-              <p className="text-[14px] line-clamp-2 text-white mb-2">{pText}</p>
-              <div className="flex items-center gap-2 text-[12px] font-medium">
-                <span className="text-[14px]">♫</span>
-                <span>Original audio · {pName}</span>
-              </div>
-            </div>
-          </div>
-        );
-      } else {
-        content = (
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-slate-200 overflow-hidden">
-                  {pImage ? <img src={pImage} alt="User" /> : <UserIcon className="w-full h-full text-slate-400 p-1.5" />}
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[14px] font-bold text-slate-900">{pHandle.replace("@", "")}</span>
-                  <span className="text-[12px] text-slate-500">Original audio</span>
-                </div>
-              </div>
-              <MoreHorizontal className="text-slate-900 h-5 w-5" />
-            </div>
-
-            {mediaPreview ? (
-              <div className="w-full bg-slate-100 aspect-square rounded-sm overflow-hidden mb-4">
-                <img src={mediaPreview} className="w-full h-full object-cover" alt="Media" />
-              </div>
-            ) : (
-               <div className="w-full aspect-square bg-slate-50 rounded-sm mb-4"></div>
-            )}
-
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-4 text-slate-900">
-                <Heart size={24} />
-                <MessageCircle size={24} />
-                <Send size={24} />
-              </div>
-              <Save size={24} />
-            </div>
-            
-            <p className="text-[14px] font-bold text-slate-900 mb-1">1,284 likes</p>
-            <p className="text-[14px] text-slate-900 leading-tight">
-              <span className="font-bold mr-1">{pHandle.replace("@", "")}</span>
-              {pText}
-            </p>
-            <p className="text-[13px] text-slate-500 mt-1">View all 32 comments</p>
-            <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-wide">2 HOURS AGO</p>
-          </div>
-        );
-      }
-    } else if (key === "linkedin") {
-      content = (
-        <div className="p-5">
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-full bg-slate-200 overflow-hidden shrink-0">
-                 {pImage ? <img src={pImage} alt="User" /> : <UserIcon className="w-full h-full text-slate-400 p-2" />}
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[15px] font-bold text-slate-900">{pName}</span>
-                <span className="text-[13px] text-slate-500">{pHandle.replace("@", "")}</span>
-                <span className="text-[12px] text-slate-500 flex items-center gap-1">2h • 🌐</span>
-              </div>
-            </div>
-            <MoreHorizontal className="text-slate-500 h-5 w-5" />
-          </div>
-          <div className="text-[14px] text-slate-900 mb-4 whitespace-pre-wrap">{pText}</div>
-          {mediaPreview && (
-            <div className={`w-full bg-slate-100 rounded-sm overflow-hidden mb-4 flex justify-center ${isReels ? "aspect-[9/16] bg-black" : ""}`}>
-              <img src={mediaPreview} className={`w-full object-cover ${isReels ? "h-full" : "h-auto"}`} alt="Media" />
-            </div>
-          )}
-          <div className="flex items-center justify-between text-[12px] text-slate-500 border-b border-slate-100 pb-3 mb-2">
-             <div className="flex items-center gap-1">
-               <span className="bg-blue-600 text-white rounded-full p-1"><Heart size={10} fill="white" /></span>
-               <span>128</span>
-             </div>
-             <span>24 comments • 6 reposts</span>
-          </div>
-          <div className="flex items-center justify-between text-slate-500 text-[14px] font-semibold px-2 py-2">
-            <button className="flex items-center gap-2"><Heart size={18}/> Like</button>
-            <button className="flex items-center gap-2"><MessageCircle size={18}/> Comment</button>
-            <button className="flex items-center gap-2"><Repeat2 size={18}/> Repost</button>
-            <button className="flex items-center gap-2"><Send size={18}/> Send</button>
-          </div>
-        </div>
-      );
-    } else if (key === "x") {
-      content = (
-        <div className="p-5">
-          <div className="flex items-start justify-between mb-2">
-            <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-full bg-slate-200 overflow-hidden shrink-0">
-                {pImage ? <img src={pImage} alt="User" /> : <UserIcon className="w-full h-full text-slate-400 p-2" />}
-              </div>
-              <div className="flex flex-col leading-tight">
-                <div className="flex items-center gap-1">
-                  <span className="text-[15px] font-bold text-slate-900">{pName}</span>
-                  <span className="text-[#1d9bf0]">✓</span>
-                  <span className="text-[14px] text-slate-500">{pHandle} · 1h</span>
-                </div>
-              </div>
-            </div>
-            <MoreHorizontal className="text-slate-400 h-5 w-5" />
-          </div>
-          <div className="text-[15px] text-slate-900 mb-3 whitespace-pre-wrap">{pText}</div>
-          {mediaPreview && (
-            <div className={`w-full rounded-2xl overflow-hidden border border-slate-200 mb-4 ${isReels ? "aspect-[9/16] bg-black flex justify-center" : ""}`}>
-              <img src={mediaPreview} className={`w-full object-cover ${isReels ? "h-full" : "h-auto"}`} alt="Media" />
-            </div>
-          )}
-          <div className="flex items-center justify-between text-slate-500 text-[14px] pr-12">
-            <div className="flex items-center gap-2"><MessageCircle size={18}/> 24</div>
-            <div className="flex items-center gap-2"><Repeat2 size={18}/> 12</div>
-            <div className="flex items-center gap-2"><Heart size={18}/> 248</div>
-            <Share size={18}/>
-          </div>
-        </div>
-      );
-    } else if (key === "facebook") {
-      content = (
-        <div className="p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-slate-200 overflow-hidden shrink-0">
-                {pImage ? <img src={pImage} alt="User" /> : <UserIcon className="w-full h-full text-slate-400 p-2" />}
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[15px] font-bold text-slate-900">{pName}</span>
-                <span className="text-[12px] text-slate-500 flex items-center gap-1">Just now • 🌐</span>
-              </div>
-            </div>
-            <MoreHorizontal className="text-slate-500 h-5 w-5" />
-          </div>
-          <div className="text-[15px] text-slate-900 mb-3 whitespace-pre-wrap">{pText}</div>
-          {mediaPreview && (
-             <div className={`w-full bg-slate-100 mb-4 ${isReels ? "aspect-[9/16] bg-black flex justify-center" : ""}`}>
-               <img src={mediaPreview} className={`w-full object-cover ${isReels ? "h-full" : "h-auto"}`} alt="Media" />
-             </div>
-          )}
-          <div className="flex items-center justify-between text-[13px] text-slate-500 border-b border-slate-100 pb-3 mb-2">
-             <div className="flex items-center gap-1.5">
-               <span className="bg-blue-600 text-white rounded-full p-1"><Heart size={10} fill="white" /></span>
-               <span>328</span>
-             </div>
-             <span>42 comments • 8 shares</span>
-          </div>
-          <div className="flex items-center justify-around text-slate-500 text-[14px] font-semibold py-1">
-            <button className="flex items-center gap-2"><Heart size={18}/> Like</button>
-            <button className="flex items-center gap-2"><MessageCircle size={18}/> Comment</button>
-            <button className="flex items-center gap-2"><Share size={18}/> Share</button>
-          </div>
-        </div>
-      );
-    } else if (key === "youtube") {
-      if (isReels) {
-        content = (
-          <div className="relative w-full aspect-[9/16] bg-gradient-to-b from-[#3b0909] to-[#0f0202] overflow-hidden text-white font-sans rounded-b-xl sm:rounded-b-none">
-            {mediaPreview && (
-              <img src={mediaPreview} className="absolute inset-0 w-full h-full object-cover opacity-60" alt="Media" />
-            )}
-            <div className="absolute top-4 left-4 font-bold text-[18px] z-10 drop-shadow-md">Shorts</div>
-            <div className="absolute top-4 right-4 z-10 drop-shadow-md"><Layout size={24} className="text-white"/></div>
-            
-            <div className="absolute bottom-20 right-4 flex flex-col items-center gap-5 z-10 drop-shadow-md">
-              <div className="flex flex-col items-center gap-1">
-                <Heart size={28} className="text-white" />
-                <span className="text-[13px] font-medium">8.2K</span>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <Heart size={28} className="text-white rotate-180" />
-                <span className="text-[13px] font-medium">Dislike</span>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <MessageCircle size={28} className="text-white" />
-                <span className="text-[13px] font-medium">412</span>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <Share size={28} className="text-white" />
-                <span className="text-[13px] font-medium">Share</span>
-              </div>
-              <MoreHorizontal size={24} className="text-white mt-2" />
-            </div>
-
-            <div className="absolute bottom-4 left-4 right-16 z-10 drop-shadow-md">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="h-9 w-9 rounded-full bg-slate-200 overflow-hidden">
-                  {pImage ? <img src={pImage} alt="User" /> : <UserIcon className="w-full h-full text-slate-800 p-1.5" />}
-                </div>
-                <span className="text-[14px] font-bold text-white">{pHandle}</span>
-                <button className="bg-red-600 rounded-full px-4 py-1.5 text-[13px] font-bold ml-1">Subscribe</button>
-              </div>
-              <p className="text-[14px] line-clamp-2 text-white mb-2">{pText}</p>
-            </div>
-          </div>
-        );
-      } else {
-        content = (
-          <div>
-            {mediaPreview ? (
-               <div className="w-full aspect-video bg-black flex items-center justify-center relative">
-                 <img src={mediaPreview} className="w-full h-full object-cover opacity-80" alt="Video cover" />
-                 <div className="absolute inset-0 flex items-center justify-center">
-                   <div className="w-16 h-16 border-2 border-white rounded-full flex items-center justify-center pl-1 backdrop-blur-sm bg-black/20">
-                     <Layout size={32} className="text-white" />
-                   </div>
-                 </div>
-               </div>
-            ) : (
-              <div className="w-full aspect-video bg-black flex items-center justify-center">
-                 <Layout size={64} className="text-white/20" />
-              </div>
-            )}
-          </div>
-        );
-      }
+  const handleSaveDraft = async () => {
+    if (!user?.id) return;
+    if (!state.caption.trim()) {
+      toast.error("Please add a caption before saving.");
+      return;
     }
+    try {
+      const title = state.caption.length > 30 ? state.caption.substring(0, 30) + "..." : state.caption;
+      
+      let fetchOptions: RequestInit;
+      
+      if (state.mediaFile) {
+        const formData = new FormData();
+        formData.append("userId", user.id);
+        formData.append("title", title);
+        formData.append("text", state.caption);
+        formData.append("format_key", `post_${state.format}`);
+        formData.append("file", state.mediaFile);
+        
+        fetchOptions = { method: "POST", body: formData };
+      } else {
+        fetchOptions = {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user.id,
+            title,
+            text: state.caption,
+            format_key: `post_${state.format}`
+          })
+        };
+      }
 
-    return (
-      <div key={key} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-fit w-full">
-        {/* Card Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
-          <div className="flex items-center gap-2 text-[14px] font-bold text-slate-800">
-            {PLATFORM_CONFIG[key as keyof typeof PLATFORM_CONFIG].icon}
-            {PLATFORM_CONFIG[key as keyof typeof PLATFORM_CONFIG].name}{isReels && (key === "instagram" ? " · Reel" : key === "youtube" ? " · Short" : "")}
-          </div>
-          <span className="text-[11px] text-slate-400 font-medium">
-            {isReels ? (key === "x" ? "720x1280" : "1080x1920") : key === "youtube" ? "1280x720" : key === "x" ? "1080x1080" : key === "facebook" ? "1080x1080" : key === "linkedin" ? "1200x1200" : "1080x1080"}
-          </span>
-        </div>
-        {content}
-      </div>
-    );
+      const res = await fetch("/api/draft", fetchOptions);
+      if (!res.ok) throw new Error("Failed to save draft");
+      toast.success("Draft saved successfully!");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to save draft.");
+    }
   };
 
-  const platformsToRender = activeTab === "all" ? Object.keys(PLATFORM_CONFIG) : [activeTab];
+  const maxChars = 2200;
+  const charsUsed = state.caption.length;
+  const fillPct = Math.min(charsUsed / maxChars, 1);
+  const ringColor = fillPct > 0.9 ? 'stroke-red-500' : fillPct > 0.7 ? 'stroke-amber-500' : 'stroke-green-500';
+  const radius = 7;
+  const circumference = 43.98;
+  const strokeDashoffset = circumference - fillPct * circumference;
+
+  const SectionHeader = ({ title, sectionKey }: { title: string, sectionKey: keyof typeof sectionsOpen }) => (
+    <div 
+      className="flex items-center justify-between py-3 cursor-pointer select-none"
+      onClick={() => toggleSection(sectionKey)}
+    >
+      <span className="font-semibold text-[13px] text-gray-800">{title}</span>
+      <ChevronDown 
+        size={16} 
+        className={`text-gray-400 transition-transform duration-200 ${sectionsOpen[sectionKey] ? 'rotate-180' : ''}`} 
+      />
+    </div>
+  );
 
   return (
-    <div className="flex min-h-screen lg:h-screen w-full flex-col bg-white lg:overflow-hidden text-slate-900 font-sans">
+    <div className="flex flex-col w-full h-[100vh] overflow-hidden bg-[#fcfcfd] text-[14px] font-sans">
       
-      {/* Top Header */}
-      <header className="flex h-[60px] shrink-0 items-center justify-between border-b border-slate-200 px-4 sm:px-6 bg-white z-20 shadow-sm sticky top-0 lg:relative">
-        <div className="flex items-center gap-3 sm:gap-4">
-          <Link href="/dashboard" className="text-slate-600 hover:text-slate-900">
-            <ArrowLeft size={20} />
-          </Link>
-          <span className="logo-script text-[22px] sm:text-[26px]">PinPost</span>
-        </div>
-        <div className="flex items-center gap-3 sm:gap-4">
-          <button 
-            onClick={handleSave}
-            disabled={saving}
-            className="rounded-lg border border-slate-200 px-3 sm:px-4 py-1.5 sm:py-2 text-[12px] sm:text-[13px] font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
-          >
-            {saving ? "Saving..." : "Save draft"}
-          </button>
-          <div className="flex items-center gap-2 bg-slate-50 pl-1.5 sm:pl-2 pr-3 sm:pr-4 py-1.5 rounded-full border border-slate-100">
-            <div className="h-6 w-6 rounded-full bg-[#0096d6]/10 text-[#0096d6] flex items-center justify-center text-[12px] font-bold">
-              {session?.user?.email?.[0]?.toUpperCase() || "A"}
-            </div>
-            <span className="text-[12px] sm:text-[13px] font-semibold text-slate-600 hidden sm:block">{session?.user?.email || "amitmaheta2007@gmail.com"}</span>
+      <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/80 backdrop-blur-md shrink-0">
+        <nav className="flex w-full items-center justify-between px-6 py-3">
+          <div className="flex items-center gap-4">
+            <Link href="/dashboard" className="w-10 h-10 flex items-center justify-center rounded-2xl bg-white border border-slate-100 text-slate-600 hover:bg-slate-50 transition-all shadow-sm group">
+              <ArrowLeft size={20} className="group-hover:-translate-x-0.5 transition-transform" />
+            </Link>
+            <Link href="/" className="logo-script text-[24px] text-slate-900">
+              PinPost
+            </Link>
           </div>
-        </div>
+          <div className="flex items-center gap-4">
+            <button onClick={handleSaveDraft} className="text-[13px] font-bold text-slate-500 hover:text-slate-900 transition-colors">Save Draft</button>
+            <div className="flex items-center gap-2.5 bg-slate-50 pl-2 pr-5 py-1.5 rounded-full border border-slate-100 shadow-sm">
+              <div className="h-7 w-7 rounded-full bg-slate-900 text-white flex items-center justify-center text-[12px] font-bold uppercase shadow-sm">
+                {user?.email?.[0] || "A"}
+              </div>
+              <span className="text-[13px] font-bold text-slate-600 truncate max-w-[150px]">{user?.email || "amitmaheta2007@gmail.com"}</span>
+            </div>
+          </div>
+        </nav>
       </header>
 
-      {/* Main Content */}
-      <div className="flex flex-1 flex-col lg:flex-row lg:overflow-hidden">
-        
-        {/* Left Sidebar */}
-        <div className="w-full lg:w-[400px] xl:w-[500px] shrink-0 border-b lg:border-b-0 lg:border-r border-slate-200 bg-white flex flex-col h-auto lg:h-full lg:overflow-y-auto custom-scrollbar p-4 sm:p-6">
-          <h2 className="text-[16px] font-bold mb-4 text-slate-800">Compose</h2>
-          
-          <div className="flex items-center gap-2 sm:gap-3 mb-4">
-            <div className="h-10 w-10 rounded-full bg-slate-200 overflow-hidden shrink-0">
-              {session?.user?.image ? <img src={session.user.image} alt="User" /> : <UserIcon className="w-full h-full text-slate-400 p-1.5" />}
-            </div>
-            <input 
-              value={previewName}
-              onChange={(e) => setPreviewName(e.target.value)}
-              className="flex-1 min-w-0 rounded-lg border border-slate-200 px-2 sm:px-3 py-2 text-[12px] sm:text-[13px] font-medium focus:outline-none focus:border-[#0096d6]"
-            />
-            <input 
-              value={previewHandle}
-              onChange={(e) => setPreviewHandle(e.target.value)}
-              className="flex-1 min-w-0 rounded-lg border border-slate-200 px-2 sm:px-3 py-2 text-[12px] sm:text-[13px] font-medium focus:outline-none focus:border-[#0096d6]"
-            />
-          </div>
-
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Write your post here..."
-            className="w-full h-[120px] sm:h-[140px] resize-none rounded-xl border border-slate-200 p-4 text-[14px] text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#0096d6] focus:ring-1 focus:ring-[#0096d6] transition-all mb-3 shadow-sm"
-          />
-
-          <div className="flex justify-end mb-5">
-            <button 
-              onClick={handleEnhance}
-              disabled={enhancing || !text.trim()}
-              className="flex items-center gap-1.5 text-[12px] font-bold text-[#0096d6] border border-[#0096d6]/30 bg-[#0096d6]/5 rounded-lg px-3 py-2 hover:bg-[#0096d6]/10 transition-colors disabled:opacity-50"
-            >
-              <Sparkles size={14} /> {enhancing ? "Generating..." : "Enhance with AI"}
-            </button>
-          </div>
-
-
-
-          <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-5">
-            {Object.entries(PLATFORM_CONFIG).map(([key, config]) => (
-              <div key={key} className="flex items-center justify-between border border-slate-200 rounded-lg px-2 sm:px-3 py-2 sm:py-2.5">
-                <span className="text-[12px] sm:text-[13px] font-medium text-slate-600 truncate mr-1">{config.name}</span>
-                <span className="text-[11px] sm:text-[12px] font-semibold text-slate-400 shrink-0">{text.length}/{config.maxChars}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex gap-2 mb-5">
-            <button 
-              onClick={() => setFormat("Square")}
-              className={`flex-1 rounded-xl border py-2.5 text-[13px] font-bold transition-all ${
-                format === "Square" 
-                  ? "border-[#0096d6] bg-[#0096d6]/10 text-[#0096d6]" 
-                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-              }`}
-            >
-              Square (1:1)
-            </button>
-            <button 
-              onClick={() => setFormat("Reels")}
-              className={`flex-1 rounded-xl border py-2.5 text-[13px] font-bold transition-all ${
-                format === "Reels" 
-                  ? "border-[#0096d6] bg-[#0096d6]/10 text-[#0096d6]" 
-                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-              }`}
-            >
-              Reels (9:16)
-            </button>
-          </div>
-
-          <label className="flex items-center justify-center gap-2 w-full border border-slate-200 border-dashed rounded-xl py-4 sm:py-5 cursor-pointer hover:bg-slate-50 transition-colors text-slate-600 text-[13px] sm:text-[14px] font-bold">
-            <input type="file" accept="image/*,video/*" className="hidden" onChange={handleMediaUpload} />
-            <ImageIcon size={18} /> Add images or video
-          </label>
+      <div className="flex flex-1 overflow-hidden w-full">
+      
+      {/* LEFT PANEL */}
+      <div className="w-[272px] flex-shrink-0 bg-white border-r border-gray-200 flex flex-col h-full z-10">
+        <div className="h-14 border-b border-gray-200 flex items-center px-4 shrink-0 bg-white sticky top-0">
+          <span className="font-bold text-[15px] text-gray-900">Post Editor</span>
         </div>
 
-        {/* Right Preview Area */}
-        <div className="flex-1 flex flex-col bg-[#f0f8ff] h-auto lg:h-full lg:overflow-hidden">
+        <div className="flex-1 overflow-y-auto px-4 py-2 custom-scrollbar">
           
-          {/* Tabs */}
-          <div className="flex items-center gap-4 sm:gap-6 px-4 sm:px-10 pt-4 sm:pt-6 pb-2 bg-[#f0f8ff] overflow-x-auto whitespace-nowrap scrollbar-hide">
-            {(["all", ...Object.keys(PLATFORM_CONFIG)] as Platform[]).map((tab) => (
+          <SectionHeader title="Profile" sectionKey="profile" />
+          {sectionsOpen.profile && (
+            <div className="flex flex-col gap-3 pb-4">
+              <input 
+                type="text" 
+                value={state.profile.name} 
+                onChange={e => setState(s => ({ ...s, profile: { ...s.profile, name: e.target.value } }))}
+                placeholder="Full name"
+                className="w-full border border-gray-200 rounded-md px-3 py-1.5 text-[13px] focus:outline-none focus:border-blue-500 transition-colors"
+              />
+              <input 
+                type="text" 
+                value={state.profile.handle} 
+                onChange={e => setState(s => ({ ...s, profile: { ...s.profile, handle: e.target.value } }))}
+                placeholder="@handle"
+                className="w-full border border-gray-200 rounded-md px-3 py-1.5 text-[13px] focus:outline-none focus:border-blue-500 transition-colors"
+              />
+              <input 
+                type="text" 
+                value={state.profile.bio} 
+                onChange={e => setState(s => ({ ...s, profile: { ...s.profile, bio: e.target.value } }))}
+                placeholder="Headline / bio"
+                className="w-full border border-gray-200 rounded-md px-3 py-1.5 text-[13px] focus:outline-none focus:border-blue-500 transition-colors"
+              />
+            </div>
+          )}
+          <div className="border-b border-gray-100"></div>
+
+          <SectionHeader title="Content" sectionKey="content" />
+          {sectionsOpen.content && (
+            <div className="pb-4 flex flex-col gap-2">
+              <div className="relative">
+                <textarea
+                  value={state.caption}
+                  onChange={e => setState(s => ({ ...s, caption: e.target.value }))}
+                  placeholder="What do you want to share?"
+                  rows={5}
+                  maxLength={maxChars}
+                  className="w-full border border-gray-200 rounded-md p-3 text-[13px] resize-none focus:outline-none focus:border-blue-500 transition-colors"
+                />
+                <div className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-white px-1">
+                  <span className="text-[10px] text-gray-400 font-medium">{maxChars - charsUsed}</span>
+                  <svg width="16" height="16" viewBox="0 0 16 16" className="transform -rotate-90">
+                    <circle cx="8" cy="8" r={radius} fill="none" stroke="#f3f4f6" strokeWidth="2" />
+                    <circle 
+                      cx="8" cy="8" r={radius} fill="none" 
+                      strokeWidth="2" 
+                      className={`${ringColor} transition-all duration-300`}
+                      strokeDasharray={circumference}
+                      strokeDashoffset={strokeDashoffset}
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </div>
+              </div>
               <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`pb-3 shrink-0 text-[13px] sm:text-[14px] font-bold capitalize transition-all border-b-2 ${
-                  activeTab === tab 
-                    ? "text-[#0096d6] border-[#0096d6]" 
-                    : "text-slate-500 border-transparent hover:text-slate-800"
+                disabled={!state.caption.trim()}
+                onClick={() => setIsAiModalOpen(true)}
+                className={`w-full py-2 rounded-md flex items-center justify-center gap-2 text-[13px] font-medium transition-colors ${
+                  state.caption.trim() ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-gray-50 text-gray-400 cursor-not-allowed'
                 }`}
               >
-                {tab === "all" ? (
-                  <span className={`${activeTab === "all" ? "bg-[#0096d6] text-white" : "bg-slate-200 text-slate-600"} px-4 py-1.5 rounded-full text-[12px] sm:text-[13px] font-bold transition-colors`}>All</span>
-                ) : (
-                  PLATFORM_CONFIG[tab as keyof typeof PLATFORM_CONFIG].name
-                )}
+                <Sparkles size={14} /> Enhance with AI
               </button>
-            ))}
-          </div>
-
-          {/* Cards Grid */}
-          <div className="flex-1 lg:overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-10">
-            <div className={`grid gap-6 sm:gap-8 ${activeTab === "all" ? "grid-cols-1 xl:grid-cols-2" : "grid-cols-1 max-w-2xl mx-auto"}`}>
-              {platformsToRender.map(renderPlatformCard)}
             </div>
-          </div>
+          )}
+          <div className="border-b border-gray-100"></div>
 
+          <SectionHeader title="Format" sectionKey="format" />
+          {sectionsOpen.format && (
+            <div className="pb-4 grid grid-cols-3 gap-2">
+              {[
+                { id: 'square', label: 'Square', tw: 'w-4 h-4' },
+                { id: 'portrait', label: 'Portrait', tw: 'w-3.5 h-[18px]' },
+                { id: 'reels', label: 'Reels', tw: 'w-3 h-5' },
+              ].map(fmt => {
+                const isActive = state.format === fmt.id;
+                return (
+                  <button
+                    key={fmt.id}
+                    onClick={() => setState(s => ({ ...s, format: fmt.id as Format }))}
+                    className={`flex flex-col items-center justify-center gap-1.5 py-3 rounded-md border text-[11px] font-medium transition-colors ${
+                      isActive ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className={`border-[2px] rounded-[2px] ${fmt.tw} transition-colors ${isActive ? 'border-blue-500 bg-blue-100' : 'border-gray-400'}`}></div>
+                    <span>{fmt.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <div className="border-b border-gray-100"></div>
+
+          <SectionHeader title="Media" sectionKey="media" />
+          {sectionsOpen.media && (
+            <div className="pb-4">
+              <input type="file" ref={fileInputRef} onChange={handleMediaChange} accept="image/*,video/*" className="hidden" />
+              {!state.mediaUrl ? (
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full border-2 border-dashed border-gray-200 rounded-md py-6 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-gray-50 hover:border-gray-300 transition-all"
+                >
+                  <Upload size={20} className="text-gray-400" />
+                  <span className="text-[12px] text-gray-500 font-medium">Click to upload media</span>
+                </div>
+              ) : (
+                <div className="relative w-full h-[100px] rounded-md overflow-hidden border border-gray-200 group">
+                  <img src={state.mediaUrl} className="w-full h-full object-cover" alt="Uploaded" />
+                  <button 
+                    onClick={() => setState(s => ({ ...s, mediaUrl: '' }))}
+                    className="absolute top-1 right-1 bg-black/50 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          <div className="border-b border-gray-100"></div>
+
+          <SectionHeader title="Platforms" sectionKey="platforms" />
+          {sectionsOpen.platforms && (
+            <div className="pb-4 flex flex-col gap-3">
+              {[
+                { id: 'instagram', label: 'Instagram', color: '#E1306C' },
+                { id: 'linkedin', label: 'LinkedIn', color: '#0A66C2' },
+                { id: 'x', label: 'X', color: '#888888' },
+                { id: 'facebook', label: 'Facebook', color: '#1877F2' },
+              ].map(plat => {
+                const isActive = state.platforms.includes(plat.id as PlatformId);
+                return (
+                  <div key={plat.id} className="flex items-center justify-between cursor-pointer group" onClick={() => togglePlatform(plat.id as PlatformId)}>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: plat.color }}></div>
+                      <span className="text-[13px] font-medium text-gray-700 group-hover:text-gray-900 transition-colors">{plat.label}</span>
+                    </div>
+                    <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${isActive ? 'bg-green-500 border-green-500' : 'border-gray-300'}`}>
+                      {isActive && <Check size={10} className="text-white" strokeWidth={3} />}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+        </div>
+
+        <div className="p-4 border-t border-gray-200 bg-white sticky bottom-0 z-10 shrink-0">
+          <button className="w-full bg-[#111827] hover:bg-black text-white font-medium py-2.5 rounded-md text-[13px] transition-all shadow-sm">
+            Publish to {state.platforms.length} platform{state.platforms.length !== 1 ? 's' : ''}
+          </button>
         </div>
       </div>
 
-      {/* AI Options Modal */}
-      {aiOptions.length > 0 && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 sm:p-6">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between shrink-0">
-              <h3 className="text-[16px] font-bold text-slate-800 flex items-center gap-2">
-                <Sparkles size={18} className="text-[#0096d6]"/> Choose an AI variation
-              </h3>
-              <button onClick={() => setAiOptions([])} className="text-slate-400 hover:text-slate-600 transition-colors">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-              </button>
-            </div>
-            <div className="p-5 overflow-y-auto space-y-4 custom-scrollbar">
-              {aiOptions.map((opt, i) => (
-                <div 
-                  key={i} 
-                  onClick={() => { setText(opt); setAiOptions([]); }}
-                  className="p-5 bg-slate-50 border border-slate-200 rounded-xl text-[14px] leading-relaxed text-slate-700 cursor-pointer hover:border-[#0096d6] hover:bg-[#0096d6]/5 hover:shadow-md transition-all whitespace-pre-wrap"
-                >
-                  {opt}
+      {/* RIGHT PANEL - PREVIEWS */}
+      <div className="flex-1 flex flex-col bg-[#f9fafb] relative overflow-hidden">
+        
+        <div className="h-14 border-b border-gray-200 bg-white/80 backdrop-blur-md sticky top-0 z-20 px-6 flex items-center justify-between shrink-0">
+          <div className="flex flex-col">
+            <h2 className="font-bold text-[14px] text-gray-900">Live Preview</h2>
+            <span className="text-[11px] text-gray-500 capitalize">{state.format} · {state.format === 'square' ? '1:1' : state.format === 'portrait' ? '4:5' : '9:16'} · {state.platforms.length} platforms</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {state.platforms.map(p => (
+              <span key={p} className="px-2.5 py-1 bg-gray-100 text-gray-700 text-[11px] font-semibold rounded-full capitalize border border-gray-200">
+                {p}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+          <div className="grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
+            
+            {state.platforms.includes('instagram') && (
+              <div className="flex flex-col gap-2 w-full max-w-[380px] mx-auto">
+                <div className="flex items-center gap-1.5 px-1">
+                  <div className="w-2 h-2 rounded-full bg-[#E1306C]"></div>
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Instagram</span>
                 </div>
-              ))}
+                <InstagramCard profile={state.profile} caption={state.caption} mediaUrl={state.mediaUrl} format={state.format} />
+              </div>
+            )}
+            
+            {state.platforms.includes('linkedin') && (
+              <div className="flex flex-col gap-2 w-full max-w-[380px] mx-auto">
+                <div className="flex items-center gap-1.5 px-1">
+                  <div className="w-2 h-2 rounded-full bg-[#0A66C2]"></div>
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">LinkedIn</span>
+                </div>
+                <LinkedInCard profile={state.profile} caption={state.caption} mediaUrl={state.mediaUrl} format={state.format} />
+              </div>
+            )}
+            
+            {state.platforms.includes('x') && (
+              <div className="flex flex-col gap-2 w-full max-w-[380px] mx-auto">
+                <div className="flex items-center gap-1.5 px-1">
+                  <div className="w-2 h-2 rounded-full bg-[#888888]"></div>
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">X</span>
+                </div>
+                <XCard profile={state.profile} caption={state.caption} mediaUrl={state.mediaUrl} format={state.format} />
+              </div>
+            )}
+            
+            {state.platforms.includes('facebook') && (
+              <div className="flex flex-col gap-2 w-full max-w-[380px] mx-auto">
+                <div className="flex items-center gap-1.5 px-1">
+                  <div className="w-2 h-2 rounded-full bg-[#1877F2]"></div>
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Facebook</span>
+                </div>
+                <FacebookCard profile={state.profile} caption={state.caption} mediaUrl={state.mediaUrl} format={state.format} />
+              </div>
+            )}
+
+          </div>
+        </div>
+      </div>
+
+      {/* AI Modal */}
+      {isAiModalOpen && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-[2px] transition-all">
+          <div className="bg-white rounded-xl shadow-xl border border-gray-200 p-5 w-full max-w-[320px] flex flex-col gap-4">
+            <div>
+              <h3 className="font-medium text-[14px] text-gray-900">Enhance with AI</h3>
+              <p className="text-[12px] text-gray-500 mt-1">Select a tone to rewrite your caption.</p>
             </div>
-            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end shrink-0">
-              <button onClick={() => setAiOptions([])} className="px-5 py-2 text-[13px] font-bold text-slate-600 hover:text-slate-900 transition-colors">
+            
+            <div className="grid grid-cols-2 gap-2">
+              {['Professional', 'Casual', 'Witty', 'Inspiring', 'Urgent', 'Storytelling'].map(tone => {
+                const isActive = state.aiTone === tone;
+                return (
+                  <button
+                    key={tone}
+                    onClick={() => setState(s => ({ ...s, aiTone: tone }))}
+                    className={`py-2 px-2 text-[12px] rounded-md border text-center transition-colors ${
+                      isActive ? 'border-blue-500 bg-blue-50 text-blue-700 font-medium' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {tone}
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="flex items-center gap-2 mt-2">
+              <button 
+                onClick={() => setIsAiModalOpen(false)}
+                className="flex-1 py-2 text-[13px] font-medium border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+              >
                 Cancel
+              </button>
+              <button 
+                onClick={handleEnhance}
+                disabled={isEnhancing}
+                className="flex-1 py-2 text-[13px] font-medium bg-gray-900 text-white rounded-md hover:bg-gray-800 disabled:opacity-70 flex items-center justify-center transition-colors"
+              >
+                {isEnhancing ? 'Enhancing...' : 'Enhance caption'}
               </button>
             </div>
           </div>
         </div>
       )}
+
+      </div>
     </div>
   );
 }

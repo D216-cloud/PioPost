@@ -17,7 +17,9 @@ import {
   Zap, 
   Calendar, 
   History as HistoryIcon,
-  UserCircle
+  UserCircle,
+  CheckCircle2,
+  ArrowRight
 } from "lucide-react";
 import Image from "next/image";
 import logoPinpost from "@/assets/logo-pinpost.png";
@@ -129,9 +131,15 @@ export function Dashboard() {
 
     (async () => {
       try {
+        const profileFetch = await fetch(`/api/profile?userId=${user.id}`);
+        const profileData = profileFetch.ok ? await profileFetch.json() : { data: null };
+
+        const draftsFetch = await fetch(`/api/draft?userId=${user.id}`);
+        const draftsData = draftsFetch.ok ? await draftsFetch.json() : { data: null };
+
         const [profileRes, draftsRes] = await Promise.all([
-          supabase.from("profiles").select("*").eq("id", user.id).single(),
-          supabase.from("drafts").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }),
+          Promise.resolve(profileData),
+          Promise.resolve(draftsData),
         ]);
 
         if (!mounted) return;
@@ -154,53 +162,13 @@ export function Dashboard() {
         }
 
         if (draftsRes.data) {
-          const typedDrafts = draftsRes.data as Draft[];
+          const typedDrafts = draftsRes.data as any[];
           setDrafts(typedDrafts);
 
-          // Load first thumbnail for each draft (images first, then video still)
           const thumbs: DraftThumbnail[] = [];
           for (const d of typedDrafts) {
-            // Try image first
-            const { data: imageData } = await supabase
-              .from("draft_media")
-              .select("storage_path, file_type")
-              .eq("draft_id", d.id)
-              .eq("file_type", "image")
-              .eq("uploaded", true)
-              .order("sort_order", { ascending: true })
-              .limit(1);
-
-            if (!mounted) return;
-
-            if (imageData && imageData.length > 0) {
-              const { data: signedData } = await supabase.storage
-                .from("draft-media")
-                .createSignedUrl(imageData[0].storage_path, 3600);
-              if (signedData?.signedUrl) {
-                thumbs.push({ draftId: d.id, url: signedData.signedUrl, type: "image" });
-                continue;
-              }
-            }
-
-            // Fallback: try video and capture a still frame
-            const { data: videoData } = await supabase
-              .from("draft_media")
-              .select("storage_path, file_type")
-              .eq("draft_id", d.id)
-              .eq("file_type", "video")
-              .eq("uploaded", true)
-              .order("sort_order", { ascending: true })
-              .limit(1);
-
-            if (!mounted) return;
-
-            if (videoData && videoData.length > 0) {
-              const { data: signedData } = await supabase.storage
-                .from("draft-media")
-                .createSignedUrl(videoData[0].storage_path, 3600);
-              if (signedData?.signedUrl) {
-                thumbs.push({ draftId: d.id, url: signedData.signedUrl, type: "video" });
-              }
+            if (d.thumbnailUrl) {
+              thumbs.push({ draftId: d.id, url: d.thumbnailUrl, type: d.thumbnailType });
             }
           }
           if (mounted) setThumbnails(thumbs);
@@ -219,14 +187,17 @@ export function Dashboard() {
     if (!user?.id) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from("profiles").upsert({
-        id: user.id,
-        display_name: profile.display_name,
-        handle: profile.handle,
-        avatar_url: avatarPath,
-        updated_at: new Date().toISOString(),
+      const res = await fetch("/api/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: user.id,
+          display_name: profile.display_name,
+          handle: profile.handle,
+          avatar_url: avatarPath,
+        }),
       });
-      if (error) throw error;
+      if (!res.ok) throw new Error("Failed to save");
       toast.success("Profile saved successfully!");
     } catch (e) {
       console.error("Failed to save profile", e);
@@ -250,18 +221,34 @@ export function Dashboard() {
       const ext = file.name.split(".").pop() || "jpg";
       const path = `${user.id}/avatar.${ext}`;
 
-      const { error: uploadError } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
-      if (uploadError) throw uploadError;
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("userId", user.id);
+
+      const res = await fetch("/api/upload-avatar", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Upload failed");
+      }
 
       const storagePath = path;
       const signedUrl = await getSignedAvatarUrl(storagePath);
       setAvatarPath(storagePath);
       setProfile((p) => ({ ...p, avatar_url: signedUrl }));
 
-      await supabase.from("profiles").upsert({
-        id: user.id,
-        avatar_url: storagePath,
-        updated_at: new Date().toISOString(),
+      await fetch("/api/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: user.id,
+          display_name: profile.display_name,
+          handle: profile.handle,
+          avatar_url: storagePath,
+        }),
       });
       toast.success("Avatar uploaded!");
     } catch (e) {
@@ -272,13 +259,13 @@ export function Dashboard() {
 
   const deleteDraft = useCallback(async (id: string) => {
     try {
-      const { error } = await supabase.from("drafts").delete().eq("id", id);
-      if (error) throw error;
+      const res = await fetch(`/api/draft?id=${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete draft");
       setDrafts((prev) => prev.filter((d) => d.id !== id));
       setThumbnails((prev) => prev.filter((t) => t.draftId !== id));
       toast.success("Draft deleted");
     } catch (e) {
-      console.error("Failed to delete draft", e);
+      console.error(e);
       toast.error("Failed to delete draft");
     }
   }, []);
@@ -295,211 +282,158 @@ export function Dashboard() {
   const getThumbnail = (draftId: string) => thumbnails.find((t) => t.draftId === draftId);
 
   return (
-    <div className="min-h-screen bg-[#f8fafc]">
-      {/* Header */}
-      <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6 shadow-sm">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="logo-script text-[28px] text-slate-900">PinPost</Link>
-        </div>
-        <div className="flex items-center gap-2 bg-slate-50 pl-2 pr-4 py-1.5 rounded-full border border-slate-100">
-          <div className="h-6 w-6 rounded-full bg-[#e1f5fe] text-[#0096d6] border border-[#b3e5fc] flex items-center justify-center text-[12px] font-bold uppercase">
-            {user.email?.[0] || "A"}
+    <div className="min-h-screen bg-[#fcfcfd]">
+      <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/80 backdrop-blur-md">
+        <nav className="mx-auto flex w-full max-w-7xl items-center px-8 py-4">
+          <div className="flex-[0.5]">
+            <Link href="/" className="logo-script text-[26px] text-slate-900">
+              PinPost
+            </Link>
           </div>
-          <span className="text-[13px] font-semibold text-slate-600 truncate max-w-[150px]">{user.email || "amitmaheta2007@gmail.com"}</span>
-        </div>
+          <div className="flex flex-[0.5] items-center justify-end gap-4">
+            <div className="flex items-center gap-2.5 bg-slate-50 pl-2 pr-5 py-1.5 rounded-full border border-slate-100">
+              <div className="h-7 w-7 rounded-full bg-slate-900 text-white flex items-center justify-center text-[12px] font-bold uppercase shadow-sm">
+                {user.email?.[0] || "A"}
+              </div>
+              <span className="text-[13px] font-bold text-slate-600 truncate max-w-[150px]">{user.email || "amitmaheta2007@gmail.com"}</span>
+            </div>
+          </div>
+        </nav>
       </header>
 
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 py-8 sm:py-12 space-y-10 sm:space-y-12">
+      <div className="mx-auto max-w-3xl px-6 py-12 sm:py-16 space-y-12 sm:space-y-16 animate-in fade-in slide-in-from-bottom-8 duration-1000 ease-out">
         {/* Welcome banner */}
-        <section className="space-y-2">
-          <h1 className="text-[32px] sm:text-[28px] font-bold tracking-tight text-slate-900">
-            Welcome back, {firstName}
-          </h1>
-          <p className="text-[15px] sm:text-[15px] text-slate-500 leading-relaxed max-w-xl">
-            Create, preview, and enhance your social media posts across Instagram, LinkedIn, X, and Facebook — all in one place.
-          </p>
+        <section className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="space-y-3">
+            <h1 className="text-[36px] font-bold tracking-tight text-slate-900">
+              Welcome back, {firstName}
+            </h1>
+            <p className="text-[17px] text-slate-500 leading-relaxed max-w-xl font-medium">
+              Your command center for premium social media content.
+            </p>
+          </div>
+          <Link
+            href="/editor"
+            className="group relative flex items-center gap-5 bg-slate-900 hover:bg-black text-white pl-6 pr-1.5 py-1.5 rounded-full text-[14px] font-bold transition-all hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl w-fit"
+          >
+            New Post
+            <div className="bg-white p-1.5 rounded-full transition-transform group-hover:translate-x-0.5 shadow-sm">
+              <Plus className="h-4 w-4 text-[#0ea5e9]" />
+            </div>
+          </Link>
         </section>
 
-        {/* Quick actions */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <Link
-            href="/editor"
-            className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md hover:border-[#0096d6]/30 active:scale-[0.98]"
-          >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#0096d6]/10 text-[#0096d6] transition-colors group-hover:bg-[#0096d6]/15">
-              <PenLine className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-slate-900">New post</p>
-              <p className="text-xs text-slate-500 mt-0.5">Start composing</p>
-            </div>
-          </Link>
-          <button
-            onClick={() => {
-              const el = document.getElementById("profile-section");
-              el?.scrollIntoView({ behavior: "smooth" });
-            }}
-            className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md hover:border-[#0096d6]/30 active:scale-[0.98] text-left"
-          >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#0096d6]/10 text-[#0096d6] transition-colors group-hover:bg-[#0096d6]/15">
-              <Eye className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-slate-900">Edit profile</p>
-              <p className="text-xs text-slate-500 mt-0.5">Name, handle, avatar</p>
-            </div>
-          </button>
-          <Link
-            href="/editor"
-            className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md hover:border-[#0096d6]/30 active:scale-[0.98]"
-          >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#0096d6]/10 text-[#0096d6] transition-colors group-hover:bg-[#0096d6]/15">
-              <Sparkles className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-slate-900">AI enhance</p>
-              <p className="text-xs text-slate-500 mt-0.5">Optimize your copy</p>
-            </div>
-          </Link>
-          <Link
-            href="/feed-preview"
-            className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md hover:border-[#0096d6]/30 active:scale-[0.98]"
-          >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#0096d6]/10 text-[#0096d6] transition-colors group-hover:bg-[#0096d6]/15">
-              <Video className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-slate-900">Live feed preview</p>
-              <p className="text-xs text-slate-500 mt-0.5">See it inside a real app</p>
-            </div>
-          </Link>
-          <Link
-            href="/automation"
-            className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md hover:border-[#0096d6]/30 active:scale-[0.98]"
-          >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#0096d6]/10 text-[#0096d6] transition-colors group-hover:bg-[#0096d6]/15">
-              <Zap className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-slate-900">Automation</p>
-              <p className="text-xs text-slate-500 mt-0.5">Auto-DM on Instagram</p>
-            </div>
-          </Link>
-          <Link
-            href="/schedule"
-            className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md hover:border-[#0096d6]/30 active:scale-[0.98]"
-          >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#0096d6]/10 text-[#0096d6] transition-colors group-hover:bg-[#0096d6]/15">
-              <Calendar className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-slate-900">Schedule content</p>
-              <p className="text-xs text-slate-500 mt-0.5">Generate & autopost</p>
-            </div>
-          </Link>
-          <Link
-            href="/history"
-            className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md hover:border-[#0096d6]/30 active:scale-[0.98]"
-          >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#0096d6]/10 text-[#0096d6] transition-colors group-hover:bg-[#0096d6]/15">
-              <HistoryIcon className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-slate-900">Draft history</p>
-              <p className="text-xs text-slate-500 mt-0.5">All your drafts</p>
-            </div>
-          </Link>
+        {/* Quick actions - Minimalist */}
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { label: "Automation", href: "/automation", sub: "Auto-DM tools" },
+            { label: "Smart Shorts", href: "/schedule", sub: "YouTube AI" },
+            { label: "Live Preview", href: "/feed-preview", sub: "See in-app" },
+            { label: "Schedule", href: "/schedule", sub: "Plan posts" },
+          ].map((action, i) => (
+            <Link
+              key={i}
+              href={action.href}
+              className="group flex flex-col items-center justify-center gap-2 rounded-[1.5rem] border border-slate-100 bg-white p-5 shadow-sm transition-all hover:shadow-lg hover:border-[#0ea5e9]/30 active:scale-[0.98] text-center"
+            >
+              <p className="text-[15px] font-bold text-slate-900 group-hover:text-[#0ea5e9] transition-colors">{action.label}</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{action.sub}</p>
+            </Link>
+          ))}
         </section>
 
         {/* Drafts section */}
-        <section className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-slate-900 tracking-tight">Your drafts</h2>
-              <p className="text-[13px] text-slate-400 mt-0.5">
-                {drafts.length === 0 ? "No saved drafts yet" : `${drafts.length} draft${drafts.length === 1 ? "" : "s"} saved`}
-              </p>
+        <section className="space-y-8">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-3">
+              <h2 className="text-[22px] font-bold text-slate-900 tracking-tight">Recent Drafts</h2>
+              <span className="px-2 py-0.5 bg-slate-100 rounded-full text-[11px] font-bold text-slate-500">{drafts.length}</span>
             </div>
-            <Link
-              href="/editor"
-              className="inline-flex items-center gap-2 rounded-xl bg-[#0096d6] px-5 py-2.5 text-[14px] font-bold text-white transition-all hover:bg-[#0085bd] shadow-lg shadow-[#0096d6]/20"
-            >
-              <Plus size={18} />
-              New post
-            </Link>
+            {drafts.length > 0 && (
+              <Link href="/history" className="text-[13px] font-bold text-[#0ea5e9] hover:underline flex items-center gap-1">
+                View all <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            )}
           </div>
 
           {loadingData ? (
-            <div className="flex items-center justify-center py-16">
-              <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#0096d6] border-t-transparent" />
+            <div className="flex items-center justify-center py-20">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#0ea5e9] border-t-transparent" />
             </div>
           ) : drafts.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-200 bg-white py-16 text-center space-y-3">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 mx-auto mb-3">
-                <FileText className="h-7 w-7 text-slate-400" />
+            <div className="rounded-[2.5rem] border border-dashed border-slate-200 bg-white py-24 text-center space-y-4 shadow-sm">
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-slate-50 mx-auto border border-slate-100 shadow-inner">
+                <FileText className="h-10 w-10 text-slate-300" />
               </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-slate-900">No drafts yet</p>
-                <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                  Create your first post to see how it looks across all platforms before publishing.
+              <div className="space-y-2">
+                <p className="text-[18px] font-bold text-slate-900">No saved drafts</p>
+                <p className="text-[14px] text-slate-400 max-w-xs mx-auto font-medium">
+                  Your creative journey starts here. Create your first post and see it across all platforms.
                 </p>
               </div>
-              <Button size="sm" variant="outline" className="mt-4 gap-1.5 bg-white border-slate-200 text-slate-700 hover:bg-slate-50" asChild>
-                <Link href="/editor">
-                  <Plus className="h-3.5 w-3.5" />
-                  Create your first post
-                </Link>
-              </Button>
+              <button 
+                onClick={() => router.push("/editor")}
+                className="mt-6 group relative inline-flex items-center gap-5 bg-slate-900 hover:bg-black text-white pl-6 pr-1.5 py-1.5 rounded-full text-[13px] font-bold transition-all hover:scale-105 active:scale-95 shadow-lg"
+              >
+                Create your first post
+                <div className="bg-white p-1.5 rounded-full transition-transform group-hover:translate-x-0.5 shadow-sm">
+                  <Plus className="h-3.5 w-3.5 text-[#0ea5e9]" />
+                </div>
+              </button>
             </div>
           ) : (
-            <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {drafts.slice(0, 4).map((draft) => {
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {drafts.slice(0, 3).map((draft) => {
                 const format = FORMAT_PRESETS[draft.format_key];
                 const thumb = getThumbnail(draft.id);
                 return (
                   <Link
                     key={draft.id}
                     href={`/editor?draft=${draft.id}`}
-                    className="group relative flex flex-col rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm transition-all hover:shadow-md hover:border-[#0096d6]/30 active:scale-[0.99]"
+                    className="group relative flex flex-col rounded-[2rem] border border-slate-100 bg-white overflow-hidden shadow-sm transition-all hover:shadow-2xl hover:border-[#0ea5e9]/20 active:scale-[0.99] border-transparent"
                   >
                     {/* Thumbnail */}
-                    <div className="relative h-40 w-full bg-slate-50 overflow-hidden shrink-0">
+                    <div className="relative h-48 w-full bg-slate-50 overflow-hidden shrink-0">
                       {thumb ? (
                         thumb.type === "video" ? (
-                          <VideoStill src={thumb.url} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                          <VideoStill src={thumb.url} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
                         ) : (
                           <img
                             src={thumb.url}
                             alt="Draft preview"
-                            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                           />
                         )
                       ) : (
                         <div className="flex h-full w-full items-center justify-center">
-                          <ImageIcon size={32} className="text-slate-300" />
+                          <ImageIcon size={40} className="text-slate-200" />
                         </div>
                       )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                       {format && (
-                        <span className="absolute top-3 left-3 text-[10px] font-bold text-slate-700 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-md shadow-sm">
+                        <span className="absolute top-4 left-4 text-[10px] font-bold text-slate-700 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm">
                           {format.shortLabel}
+                        </span>
+                      ) || (
+                        <span className="absolute top-4 left-4 text-[10px] font-bold text-slate-700 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm">
+                          Draft
                         </span>
                       )}
                     </div>
 
                     {/* Content */}
-                    <div className="flex flex-1 flex-col justify-between p-4">
+                    <div className="flex flex-1 flex-col justify-between p-6">
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-slate-900 truncate leading-tight">
+                        <p className="text-[16px] font-bold text-slate-900 truncate leading-tight group-hover:text-[#0ea5e9] transition-colors">
                           {draft.title || "Untitled draft"}
                         </p>
-                        <p className="text-xs text-slate-500 line-clamp-2 mt-1 leading-relaxed">
+                        <p className="text-[13px] text-slate-500 line-clamp-2 mt-2 leading-relaxed font-medium">
                           {draft.text?.slice(0, 100) || "No content yet..."}
                         </p>
                       </div>
-                      <div className="flex items-center justify-between mt-3">
-                        <span className="flex items-center gap-1 text-[11px] font-medium text-slate-400">
-                          <Clock size={12} />
+                      <div className="flex items-center justify-between mt-6">
+                        <span className="flex items-center gap-1.5 text-[12px] font-bold text-slate-400">
+                          <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
                           {new Date(draft.updated_at).toLocaleDateString(undefined, {
                             month: "short",
                             day: "numeric",
@@ -507,9 +441,9 @@ export function Dashboard() {
                         </span>
                         <button
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteDraft(draft.id); }}
-                          className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition-all hover:bg-red-50 hover:text-red-500 opacity-0 group-hover:opacity-100"
+                          className="flex h-8 w-8 items-center justify-center rounded-full text-slate-300 transition-all hover:bg-red-50 hover:text-red-500 opacity-0 group-hover:opacity-100 shadow-sm border border-transparent hover:border-red-100"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </div>
@@ -517,24 +451,24 @@ export function Dashboard() {
                 );
               })}
             </div>
-            {drafts.length > 4 && (
-              <div className="mt-6 text-center">
-                <Link href="/history" className="text-[13px] font-bold text-[#0096d6] hover:underline">
-                  View all {drafts.length} drafts →
-                </Link>
-              </div>
-            )}
-            </>
           )}
         </section>
 
         {/* Profile card */}
-        <section id="profile-section" className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center gap-2 mb-5">
-            <h2 className="text-base font-semibold text-slate-900 tracking-tight">Profile settings</h2>
-            <span className="text-xs text-slate-400">· Shown in previews</span>
+        <section id="profile-section" className="rounded-[2.5rem] border border-slate-100 bg-white p-10 shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-[#0ea5e9]/5 rounded-full -mr-16 -mt-16 blur-3xl transition-all group-hover:bg-[#0ea5e9]/10" />
+          
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-10 h-10 rounded-2xl bg-[#0ea5e9]/10 flex items-center justify-center text-[#0ea5e9]">
+              <UserCircle className="h-6 w-6" />
+            </div>
+            <div>
+              <h2 className="text-[18px] font-bold text-slate-900 tracking-tight">Profile Settings</h2>
+              <p className="text-[12px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Shown in previews</p>
+            </div>
           </div>
-          <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
+
+          <div className="flex flex-col md:flex-row items-center md:items-start gap-10">
             <input
               ref={avatarInputRef}
               type="file"
@@ -542,61 +476,66 @@ export function Dashboard() {
               className="hidden"
               onChange={(e) => { handleAvatarUpload(e.target.files); e.target.value = ""; }}
             />
-            <div className="relative group">
+            <div className="relative shrink-0">
               <button
                 onClick={() => avatarInputRef.current?.click()}
-                className="h-20 w-20 shrink-0 rounded-full border-2 border-slate-100 bg-slate-50 flex items-center justify-center overflow-hidden transition-all hover:border-[#0096d6]/40 hover:shadow-md active:scale-95"
+                className="h-24 w-24 rounded-[2rem] border-2 border-slate-50 bg-slate-50 flex items-center justify-center overflow-hidden transition-all hover:border-[#0ea5e9]/40 hover:shadow-xl hover:scale-105 active:scale-95 shadow-inner"
                 title="Upload profile image"
               >
                 {profile.avatar_url ? (
                   <img src={profile.avatar_url} alt="Profile" className="h-full w-full object-cover" />
                 ) : (
-                  <UserCircle size={32} className="text-slate-300" />
+                  <UserCircle size={40} className="text-slate-300" />
                 )}
               </button>
-              <div className="absolute -bottom-1 -right-1 h-6 w-6 bg-[#0096d6] text-white rounded-full flex items-center justify-center border-2 border-white shadow-sm pointer-events-none">
-                <Plus size={12} />
+              <div className="absolute -bottom-2 -right-2 h-8 w-8 bg-slate-900 text-white rounded-2xl flex items-center justify-center border-4 border-white shadow-lg pointer-events-none group-hover:bg-[#0ea5e9] transition-colors">
+                <Plus size={14} />
               </div>
             </div>
 
-            <div className="flex-1 w-full space-y-4">
-              <div>
-                <label className="text-xs font-medium text-slate-500 mb-1.5 block">Display name</label>
-                <input
-                  value={profile.display_name}
-                  onChange={(e) => setProfile((p) => ({ ...p, display_name: e.target.value }))}
-                  placeholder="Your name"
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0096d6]/20 focus:border-[#0096d6] transition-all"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-slate-500 mb-1.5 block">Handle</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">@</span>
+            <div className="flex-1 w-full space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div>
+                  <label className="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1 block">Display Name</label>
                   <input
-                    value={profile.handle}
-                    onChange={(e) => setProfile((p) => ({ ...p, handle: e.target.value.replace(/^@/, "") }))}
-                    placeholder="handle"
-                    className="w-full rounded-lg border border-slate-200 bg-white pl-7 pr-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0096d6]/20 focus:border-[#0096d6] transition-all"
+                    value={profile.display_name}
+                    onChange={(e) => setProfile((p) => ({ ...p, display_name: e.target.value }))}
+                    placeholder="Your name"
+                    className="w-full rounded-2xl border border-slate-100 bg-slate-50/50 px-5 py-3.5 text-sm font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0ea5e9]/20 focus:bg-white transition-all focus:border-[#0ea5e9]/30"
                   />
+                </div>
+                <div>
+                  <label className="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1 block">Handle</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-300">@</span>
+                    <input
+                      value={profile.handle}
+                      onChange={(e) => setProfile((p) => ({ ...p, handle: e.target.value.replace(/^@/, "") }))}
+                      placeholder="username"
+                      className="w-full rounded-2xl border border-slate-100 bg-slate-50/50 pl-10 pr-5 py-3.5 text-sm font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0ea5e9]/20 focus:bg-white transition-all focus:border-[#0ea5e9]/30"
+                    />
+                  </div>
                 </div>
               </div>
               <button 
                 onClick={saveProfile} 
                 disabled={saving} 
-                className="mt-1 inline-flex items-center justify-center rounded-lg bg-[#0096d6] px-4 py-2 text-sm font-medium text-white transition-all hover:bg-[#0085bd] disabled:opacity-60 shadow-sm"
+                className="group relative inline-flex items-center gap-5 bg-slate-900 hover:bg-black text-white pl-6 pr-1.5 py-1.5 rounded-full text-[13px] font-bold transition-all hover:scale-105 active:scale-95 shadow-lg disabled:opacity-60"
               >
-                {saving ? "Saving…" : "Save profile"}
+                {saving ? "Saving…" : "Save Changes"}
+                <div className="bg-white p-1.5 rounded-full transition-transform group-hover:translate-x-0.5 shadow-sm">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-[#0ea5e9]" />
+                </div>
               </button>
             </div>
           </div>
         </section>
 
         {/* Footer info */}
-        <div className="text-center py-10">
+        <div className="text-center py-12">
            <button 
              onClick={() => signOut({ callbackUrl: "/" })}
-             className="text-slate-400 hover:text-[#0096d6] text-[13px] font-medium transition-colors"
+             className="px-6 py-2 rounded-full border border-slate-100 text-slate-400 hover:text-red-500 hover:bg-red-50 text-[13px] font-bold transition-all active:scale-95"
            >
              Sign out of your account
            </button>
