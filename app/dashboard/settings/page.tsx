@@ -21,6 +21,8 @@ export default function SettingsPage() {
   const { data: session } = useSession();
   const [instagramAccount, setInstagramAccount] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [connectionStep, setConnectionStep] = useState("");
 
   useEffect(() => {
     if (!session?.user?.id) return;
@@ -39,18 +41,79 @@ export default function SettingsPage() {
     fetchInstagram();
   }, [session?.user?.id]);
 
-  const connectInstagram = () => {
-    // In a real app, this redirects to Instagram OAuth
-    // window.location.href = `/api/public/instagram/auth`;
-    toast.info("Redirecting to Instagram OAuth...");
+  const connectInstagram = async () => {
+    setIsConnecting(true);
+    setConnectionStep("Redirecting to Meta...");
+    
+    // Redirect to our real OAuth initiation route
+    window.location.href = "/api/auth/instagram/link";
   };
 
+  const disconnectInstagram = async () => {
+    setInstagramAccount(null);
+    toast.success("Instagram account disconnected");
+  };
+
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('success') === 'true') {
+      setShowSuccessModal(true);
+      // Clean URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
   return (
-    <div className="max-w-4xl mx-auto px-8 py-12 space-y-12 animate-in fade-in duration-700">
-      <div className="space-y-1">
-        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight">Settings</h1>
-        <p className="text-[15px] text-slate-500 font-medium">Manage your account and platform connections.</p>
-      </div>
+    <div className="flex-1 overflow-y-auto bg-white">
+      <div className="max-w-4xl mx-auto px-8 py-20 space-y-16 animate-in fade-in duration-700">
+        <div className="space-y-1">
+          <h1 className="text-[32px] font-bold text-slate-900 tracking-tight">Settings</h1>
+          <p className="text-[15px] text-slate-500 font-medium">Manage your account and platform connections.</p>
+        </div>
+
+        {/* Success Modal - Same to Same like image */}
+        {showSuccessModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-[480px] rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-500">
+              {/* Gradient Header */}
+              <div className="h-48 bg-[conic-gradient(at_top_right,_var(--tw-gradient-stops))] from-yellow-200 via-emerald-200 to-blue-300 relative flex items-center justify-center">
+                 <div className="w-20 h-20 bg-[#4ADE80] rounded-full flex items-center justify-center shadow-lg border-4 border-white/50">
+                    <CheckCircle2 size={40} className="text-white" />
+                 </div>
+              </div>
+              
+              <div className="p-10 text-center space-y-10">
+                <div className="space-y-2">
+                   <h2 className="text-[24px] font-bold text-slate-900 tracking-tight">Account reconnected successfully!</h2>
+                </div>
+
+                <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
+                   <div className="flex items-center gap-4">
+                      <div className="w-14 h-14 rounded-full bg-slate-200 overflow-hidden border-2 border-white shadow-sm">
+                         <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${instagramAccount?.username}`} alt="avatar" />
+                      </div>
+                      <div className="text-left">
+                         <p className="text-[15px] font-bold text-slate-900">{instagramAccount?.username || 'deepak_maheta_01'}</p>
+                         <p className="text-[12px] text-slate-400 font-medium">0 Automations</p>
+                      </div>
+                   </div>
+                   <div className="w-6 h-6 bg-[#4ADE80] rounded-full flex items-center justify-center">
+                      <CheckCircle2 size={14} className="text-white" />
+                   </div>
+                </div>
+
+                <button 
+                  onClick={() => setShowSuccessModal(false)}
+                  className="w-full py-4 border border-slate-200 rounded-full text-[15px] font-bold text-slate-900 hover:bg-slate-50 transition-all"
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
         <nav className="space-y-1">
@@ -82,7 +145,15 @@ export default function SettingsPage() {
             </div>
 
             <div className="p-8 rounded-3xl bg-slate-50 border border-slate-100">
-              {instagramAccount ? (
+              {isConnecting ? (
+                <div className="text-center py-4 space-y-4 animate-in fade-in duration-500">
+                  <div className="h-10 w-10 border-2 border-[#2563EB] border-t-transparent rounded-full animate-spin mx-auto" />
+                  <div className="space-y-1">
+                    <p className="text-[15px] font-bold text-slate-900">Connecting Instagram...</p>
+                    <p className="text-[13px] text-[#2563EB] font-bold uppercase tracking-wider animate-pulse">{connectionStep}</p>
+                  </div>
+                </div>
+              ) : instagramAccount ? (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 p-0.5">
@@ -100,7 +171,7 @@ export default function SettingsPage() {
                       </div>
                     </div>
                   </div>
-                  <button className="text-[12px] font-bold text-slate-400 hover:text-red-500 transition-all uppercase tracking-widest">Disconnect</button>
+                  <button onClick={disconnectInstagram} className="text-[12px] font-bold text-slate-400 hover:text-red-500 transition-all uppercase tracking-widest">Disconnect</button>
                 </div>
               ) : (
                 <div className="text-center space-y-6 py-4">
@@ -194,5 +265,6 @@ export default function SettingsPage() {
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 }
