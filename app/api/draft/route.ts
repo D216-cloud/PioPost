@@ -22,6 +22,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(body.userId)) {
+      return NextResponse.json({ error: 'Invalid User ID format (UUID expected)' }, { status: 400 });
+    }
+
     const { data, error } = await supabaseAdmin.from('drafts').insert({
       user_id: body.userId,
       title: body.title || 'Untitled Draft',
@@ -71,6 +76,13 @@ export async function GET(req: Request) {
 
     if (!userId) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
+    }
+
+    // Basic UUID validation to prevent DB errors
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(userId)) {
+      console.warn('Invalid UUID format for userId:', userId);
+      return NextResponse.json({ data: [] }); // Return empty array instead of 500
     }
 
     const { data, error } = await supabaseAdmin

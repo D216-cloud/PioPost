@@ -1,49 +1,49 @@
 
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 
 export function Navbar() {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 border-b border-slate-100 bg-white/80 backdrop-blur-md">
       <nav className="mx-auto flex w-full max-w-7xl items-center px-8 py-4">
         {/* Logo */}
-        <div className="flex-[0.5]">
-          <Link href="/" className="logo-script text-[26px] text-slate-900">
+        <div className="flex-[0.5] flex items-center gap-3">
+          <div className="w-9 h-9 bg-[#2563EB] rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+            <Sparkles size={20} className="fill-white/20" />
+          </div>
+          <Link href="/" className="text-[26px] font-logo text-slate-900">
             PinPost
           </Link>
         </div>
 
         {/* Center Links */}
-        <div className="hidden md:flex flex-1 items-center justify-center gap-10 text-[13px] font-bold text-slate-500 uppercase tracking-wider">
-          <Link href="/#preview" className="transition-colors hover:text-slate-900">
-            Features
-          </Link>
-          <Link href="/#how" className="transition-colors hover:text-slate-900">
+        <div className="hidden md:flex flex-1 items-center justify-center gap-10 text-[14px] font-bold text-[#64748B]">
+          <Link href="/#how" className="transition-colors hover:text-[#2563EB]">
             How it works
           </Link>
-          <Link href="/pricing" className="transition-colors hover:text-slate-900">
-            Pricing
+          <Link href="/faq" className="transition-colors hover:text-[#2563EB]">
+            FAQ
+          </Link>
+          <Link href="/blog" className="transition-colors hover:text-[#2563EB]">
+            Blog
           </Link>
         </div>
 
         {/* Right Auth */}
-        <div className="flex flex-[0.5] items-center justify-end gap-4">
+        <div className="flex flex-[0.5] items-center justify-end gap-6">
           <Link 
             href="/login" 
-            className="group relative hidden sm:flex items-center gap-2.5 bg-white text-slate-900 pl-5 pr-1.5 py-1.5 rounded-full text-[13px] font-bold border border-slate-200 transition-all hover:bg-slate-50 hover:scale-105 active:scale-95 shadow-sm"
+            className="text-[14px] font-bold text-[#64748B] hover:text-[#2563EB] transition-colors"
           >
-            Log in
-            <div className="bg-slate-900 p-1 rounded-full transition-transform group-hover:translate-x-0.5 shadow-sm">
-              <ArrowRight className="h-3 w-3 text-white" />
-            </div>
+            Sign in
           </Link>
           <Link
             href="/login"
-            className="group relative flex items-center gap-2.5 bg-slate-900 hover:bg-black text-white pl-5 pr-1.5 py-1.5 rounded-full text-[13px] font-bold transition-all hover:scale-105 active:scale-95 shadow-md hover:shadow-lg"
+            className="group relative flex items-center gap-4 bg-[#2563EB] hover:bg-[#1D4ED8] text-white pl-6 pr-1.5 py-1.5 rounded-full text-[14px] font-bold transition-all hover:scale-105 active:scale-95 shadow-lg shadow-[#2563EB]/20"
           >
-            Sign up free
+            Get started
             <div className="bg-white p-1 rounded-full transition-transform group-hover:translate-x-0.5 shadow-sm">
-              <ArrowRight className="h-3 w-3 text-[#0ea5e9]" />
+              <ArrowRight className="h-3.5 w-3.5 text-[#2563EB]" />
             </div>
           </Link>
         </div>

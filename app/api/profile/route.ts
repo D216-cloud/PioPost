@@ -9,6 +9,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
 
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(body.id)) {
+      return NextResponse.json({ error: 'Invalid User ID format (UUID expected)' }, { status: 400 });
+    }
+
     const { error } = await supabaseAdmin.from('profiles').upsert({
       id: body.id,
       display_name: body.display_name,
@@ -33,6 +38,13 @@ export async function GET(req: Request) {
 
     if (!userId) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
+    }
+
+    // Basic UUID validation to prevent DB errors
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(userId)) {
+      console.warn('Invalid UUID format for userId:', userId);
+      return NextResponse.json({ data: null }); // Return null data instead of 500
     }
 
     const { data, error } = await supabaseAdmin

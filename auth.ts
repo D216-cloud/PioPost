@@ -101,9 +101,26 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
     async jwt({ token, user }) {
-      if (user?.id) {
-        token.sub = user.id;
+      // 1. Initial sign in - 'user' is available
+      if (user) {
+        token.sub = user.id; // This might be a Google ID initially
       }
+      
+      // 2. Ensure token.sub is a UUID (Supabase ID)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (token.sub && !uuidRegex.test(token.sub) && token.email) {
+        try {
+          const { supabaseAdmin } = await import("@/lib/supabase-admin");
+          const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers();
+          const supabaseUser = users?.find(u => u.email === token.email);
+          if (supabaseUser) {
+            token.sub = supabaseUser.id;
+          }
+        } catch (err) {
+          console.error("Failed to resolve Supabase ID in JWT callback:", err);
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {

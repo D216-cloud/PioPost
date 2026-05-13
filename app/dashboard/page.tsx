@@ -1,7 +1,7 @@
-import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
-import { Dashboard } from "@/components/Dashboard";
+import { redirect } from "next/navigation";
+import OverviewPage from "@/components/OverviewPage";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -10,7 +10,5 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  return (
-    <Dashboard />
-  );
+  return <OverviewPage />;
 }

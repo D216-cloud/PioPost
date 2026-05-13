@@ -23,6 +23,7 @@ import {
   Share2
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 interface Scheduled {
   id: string;
@@ -34,11 +35,11 @@ interface Scheduled {
   status: string;
 }
 
-const InstagramIcon = (props: any) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>);
-const LinkedinIcon = (props: any) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>);
-const TwitterIcon = (props: any) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"/></svg>);
-const FacebookIcon = (props: any) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>);
-const YoutubeIcon = (props: any) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33 2.78 2.78 0 0 0 1.94 2c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.33 29 29 0 0 0-.46-5.33z"/><polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"/></svg>);
+const InstagramIcon = (props: React.SVGProps<SVGSVGElement>) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>);
+const LinkedinIcon = (props: React.SVGProps<SVGSVGElement>) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>);
+const TwitterIcon = (props: React.SVGProps<SVGSVGElement>) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"/></svg>);
+const FacebookIcon = (props: React.SVGProps<SVGSVGElement>) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>);
+const YoutubeIcon = (props: React.SVGProps<SVGSVGElement>) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33 2.78 2.78 0 0 0 1.94 2c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.33 29 29 0 0 0-.46-5.33z"/><polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"/></svg>);
 
 const PLATFORMS = [
   { id: "instagram", label: "Instagram", icon: InstagramIcon, color: "text-pink-500" },
@@ -70,7 +71,7 @@ export function ScheduleEditor() {
   // YouTube to Shorts State
   const [ytUrl, setYtUrl] = useState("");
   const [processingStatus, setProcessingStatus] = useState<"idle" | "analyzing" | "clipping" | "ready">("idle");
-  const [clips, setClips] = useState<any[]>([]);
+  const [clips, setClips] = useState<{id: string, title: string, start: string, end: string, score: number, thumb: string}[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
 
   const load = useCallback(async () => {
@@ -89,7 +90,11 @@ export function ScheduleEditor() {
     }
   }, [user]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (user) {
+      load();
+    }
+  }, [user, load]);
 
   const togglePlatform = (id: string) => {
     setPlatforms((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id]);
@@ -99,14 +104,37 @@ export function ScheduleEditor() {
     if (!prompt.trim() || !user) return;
     setGenerating(true);
     setError("");
+    setGeneratedUrl("");
+    
     try {
-      // Mocked AI generation for UI purposes
-      setTimeout(() => {
-        setGeneratedUrl("https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop");
-        setGenerating(false);
-      }, 1500);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Generation failed");
+      const res = await fetch("/api/generate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || "Generation failed");
+      }
+
+      if (data.url) {
+        setGeneratedUrl(data.url);
+        if (data.model === "pollinations-free") {
+          toast.info("Using free fallback (Pollinations.ai) due to Gemini quota.");
+        }
+      } else {
+        throw new Error("No image URL received");
+      }
+    } catch (e: any) {
+      console.error("Generation error:", e);
+      if (e.message?.includes("429") || e.message?.toLowerCase().includes("quota")) {
+        setError("AI Quota Exceeded: Your Google AI project has reached its free limit (or the model is disabled for your region). Please try again in 30 seconds or check Google AI Studio.");
+      } else {
+        setError(e.message || "Generation failed");
+      }
+    } finally {
       setGenerating(false);
     }
   }, [prompt, user]);
@@ -183,7 +211,7 @@ export function ScheduleEditor() {
               <div className="h-7 w-7 rounded-full bg-slate-900 text-white flex items-center justify-center text-[12px] font-bold uppercase shadow-sm">
                 {session?.user?.email?.[0] || "A"}
               </div>
-              <span className="text-[13px] font-bold text-slate-600 truncate max-w-[150px]">{session?.user?.email || "amitmaheta2007@gmail.com"}</span>
+              <span className="truncate max-w-37.5 text-[13px] font-bold text-slate-600">{session?.user?.email || "amitmaheta2007@gmail.com"}</span>
             </div>
           </div>
         </nav>
@@ -233,12 +261,12 @@ export function ScheduleEditor() {
           <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full -mr-16 -mt-16 blur-3xl transition-all group-hover:bg-red-500/10" />
           
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-2xl bg-red-50 flex items-center justify-center text-red-500">
+            <div className="w-10 h-10 rounded-2xl bg-[#EFF6FF] flex items-center justify-center text-[#2563EB]">
               <YoutubeIcon className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="text-[18px] font-bold text-slate-900 tracking-tight">Smart Shorts</h2>
-              <p className="text-[12px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">YouTube → Reels/Shorts AI</p>
+              <h2 className="text-[18px] font-bold text-[#1E293B] tracking-tight">Smart Shorts</h2>
+              <p className="text-[12px] font-bold text-[#64748B] uppercase tracking-widest mt-0.5">YouTube → Reels/Shorts AI</p>
             </div>
           </div>
 
@@ -253,14 +281,14 @@ export function ScheduleEditor() {
               <button 
                 onClick={handleYtAnalyze}
                 disabled={analyzing || !ytUrl}
-                className="absolute right-2 top-2 bottom-2 bg-slate-900 hover:bg-black text-white px-5 rounded-xl text-[13px] font-bold transition-all disabled:opacity-50 flex items-center gap-2 shadow-lg"
+                className="absolute right-2 top-2 bottom-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-5 rounded-xl text-[13px] font-bold transition-all disabled:opacity-50 flex items-center gap-2 shadow-lg"
               >
                 {analyzing ? (
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                 ) : (
-                  <Sparkles size={16} className="text-amber-400" />
+                  <Sparkles size={16} className="text-white" />
                 )}
-                Analyze
+                Process Video
               </button>
             </div>
 
@@ -284,33 +312,65 @@ export function ScheduleEditor() {
               </div>
             )}
 
-            {clips.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-4 animate-in fade-in slide-in-from-top-4 duration-700">
-                {clips.map((clip) => (
-                  <div key={clip.id} className="group/clip relative flex flex-col rounded-3xl border border-slate-100 bg-white overflow-hidden shadow-sm hover:shadow-xl transition-all border-transparent hover:border-red-100">
-                    <div className="relative aspect-[9/16] bg-slate-100">
-                      <img src={clip.thumb} className="h-full w-full object-cover transition-transform duration-700 group-hover/clip:scale-110" />
-                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/clip:opacity-100 transition-opacity flex items-center justify-center">
-                        <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-xl transform translate-y-4 group-hover/clip:translate-y-0 transition-transform duration-300">
-                          <Play size={20} className="text-red-500 ml-0.5" />
-                        </div>
-                      </div>
-                      <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full shadow-sm flex items-center gap-1.5">
-                        <Activity size={12} className="text-emerald-500" />
-                        <span className="text-[10px] font-bold text-slate-700">{clip.score}% Viral</span>
-                      </div>
-                      <div className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm px-2 py-0.5 rounded-md">
-                        <span className="text-[10px] font-bold text-white font-mono">{clip.start} - {clip.end}</span>
-                      </div>
+            {processingStatus === "ready" && clips.length > 0 && (
+              <div className="space-y-8 pt-4 animate-in fade-in slide-in-from-top-4 duration-700">
+                <div className="bg-[#EFF6FF] p-6 rounded-2xl border border-[#DBEAFE]">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+                    <div className="space-y-1 text-center sm:text-left">
+                      <h3 className="text-[18px] font-bold text-[#1E293B]">We found {clips.length * 5} potential short clips</h3>
+                      <p className="text-[14px] text-[#64748B]">How many reels do you want to generate?</p>
                     </div>
-                    <div className="p-4 space-y-3">
-                      <h4 className="text-[14px] font-bold text-slate-800">{clip.title}</h4>
-                      <button className="w-full flex items-center justify-center gap-2 bg-slate-50 hover:bg-red-50 text-slate-600 hover:text-red-500 py-2 rounded-xl text-[12px] font-bold transition-all border border-transparent hover:border-red-100">
-                        <Calendar size={14} /> Schedule
-                      </button>
+                    <div className="flex items-center gap-4 bg-white p-2 rounded-xl border border-[#DBEAFE] shadow-sm">
+                      <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-50 text-slate-600">-</button>
+                      <span className="text-[15px] font-bold text-[#1E293B] w-8 text-center">{clips.length}</span>
+                      <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-50 text-slate-600">+</button>
                     </div>
                   </div>
-                ))}
+                  
+                  <div className="mt-6 space-y-4">
+                    <div>
+                      <label className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider mb-2 block">Caption for all reels</label>
+                      <input 
+                        placeholder="e.g., Watch the full story! {keyword}"
+                        className="w-full rounded-xl border border-[#DBEAFE] bg-white px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#2563EB]/10 transition-all"
+                      />
+                    </div>
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]" />
+                      <span className="text-[13px] font-medium text-slate-600 group-hover:text-slate-900 transition-colors">Add comment "Get full video here: [LINK]" on Instagram</span>
+                    </label>
+                  </div>
+
+                  <button className="w-full mt-6 bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-4 rounded-xl text-[15px] font-bold transition-all shadow-lg flex items-center justify-center gap-3">
+                    Generate {clips.length} Reels Now
+                    <ArrowRight size={18} />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-4">
+                  {clips.map((clip) => (
+                    <div key={clip.id} className="group/clip relative flex flex-col rounded-3xl border border-slate-100 bg-white overflow-hidden shadow-sm hover:shadow-xl transition-all border-transparent hover:border-[#2563EB]/20">
+                      <div className="relative aspect-[9/16] bg-slate-100">
+                        <img src={clip.thumb} className="h-full w-full object-cover transition-transform duration-700 group-hover/clip:scale-110" />
+                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/clip:opacity-100 transition-opacity flex items-center justify-center">
+                          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-xl transform translate-y-4 group-hover/clip:translate-y-0 transition-transform duration-300">
+                            <Play size={20} className="text-[#2563EB] ml-0.5" />
+                          </div>
+                        </div>
+                        <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full shadow-sm flex items-center gap-1.5">
+                          <Activity size={12} className="text-emerald-500" />
+                          <span className="text-[10px] font-bold text-[#1E293B]">{clip.score}% Viral</span>
+                        </div>
+                        <div className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm px-2 py-0.5 rounded-md">
+                          <span className="text-[10px] font-bold text-white font-mono">{clip.start} - {clip.end}</span>
+                        </div>
+                      </div>
+                      <div className="p-4 space-y-3 text-center">
+                        <h4 className="text-[14px] font-bold text-[#1E293B]">{clip.title}</h4>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -320,13 +380,19 @@ export function ScheduleEditor() {
         <section className="rounded-[2.5rem] border border-slate-100 bg-white p-10 shadow-sm relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-32 h-32 bg-[#0ea5e9]/5 rounded-full -mr-16 -mt-16 blur-3xl transition-all group-hover:bg-[#0ea5e9]/10" />
           
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-2xl bg-[#0ea5e9]/10 flex items-center justify-center text-[#0ea5e9]">
-              <Sparkles className="h-6 w-6" />
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-[#0ea5e9]/10 flex items-center justify-center text-[#0ea5e9]">
+                <Sparkles className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-[18px] font-bold text-slate-900 tracking-tight">AI Post Generator</h2>
+                <p className="text-[12px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Static Content</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-[18px] font-bold text-slate-900 tracking-tight">AI Post Generator</h2>
-              <p className="text-[12px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Static Content</p>
+            <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-full border border-blue-100">
+              <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+              <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Gemini 2.5 Flash Image</span>
             </div>
           </div>
 
@@ -373,6 +439,12 @@ export function ScheduleEditor() {
                 </div>
               )}
             </div>
+
+            {error && (
+              <div className="p-4 bg-red-50 rounded-2xl border border-red-100 animate-in slide-in-from-top-2 duration-300">
+                <p className="text-[12px] font-bold text-red-600">{error}</p>
+              </div>
+            )}
 
             {generatedUrl && (
               <div className="relative rounded-[2rem] overflow-hidden border border-slate-100 shadow-xl animate-in fade-in zoom-in duration-500">
