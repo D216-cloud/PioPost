@@ -1,6 +1,5 @@
-"use client";
-
 import React from "react";
+import Link from "next/link";
 
 export function Footer() {
   return (
@@ -9,11 +8,18 @@ export function Footer() {
         <p className="logo-script text-[32px] mb-4 text-slate-900">
           PinPost
         </p>
-        <p className="max-w-md mx-auto text-slate-400 text-[14px] leading-relaxed mb-8">
+        <p className="max-w-md mx-auto text-slate-400 text-[14px] leading-relaxed mb-10">
           Precision previews for modern marketing teams. Built for creators <br />
           who care about how their content looks.
         </p>
-        <p className="text-slate-300 text-[12px] font-medium tracking-wide">
+        
+        <div className="flex items-center justify-center gap-8 mb-12">
+          <Link href="/privacy" className="text-[12px] font-black text-slate-300 hover:text-slate-900 uppercase tracking-widest transition-colors">Privacy Policy</Link>
+          <Link href="/terms" className="text-[12px] font-black text-slate-300 hover:text-slate-900 uppercase tracking-widest transition-colors">Terms of Service</Link>
+          <Link href="/dashboard" className="text-[12px] font-black text-slate-300 hover:text-slate-900 uppercase tracking-widest transition-colors">Dashboard</Link>
+        </div>
+
+        <p className="text-slate-300 text-[11px] font-black uppercase tracking-tighter">
           © {new Date().getFullYear()} PINPOST. ALL RIGHTS RESERVED.
         </p>
       </div>
