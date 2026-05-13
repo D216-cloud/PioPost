@@ -8,7 +8,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const CLIENT_ID = process.env.FACEBOOK_CLIENT_ID;
+  const CLIENT_ID = process.env.INSTAGRAM_CLIENT_ID;
   const REDIRECT_URI = `${process.env.NEXTAUTH_URL}/api/auth/instagram/callback`;
   
   // Permissions required for Instagram Reels and Webhooks
@@ -21,7 +21,7 @@ export async function GET() {
     "email"
   ].join(",");
 
-  const authUrl = `https://www.instagram.com/oauth/authorize?enable_fb_login=0&force_authentication=1&client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=${scope}&state=${session.user.id}`;
+  const authUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=${scope}&state=${session.user.id}`;
 
   return NextResponse.redirect(authUrl);
 }
