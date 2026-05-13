@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { 
   Plus,
   Video, 
@@ -10,7 +11,8 @@ import {
   Calendar,
   LayoutDashboard,
   PanelLeftClose,
-  Search
+  Search,
+  LogOut
 } from "lucide-react";
 
 const navItems = [
@@ -61,6 +63,14 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
             </Link>
           );
         })}
+        
+        <button
+          onClick={() => signOut({ callbackUrl: "/" })}
+          className="w-full flex items-center gap-3 rounded-xl px-4 py-3 text-[14px] font-bold text-[#64748B] hover:bg-red-50 hover:text-red-600 transition-all mt-4"
+        >
+          <LogOut size={18} />
+          Sign out
+        </button>
       </nav>
 
       <div className={`mt-auto pt-6 transition-all duration-500 delay-100 ${isOpen ? 'opacity-100' : 'opacity-0'}`}>

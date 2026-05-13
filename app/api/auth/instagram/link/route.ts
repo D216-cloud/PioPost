@@ -8,7 +8,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const CLIENT_ID = process.env.FACEBOOK_CLIENT_ID;
+  const CLIENT_ID = process.env.INSTAGRAM_CLIENT_ID;
   const REDIRECT_URI = `${process.env.NEXTAUTH_URL}/api/auth/instagram/callback`;
   
   // Permissions required for Instagram Reels and Webhooks

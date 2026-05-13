@@ -46,7 +46,7 @@ export function HeroSection() {
             className="text-4xl md:text-[64px] font-bold tracking-tight text-[#1E293B] mb-8 leading-[1.1]"
             style={{ textWrap: "balance" }}
           >
-            Create viral <span className="text-[#2563EB]">faceless videos</span> on auto-pilot
+            Create viral <span className="text-black">faceless videos</span> on auto-pilot
           </h1>
 
           <p
@@ -59,18 +59,13 @@ export function HeroSection() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
             <Link 
               href={user ? "/dashboard/create" : "/login"}
-              className="group relative flex items-center gap-6 bg-[#2563EB] hover:bg-[#1D4ED8] text-white pl-10 pr-2 py-2 rounded-full text-[18px] font-bold transition-all hover:scale-105 active:scale-95 shadow-xl hover:shadow-[#2563EB]/20"
+              className="group relative flex items-center gap-6 bg-black hover:bg-slate-900 text-white pl-10 pr-2 py-2 rounded-full text-[18px] font-bold transition-all hover:scale-105 active:scale-95 shadow-xl hover:shadow-black/20"
             >
               {user ? "Go to Dashboard" : "Get started"}
               <div className="bg-white p-2.5 rounded-full transition-transform group-hover:translate-x-1 shadow-sm">
-                <ArrowRight className="h-5 w-5 text-[#2563EB]" />
+                <ArrowRight className="h-5 w-5 text-black" />
               </div>
             </Link>
-            
-            <button className="flex items-center gap-2 text-[16px] font-bold text-slate-600 hover:text-[#2563EB] transition-colors">
-              <Sparkles size={18} className="text-[#2563EB]" />
-              How it works
-            </button>
           </div>
         </div>
       </div>
@@ -83,8 +78,8 @@ export function HeroSection() {
              { title: "Mystery Tales", views: "663.9K", label: "Viral" },
              { title: "Ancient Wisdom", views: "512.4K", label: "Top" },
            ].map((card, i) => (
-             <div key={i} className="w-64 aspect-[9/16] bg-slate-900 rounded-[2rem] relative overflow-hidden shadow-2xl border-4 border-white/10 shrink-0">
-                <div className="absolute top-4 left-4 bg-[#2563EB] text-white px-3 py-1 rounded-full text-[10px] font-black uppercase">{card.label}</div>
+             <div key={i} className="w-52 aspect-[9/16] bg-slate-900 rounded-[2rem] relative overflow-hidden shadow-2xl border-4 border-white/10 shrink-0">
+                <div className="absolute top-4 left-4 bg-white/20 backdrop-blur-md text-white px-3 py-1 rounded-full text-[10px] font-black uppercase border border-white/20">{card.label}</div>
                 <div className="absolute bottom-6 left-6 right-6 space-y-1">
                    <p className="text-white text-[18px] font-bold">{card.views}</p>
                    <p className="text-white/60 text-[12px] font-medium">{card.title}</p>
