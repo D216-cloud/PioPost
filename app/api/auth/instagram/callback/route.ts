@@ -13,7 +13,7 @@ export async function GET(req: Request) {
   try {
     // 1. Exchange code for short-lived access token
     const tokenRes = await fetch(
-      `https://graph.facebook.com/v18.0/oauth/access_token?client_id=${process.env.FACEBOOK_CLIENT_ID}&redirect_uri=${encodeURIComponent(`${process.env.NEXTAUTH_URL}/api/auth/instagram/callback`)}&client_secret=${process.env.FACEBOOK_CLIENT_SECRET}&code=${code}`
+      `https://graph.facebook.com/v18.0/oauth/access_token?client_id=${process.env.INSTAGRAM_CLIENT_ID}&redirect_uri=${encodeURIComponent(`${process.env.NEXTAUTH_URL}/api/auth/instagram/callback`)}&client_secret=${process.env.INSTAGRAM_CLIENT_SECRET}&code=${code}`
     );
     const tokenData = await tokenRes.json();
     
@@ -23,7 +23,7 @@ export async function GET(req: Request) {
 
     // 2. Get Long-Lived Token (60 days)
     const longLivedRes = await fetch(
-      `https://graph.facebook.com/v18.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${process.env.FACEBOOK_CLIENT_ID}&client_secret=${process.env.FACEBOOK_CLIENT_SECRET}&fb_exchange_token=${accessToken}`
+      `https://graph.facebook.com/v18.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${process.env.INSTAGRAM_CLIENT_ID}&client_secret=${process.env.INSTAGRAM_CLIENT_SECRET}&fb_exchange_token=${accessToken}`
     );
     const longLivedData = await longLivedRes.json();
     const finalToken = longLivedData.access_token;
