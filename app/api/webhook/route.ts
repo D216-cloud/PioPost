@@ -7,7 +7,7 @@ export async function GET(req: Request) {
   const token = searchParams.get("hub.verify_token");
   const challenge = searchParams.get("hub.challenge");
 
-  const VERIFY_TOKEN = process.env.FACEBOOK_VERIFY_TOKEN || "piopost123verifytoken";
+  const VERIFY_TOKEN = process.env.INSTAGRAM_VERIFY_TOKEN || "piopost123verifytoken";
 
   if (mode === "subscribe" && token === VERIFY_TOKEN) {
     console.log("WEBHOOK_VERIFIED");
