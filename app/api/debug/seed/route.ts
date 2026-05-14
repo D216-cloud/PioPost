@@ -18,7 +18,8 @@ export async function GET() {
       username: 'test_influencer_ai',
       instagram_business_id: '123456789',
       access_token: 'mock_token',
-    });
+      profile_picture_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop'
+    }, { onConflict: 'user_id' });
 
     if (igError) throw igError;
 

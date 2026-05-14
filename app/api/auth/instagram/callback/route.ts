@@ -52,7 +52,7 @@ export async function GET(req: Request) {
     const finalToken = longLivedData.access_token;
 
     // 3. Get Instagram Account Details directly
-    const userRes = await fetch(`https://graph.instagram.com/me?fields=id,username&access_token=${finalToken}`);
+    const userRes = await fetch(`https://graph.instagram.com/me?fields=id,username,profile_picture_url&access_token=${finalToken}`);
     const userData = await userRes.json();
     
     if (userData.error) {
@@ -62,6 +62,7 @@ export async function GET(req: Request) {
 
     const igBusinessId = userData.id;
     const username = userData.username;
+    const profilePictureUrl = userData.profile_picture_url;
     const pageId = null; // No Facebook Page ID needed for direct Instagram Login flows
 
     if (!igBusinessId) {
@@ -77,6 +78,7 @@ export async function GET(req: Request) {
         facebook_page_id: pageId,
         access_token: finalToken,
         username: username,
+        profile_picture_url: profilePictureUrl,
         updated_at: new Date().toISOString()
       }, { onConflict: 'user_id' });
 

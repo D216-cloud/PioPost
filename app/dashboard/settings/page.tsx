@@ -14,7 +14,8 @@ import {
   Plus,
   ArrowRight,
   LogOut,
-  ChevronRight
+  ChevronRight,
+  X
 } from "lucide-react";
 import { InstagramIcon as Instagram } from "@/components/icons";
 import { useSession } from "next-auth/react";
@@ -212,9 +213,9 @@ export default function SettingsPage() {
                   <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] flex items-center justify-between group transition-all">
                     <div className="flex items-center gap-4 text-left">
                       <div className="w-14 h-14 rounded-full overflow-hidden ring-4 ring-slate-50 shadow-sm bg-slate-100 flex items-center justify-center font-bold text-slate-400">
-                        {instagramAccount?.username ? (
+                        {instagramAccount?.profile_picture_url || instagramAccount?.username ? (
                           <img 
-                            src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${instagramAccount.username}`} 
+                            src={instagramAccount?.profile_picture_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${instagramAccount.username}`} 
                             alt="avatar" 
                             className="w-full h-full object-cover"
                           />
@@ -319,7 +320,7 @@ export default function SettingsPage() {
                               <div className="relative w-20 h-20 rounded-full bg-white p-1 ring-1 ring-slate-100">
                                 <div className="w-full h-full rounded-full bg-slate-100 flex items-center justify-center overflow-hidden">
                                   <img 
-                                    src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${instagramAccount.username}`} 
+                                    src={instagramAccount.profile_picture_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${instagramAccount.username}`} 
                                     alt="IG Avatar" 
                                     className="w-full h-full object-cover"
                                   />
@@ -353,14 +354,49 @@ export default function SettingsPage() {
                               </div>
                             </div>
                           </div>
-                          
-                          <button 
-                            onClick={disconnectInstagram}
-                            className="w-full sm:w-auto px-8 py-4 rounded-2xl text-sm font-bold text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all flex items-center justify-center gap-2 border border-transparent hover:border-red-100"
-                          >
-                            <LogOut size={16} />
-                            Disconnect
-                          </button>
+
+                          <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                            <div className="relative w-full sm:w-auto group/dropdown">
+                              <button 
+                                className="w-full px-6 py-3.5 bg-white border border-slate-200 rounded-2xl text-[13px] font-bold text-slate-700 hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
+                                onClick={() => (document.getElementById('posts-dropdown') as any).classList.toggle('hidden')}
+                              >
+                                See all posts
+                                <ChevronRight size={16} className="rotate-90" />
+                              </button>
+                              
+                              {/* Mock Dropdown for Posts */}
+                              <div id="posts-dropdown" className="hidden absolute right-0 top-full mt-4 w-72 bg-white rounded-3xl shadow-2xl border border-slate-100 p-4 z-50 animate-in fade-in slide-in-from-top-2">
+                                <div className="flex items-center justify-between mb-4 px-2">
+                                  <span className="text-[12px] font-black text-slate-400 uppercase tracking-widest">Recent Posts</span>
+                                  <button onClick={() => (document.getElementById('posts-dropdown') as any).classList.add('hidden')}>
+                                    <X size={14} className="text-slate-300 hover:text-slate-600" />
+                                  </button>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2 overflow-y-auto max-h-64 no-scrollbar">
+                                  {[1,2,3,4,5,6].map(i => (
+                                    <div key={i} className="aspect-square bg-slate-100 rounded-xl overflow-hidden group/item cursor-pointer">
+                                      <img 
+                                        src={`https://picsum.photos/seed/${i + 15}/200`} 
+                                        className="w-full h-full object-cover group-hover/item:scale-110 transition-transform" 
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                                <button className="w-full mt-4 py-3 bg-slate-50 rounded-xl text-[11px] font-black text-slate-400 uppercase tracking-widest hover:bg-slate-100 transition-colors">
+                                  Load More
+                                </button>
+                              </div>
+                            </div>
+
+                            <button 
+                              onClick={disconnectInstagram}
+                              className="w-full sm:w-auto px-6 py-3.5 bg-red-50 text-red-600 rounded-2xl text-[13px] font-bold hover:bg-red-100 transition-all flex items-center justify-center gap-2"
+                            >
+                              <LogOut size={16} />
+                              Disconnect
+                            </button>
+                          </div>
                         </div>
                       ) : (
                         <div className="p-12 text-center border-2 border-dashed border-slate-100 rounded-[3rem] space-y-4">

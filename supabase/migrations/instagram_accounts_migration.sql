@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS public.instagram_accounts (
   facebook_page_id text,
   access_token text NOT NULL,
   username text NOT NULL,
+  profile_picture_url text,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now()
 );
