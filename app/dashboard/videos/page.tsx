@@ -34,18 +34,16 @@ export default function VideosPage() {
 
     // 1. Initial Fetch
     const fetchVideos = async () => {
-      const { data, error } = await supabase
-        .from("videos")
-        .select("*")
-        .eq("user_id", session.user.id)
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        toast.error("Failed to load videos");
-      } else {
+      try {
+        const res = await fetch("/api/videos?limit=50");
+        const { data } = await res.json();
         setVideos(data || []);
+      } catch (err) {
+        console.error("Failed to load videos:", err);
+        toast.error("Failed to load videos");
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     fetchVideos();
@@ -79,9 +77,16 @@ export default function VideosPage() {
   }, [session?.user?.id]);
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("videos").delete().eq("id", id);
-    if (error) toast.error("Failed to delete video");
-    else toast.success("Video deleted");
+    try {
+      const res = await fetch(`/api/videos?id=${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Delete failed");
+      
+      setVideos(prev => prev.filter(v => v.id !== id));
+      toast.success("Video deleted");
+    } catch (err) {
+      console.error("Failed to delete video:", err);
+      toast.error("Failed to delete video");
+    }
   };
 
   const getStatusIcon = (status: string) => {

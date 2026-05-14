@@ -77,11 +77,8 @@ export function ScheduleEditor() {
   const load = useCallback(async () => {
     if (!user) return;
     try {
-      const { data } = await supabase
-        .from("scheduled_posts")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("scheduled_for", { ascending: true });
+      const res = await fetch("/api/scheduled-posts");
+      const { data } = await res.json();
       if (data) setItems(data as Scheduled[]);
     } catch (e) {
       console.error(e);
@@ -143,15 +140,19 @@ export function ScheduleEditor() {
     if (!user || !generatedUrl || !scheduledFor || platforms.length === 0) return;
     setSaving(true);
     try {
-      await supabase.from("scheduled_posts").insert({
-        user_id: user.id,
-        caption,
-        media_url: generatedUrl,
-        media_type: mediaType,
-        platforms,
-        scheduled_for: new Date(scheduledFor).toISOString(),
-        status: "pending",
+      const res = await fetch("/api/scheduled-posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          caption,
+          media_url: generatedUrl,
+          media_type: mediaType,
+          platforms,
+          scheduled_for: new Date(scheduledFor).toISOString(),
+          status: "pending",
+        })
       });
+      if (!res.ok) throw new Error("Failed to schedule");
       setPrompt("");
       setCaption("");
       setGeneratedUrl("");
@@ -184,8 +185,11 @@ export function ScheduleEditor() {
 
   const remove = useCallback(async (id: string) => {
     try {
-      await supabase.from("scheduled_posts").delete().eq("id", id);
-      setItems((p) => p.filter((x) => x.id !== id));
+      const res = await fetch(`/api/scheduled-posts?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setItems((p) => p.filter((x) => x.id !== id));
+        toast.success("Post removed");
+      }
     } catch (e) {
       console.error(e);
     }

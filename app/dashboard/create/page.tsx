@@ -125,8 +125,13 @@ export default function CreatePage() {
         };
       });
 
-      const { error } = await supabase.from("videos").insert(rows);
-      if (error) throw error;
+      const res = await fetch("/api/videos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(rows),
+      });
+
+      if (!res.ok) throw new Error("Scheduling failed");
 
       // Clear draft after scheduling
       localStorage.removeItem('pinpost_latest_draft');

@@ -36,26 +36,28 @@ export default function SettingsPage() {
     if (!session?.user?.id) return;
 
     const fetchInstagram = async () => {
-      const { data } = await supabase
-        .from("instagram_accounts")
-        .select("*")
-        .eq("user_id", session.user.id)
-        .maybeSingle();
-      
-      setInstagramAccount(data);
-      
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get('success') === 'true') {
-        setViewState("success");
-        // Clean URL
-        window.history.replaceState({}, '', window.location.pathname);
-      } else if (!data) {
+      try {
+        const res = await fetch("/api/instagram-account");
+        const { data } = await res.json();
+        
+        setInstagramAccount(data);
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('success') === 'true') {
+          setViewState("success");
+          // Clean URL
+          window.history.replaceState({}, '', window.location.pathname);
+        } else if (!data) {
+          setViewState("not_connected");
+        } else {
+          setViewState("settings");
+        }
+      } catch (err) {
+        console.error("Failed to fetch instagram account:", err);
         setViewState("not_connected");
-      } else {
-        setViewState("settings");
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
     };
 
     fetchInstagram();
@@ -220,9 +222,11 @@ export default function SettingsPage() {
                       </div>
                       <div>
                         <p className="text-[17px] font-bold text-slate-900 leading-tight mb-0.5">
-                          {instagramAccount?.username || 'deepak_maheta_01'}
+                          {instagramAccount?.username || 'Connected Account'}
                         </p>
-                        <p className="text-[13px] text-slate-400 font-semibold tracking-tight">0 Automations</p>
+                        <p className="text-[13px] text-slate-400 font-semibold tracking-tight">
+                          {instagramAccount ? "Account ready" : "Synchronizing..."}
+                        </p>
                       </div>
                     </div>
                     <div className="w-7 h-7 bg-[#4ADE80] rounded-full flex items-center justify-center shadow-sm">

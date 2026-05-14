@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Plus, Trash2, Zap, MessageCircle, MessageSquare, Search, Edit2, Settings, Scissors, ChevronRight, Link as LinkIcon, FileText, CheckCircle2, Send, PlusCircle, Radio, Mail, X, User, Sparkles, Video, ArrowRight, Clock, Image as ImageIcon, Play } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
+
 
 const InstagramIcon = (props: any) => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>);
 
@@ -84,11 +86,8 @@ export function AutomationEditor() {
   const load = useCallback(async () => {
     if (!user) return;
     try {
-      const { data } = await supabase
-        .from("automation_rules")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+      const res = await fetch("/api/automation-rules");
+      const { data } = await res.json();
       if (data) setRules(data as Rule[]);
     } catch (e) {
       console.error(e);
@@ -200,36 +199,32 @@ export function AutomationEditor() {
       : form.reply_message.trim();
 
     try {
-      const { data, error } = await supabase.from("automation_rules").insert({
-        user_id: user.id,
-        platform: "instagram",
-        name: form.name.trim() || `Rule for ${commentType}`,
-        trigger_keyword: finalTrigger,
-        reply_message: finalMessage,
-        target_post_url: form.target_post_url.trim(),
-        active: true,
-      }).select().single();
-
-      if (error) {
-        // Fallback for UI
-        setRules(prev => [{
-          id: Date.now().toString(),
-          name: form.name.trim() || `Rule for ${commentType}`,
+      const res = await fetch("/api/automation-rules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           platform: "instagram",
+          name: form.name.trim() || `Rule for ${commentType}`,
           trigger_keyword: finalTrigger,
           reply_message: finalMessage,
           target_post_url: form.target_post_url.trim(),
           active: true,
-          created_at: new Date().toISOString(),
-          executions: 0
-        }, ...prev]);
-      } else if (data) {
+        })
+      });
+      
+      const { data } = await res.json();
+
+      if (!data) {
+        // Fallback for UI if API fails but we want to show something (or handle error)
+        toast.error("Failed to create rule");
+      } else {
         await load();
       }
 
       setForm({ name: "", trigger_keyword: "", reply_message: "", target_post_url: "", link_attachment: "", action_type: "message" });
       setKeywords([]);
       setShowForm(false);
+      toast.success("Automation rule created!");
     } catch (e) {
       console.error(e);
     } finally {
@@ -239,8 +234,14 @@ export function AutomationEditor() {
 
   const toggleRule = useCallback(async (id: string, active: boolean) => {
     try {
-      await supabase.from("automation_rules").update({ active }).eq("id", id);
-      setRules((r) => r.map((x) => x.id === id ? { ...x, active } : x));
+      const res = await fetch(`/api/automation-rules?id=${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active })
+      });
+      if (res.ok) {
+        setRules((r) => r.map((x) => x.id === id ? { ...x, active } : x));
+      }
     } catch (e) {
       console.error(e);
     }
@@ -249,8 +250,11 @@ export function AutomationEditor() {
   const deleteRule = useCallback(async (id: string) => {
     if (!confirm("Delete this rule?")) return;
     try {
-      await supabase.from("automation_rules").delete().eq("id", id);
-      setRules((r) => r.filter((x) => x.id !== id));
+      const res = await fetch(`/api/automation-rules?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setRules((r) => r.filter((x) => x.id !== id));
+        toast.success("Rule deleted");
+      }
     } catch (e) {
       console.error(e);
     }

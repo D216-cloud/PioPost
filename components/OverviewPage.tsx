@@ -32,31 +32,25 @@ export default function OverviewPage() {
     if (!session?.user?.id) return;
 
     const fetchDashboardData = async () => {
-      // Fetch stats
-      const { data: videos } = await supabase
-        .from("videos")
-        .select("status")
-        .eq("user_id", session.user.id);
+      try {
+        // Fetch videos for stats and recent activity
+        const res = await fetch("/api/videos?limit=100");
+        const { data: videos } = await res.json();
 
-      if (videos) {
-        setStats({
-          total: videos.length,
-          scheduled: videos.filter(v => v.status === 'scheduled').length,
-          posted: videos.filter(v => v.status === 'posted').length,
-          series: 0 // Placeholder
-        });
+        if (videos) {
+          setStats({
+            total: videos.length,
+            scheduled: videos.filter((v: any) => v.status === 'scheduled').length,
+            posted: videos.filter((v: any) => v.status === 'posted').length,
+            series: 0 // Placeholder
+          });
+          setRecentVideos(videos.slice(0, 5));
+        }
+      } catch (err) {
+        console.error("Failed to fetch dashboard data:", err);
+      } finally {
+        setLoading(false);
       }
-
-      // Fetch recent activity
-      const { data: recent } = await supabase
-        .from("videos")
-        .select("*")
-        .eq("user_id", session.user.id)
-        .order("created_at", { ascending: false })
-        .limit(5);
-      
-      setRecentVideos(recent || []);
-      setLoading(false);
     };
 
     fetchDashboardData();
