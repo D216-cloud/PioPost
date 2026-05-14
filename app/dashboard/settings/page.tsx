@@ -114,40 +114,46 @@ export default function SettingsPage() {
           <p className="text-[15px] text-slate-500 font-medium">Manage your account and platform connections.</p>
         </div>
 
-        {/* Success Modal - Same to Same like image */}
+        {/* Success Modal - Exact Match to Image */}
         {showSuccessModal && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="bg-white w-full max-w-[480px] rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-500">
-              {/* Gradient Header */}
-              <div className="h-48 bg-[conic-gradient(at_top_right,_var(--tw-gradient-stops))] from-yellow-200 via-emerald-200 to-blue-300 relative flex items-center justify-center">
-                 <div className="w-20 h-20 bg-[#4ADE80] rounded-full flex items-center justify-center shadow-lg border-4 border-white/50">
-                    <CheckCircle2 size={40} className="text-white" />
-                 </div>
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-[2px] animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-[420px] rounded-[3rem] p-10 shadow-2xl animate-in zoom-in-95 duration-500 text-center space-y-8">
+              {/* Checkmark Icon */}
+              <div className="flex justify-center">
+                <div className="w-20 h-20 bg-[#4ADE80] rounded-full flex items-center justify-center shadow-lg border-[6px] border-white ring-1 ring-slate-100">
+                  <CheckCircle2 size={36} className="text-white" strokeWidth={3} />
+                </div>
               </div>
               
-              <div className="p-10 text-center space-y-10">
-                <div className="space-y-2">
-                   <h2 className="text-[24px] font-bold text-slate-900 tracking-tight">Account reconnected successfully!</h2>
-                </div>
+              <div className="space-y-8">
+                <h2 className="text-[24px] font-bold text-slate-900 tracking-tight leading-tight px-4">
+                  Account reconnected successfully!
+                </h2>
 
-                <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
-                   <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-full bg-slate-200 overflow-hidden border-2 border-white shadow-sm">
-                         <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${instagramAccount?.username}`} alt="avatar" />
-                      </div>
-                      <div className="text-left">
-                         <p className="text-[15px] font-bold text-slate-900">{instagramAccount?.username || 'deepak_maheta_01'}</p>
-                         <p className="text-[12px] text-slate-400 font-medium">0 Automations</p>
-                      </div>
-                   </div>
-                   <div className="w-6 h-6 bg-[#4ADE80] rounded-full flex items-center justify-center">
-                      <CheckCircle2 size={14} className="text-white" />
-                   </div>
+                <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex items-center justify-between group hover:border-slate-200 transition-all">
+                  <div className="flex items-center gap-4 text-left">
+                    <div className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-slate-50 shadow-sm">
+                      <img 
+                        src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${instagramAccount?.username || 'user'}`} 
+                        alt="avatar" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[15px] font-bold text-slate-900 leading-none mb-1">
+                        {instagramAccount?.username || 'deepak_maheta_01'}
+                      </p>
+                      <p className="text-[12px] text-slate-400 font-medium tracking-tight">0 Automations</p>
+                    </div>
+                  </div>
+                  <div className="w-6 h-6 bg-[#4ADE80] rounded-full flex items-center justify-center shadow-sm">
+                    <CheckCircle2 size={14} className="text-white" strokeWidth={3} />
+                  </div>
                 </div>
 
                 <button 
                   onClick={() => setShowSuccessModal(false)}
-                  className="w-full py-4 border border-slate-200 rounded-full text-[15px] font-bold text-slate-900 hover:bg-slate-50 transition-all"
+                  className="w-full py-4 border border-slate-200 rounded-full text-[15px] font-bold text-slate-800 hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-[0.98]"
                 >
                   Continue
                 </button>
