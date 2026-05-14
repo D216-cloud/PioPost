@@ -195,24 +195,61 @@ export default function SettingsPage() {
                   </div>
                 </div>
               ) : instagramAccount ? (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 p-0.5">
-                      <div className="w-full h-full rounded-full bg-white p-0.5">
-                        <div className="w-full h-full rounded-full bg-slate-100 flex items-center justify-center overflow-hidden">
-                          <Instagram size={24} className="text-slate-400" />
+                <div className="animate-in fade-in zoom-in-95 duration-500">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 p-2">
+                    <div className="flex items-center gap-6">
+                      <div className="relative group">
+                        <div className="absolute -inset-1.5 bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 rounded-full blur opacity-40 group-hover:opacity-70 transition duration-1000 group-hover:duration-200 animate-pulse"></div>
+                        <div className="relative w-20 h-20 rounded-full bg-white p-1">
+                          <div className="w-full h-full rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200/50 shadow-inner">
+                            <img 
+                              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${instagramAccount.username}`} 
+                              alt="IG Avatar" 
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        </div>
+                        <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-white rounded-full flex items-center justify-center shadow-lg border-2 border-white">
+                           <div className="w-5 h-5 bg-[#2563EB] rounded-full flex items-center justify-center">
+                              <Instagram size={10} className="text-white" />
+                           </div>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-[20px] font-bold text-slate-900 tracking-tight">@{instagramAccount.username}</h3>
+                          <div className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full flex items-center gap-1">
+                             <CheckCircle2 size={12} className="fill-blue-600 text-white" />
+                             <span className="text-[10px] font-black uppercase tracking-tighter">Verified</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                           <div className="flex flex-col">
+                              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Status</span>
+                              <span className="text-[13px] font-bold text-emerald-500 flex items-center gap-1">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                Fully Connected
+                              </span>
+                           </div>
+                           <div className="w-px h-8 bg-slate-200" />
+                           <div className="flex flex-col">
+                              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Type</span>
+                              <span className="text-[13px] font-bold text-slate-700">Business Account</span>
+                           </div>
                         </div>
                       </div>
                     </div>
-                    <div>
-                      <h3 className="text-[15px] font-bold text-slate-900">@{instagramAccount.username || 'Connected Account'}</h3>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <CheckCircle2 size={12} className="text-emerald-500" />
-                        <span className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">Active</span>
-                      </div>
+                    
+                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                       <button 
+                         onClick={disconnectInstagram}
+                         className="flex-1 sm:flex-none px-6 py-3 rounded-2xl text-[13px] font-bold text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all border border-transparent hover:border-red-100"
+                       >
+                         Disconnect
+                       </button>
                     </div>
                   </div>
-                  <button onClick={disconnectInstagram} className="text-[12px] font-bold text-slate-400 hover:text-red-500 transition-all uppercase tracking-widest">Disconnect</button>
                 </div>
               ) : (
                 <div className="text-center space-y-6 py-4">
