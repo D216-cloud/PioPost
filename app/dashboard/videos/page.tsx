@@ -99,23 +99,23 @@ export default function VideosPage() {
   );
 
   return (
-    <div className="max-w-6xl mx-auto px-8 py-12 space-y-10 animate-in fade-in duration-700">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-        <div className="space-y-1">
-          <h1 className="text-[32px] font-bold text-slate-900 tracking-tight">Your Videos</h1>
-          <p className="text-[15px] text-slate-500 font-medium">Manage and track your AI-generated content.</p>
+    <div className="w-[95%] md:max-w-6xl mx-auto px-4 md:px-8 pt-28 md:py-12 space-y-10 animate-in fade-in duration-700">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-1 text-center md:text-left">
+          <h1 className="text-[28px] md:text-[32px] font-bold text-slate-900 tracking-tight">Your Videos</h1>
+          <p className="text-[14px] md:text-[15px] text-slate-500 font-medium">Manage and track your AI-generated content.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="relative group">
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+          <div className="relative group w-full md:w-auto">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#2563EB] transition-colors" size={16} />
             <input 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search videos..."
-              className="w-full sm:w-64 h-11 bg-white border border-slate-200 rounded-xl pl-10 pr-4 text-[13px] font-medium focus:outline-none focus:ring-4 focus:ring-[#2563EB]/5 focus:border-[#2563EB]/20 transition-all"
+              className="w-full md:w-64 h-11 bg-white border border-slate-200 rounded-xl pl-10 pr-4 text-[13px] font-medium focus:outline-none focus:ring-4 focus:ring-[#2563EB]/5 focus:border-[#2563EB]/20 transition-all"
             />
           </div>
-          <button className="h-11 px-4 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-all flex items-center gap-2">
+          <button className="w-full sm:w-auto h-11 px-4 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
             <Filter size={16} />
             <span className="text-[13px] font-bold">Filter</span>
           </button>
@@ -131,10 +131,10 @@ export default function VideosPage() {
           <p className="text-slate-400 font-medium">No videos found. Start by creating your first reel!</p>
         </div>
       ) : (
-        <div className="flex flex-wrap justify-center md:justify-start gap-12">
+        <div className="flex flex-wrap justify-center gap-8 md:gap-12 pb-10">
           {/* Latest Draft from LocalStorage */}
           {draft && (
-            <div className="w-[280px] aspect-[9/16] bg-slate-900 rounded-[2.5rem] relative overflow-hidden shadow-2xl border-[6px] border-blue-500 shrink-0 group transition-all duration-500 hover:scale-[1.03]">
+            <div className="w-full sm:w-[280px] aspect-[9/16] bg-slate-900 rounded-[2.5rem] relative overflow-hidden shadow-2xl border-[6px] border-blue-500 shrink-0 group transition-all duration-500 hover:scale-[1.03]">
               <img src={draft.thumbnail} className="absolute inset-0 w-full h-full object-cover opacity-50" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/10" />
               <div className="absolute top-6 left-6">
@@ -152,7 +152,7 @@ export default function VideosPage() {
             </div>
           )}
           {filteredVideos.map((video) => (
-            <div key={video.id} className="w-[280px] aspect-[9/16] bg-slate-900 rounded-[2.5rem] relative overflow-hidden shadow-2xl border-[6px] border-white shrink-0 group transition-all duration-500 hover:scale-[1.03] hover:shadow-blue-500/10">
+            <div key={video.id} className="w-full sm:w-[280px] aspect-[9/16] bg-slate-900 rounded-[2.5rem] relative overflow-hidden shadow-2xl border-[6px] border-white shrink-0 group transition-all duration-500 hover:scale-[1.03] hover:shadow-blue-500/10">
               <img src={video.thumbnail_url} className="absolute inset-0 w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity duration-700" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/10" />
               

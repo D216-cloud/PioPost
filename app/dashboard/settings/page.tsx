@@ -32,7 +32,7 @@ export default function SettingsPage() {
         .from("instagram_accounts")
         .select("*")
         .eq("user_id", session.user.id)
-        .single();
+        .maybeSingle();
       
       setInstagramAccount(data);
       setLoading(false);
