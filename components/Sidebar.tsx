@@ -29,7 +29,16 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
   const pathname = usePathname();
 
   return (
-    <aside className={`border-r border-slate-100 bg-white h-screen sticky top-0 flex flex-col transition-all duration-500 ease-in-out overflow-hidden z-50 ${isOpen ? 'w-64 p-6' : 'w-0 p-0 opacity-0 -translate-x-20'}`}>
+    <>
+      {/* Mobile Overlay */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] md:hidden"
+          onClick={onClose}
+        />
+      )}
+      
+      <aside className={`fixed md:sticky top-0 left-0 h-screen bg-white flex flex-col transition-all duration-500 ease-in-out overflow-hidden z-[110] border-r border-slate-100 ${isOpen ? 'w-64 p-6 shadow-2xl md:shadow-none' : 'w-0 p-0 opacity-0 -translate-x-20'}`}>
       <div className={`flex items-center justify-between mb-12 px-2 transition-all duration-500 ${isOpen ? 'opacity-100' : 'opacity-0'}`}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-[#2563EB] rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20 shrink-0">
@@ -83,5 +92,6 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
         </div>
       </div>
     </aside>
+    </>
   );
 }

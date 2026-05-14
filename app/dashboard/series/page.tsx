@@ -4,13 +4,13 @@ import { Layers, Plus, Sparkles, Clock, Video } from "lucide-react";
 
 export default function SeriesPage() {
   return (
-    <div className="max-w-6xl mx-auto px-8 py-12 space-y-12 animate-in fade-in duration-700">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+    <div className="w-[95%] md:max-w-6xl mx-auto px-4 md:px-8 pt-28 md:py-12 space-y-12 md:space-y-16 animate-in fade-in duration-700">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 text-center md:text-left">
         <div className="space-y-1">
-          <h1 className="text-[32px] font-bold text-slate-900 tracking-tight">Content Series</h1>
-          <p className="text-[15px] text-slate-500 font-medium">Group your reels into episodic series for better engagement.</p>
+          <h1 className="text-[28px] md:text-[32px] font-bold text-slate-900 tracking-tight">Content Series</h1>
+          <p className="text-[14px] md:text-[15px] text-slate-500 font-medium">Group your reels into episodic series for better engagement.</p>
         </div>
-        <button className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-8 py-3 rounded-2xl text-[14px] font-bold transition-all flex items-center gap-2 shadow-xl shadow-[#2563EB]/20">
+        <button className="w-full md:w-auto bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-8 py-3 rounded-2xl text-[14px] font-bold transition-all flex items-center justify-center gap-2 shadow-xl shadow-[#2563EB]/20">
           <Plus size={18} />
           Create New Series
         </button>

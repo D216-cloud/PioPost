@@ -107,11 +107,11 @@ export default function SettingsPage() {
   }, []);
 
   return (
-    <div className="flex-1 overflow-y-auto bg-white">
-      <div className="max-w-4xl mx-auto px-8 py-20 space-y-16 animate-in fade-in duration-700">
-        <div className="space-y-1">
-          <h1 className="text-[32px] font-bold text-slate-900 tracking-tight">Settings</h1>
-          <p className="text-[15px] text-slate-500 font-medium">Manage your account and platform connections.</p>
+    <div className="flex-1 overflow-y-auto bg-white pt-24 md:pt-20">
+      <div className="w-[95%] md:max-w-4xl mx-auto px-4 md:px-8 pb-20 space-y-12 md:space-y-16 animate-in fade-in duration-700">
+        <div className="space-y-1 text-center md:text-left">
+          <h1 className="text-[28px] md:text-[32px] font-bold text-slate-900 tracking-tight">Settings</h1>
+          <p className="text-[14px] md:text-[15px] text-slate-500 font-medium">Manage your account and platform connections.</p>
         </div>
 
         {/* Success Modal - Exact Match to Image */}
@@ -152,7 +152,10 @@ export default function SettingsPage() {
                 </div>
 
                 <button 
-                  onClick={() => setShowSuccessModal(false)}
+                  onClick={() => {
+                    setShowSuccessModal(false);
+                    document.getElementById('instagram-section')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
                   className="w-full py-4 border border-slate-200 rounded-full text-[15px] font-bold text-slate-800 hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-[0.98]"
                 >
                   Continue
@@ -162,8 +165,8 @@ export default function SettingsPage() {
           </div>
         )}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
-        <nav className="space-y-1">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-12">
+        <nav className="flex md:flex-col overflow-x-auto md:overflow-x-visible pb-4 md:pb-0 gap-2 md:gap-1 no-scrollbar">
           {[
             { label: "General", icon: User, active: true },
             { label: "Connections", icon: ShieldCheck },
@@ -173,7 +176,7 @@ export default function SettingsPage() {
           ].map(item => (
             <button 
               key={item.label}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[14px] font-bold transition-all ${item.active ? 'bg-[#EFF6FF] text-[#2563EB]' : 'text-slate-500 hover:bg-slate-50'}`}
+              className={`whitespace-nowrap flex items-center gap-3 px-5 md:px-4 py-2.5 md:py-3 rounded-xl text-[13px] md:text-[14px] font-bold transition-all ${item.active ? 'bg-[#EFF6FF] text-[#2563EB]' : 'text-slate-500 hover:bg-slate-50'}`}
             >
               <item.icon size={18} />
               {item.label}
@@ -183,15 +186,15 @@ export default function SettingsPage() {
 
         <div className="md:col-span-3 space-y-8">
           {/* Instagram Card - Simplified */}
-          <section className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm space-y-8">
+          <section id="instagram-section" className="bg-white rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 border border-slate-100 shadow-sm space-y-6 md:space-y-8 scroll-mt-24">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-[#EFF6FF] flex items-center justify-center text-[#2563EB]">
                 <Instagram size={20} />
               </div>
-              <h2 className="text-[18px] font-bold text-slate-900 tracking-tight">Instagram Connection</h2>
+              <h2 className="text-[17px] md:text-[18px] font-bold text-slate-900 tracking-tight">Instagram Connection</h2>
             </div>
 
-            <div className="p-8 rounded-3xl bg-slate-50 border border-slate-100">
+            <div className="p-6 md:p-8 rounded-3xl bg-slate-50 border border-slate-100">
               {isConnecting ? (
                 <div className="text-center py-4 space-y-4 animate-in fade-in duration-500">
                   <div className="h-10 w-10 border-2 border-[#2563EB] border-t-transparent rounded-full animate-spin mx-auto" />
@@ -276,12 +279,12 @@ export default function SettingsPage() {
           </section>
 
           {/* Profile Card - Simplified */}
-          <section id="profile" className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm space-y-8">
+          <section id="profile" className="bg-white rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 border border-slate-100 shadow-sm space-y-6 md:space-y-8">
              <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
                 <User size={20} />
               </div>
-              <h2 className="text-[18px] font-bold text-slate-900 tracking-tight">Profile Information</h2>
+              <h2 className="text-[17px] md:text-[18px] font-bold text-slate-900 tracking-tight">Profile Information</h2>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -301,7 +304,7 @@ export default function SettingsPage() {
                 />
               </div>
             </div>
-            <button className="bg-slate-900 text-white px-10 py-4 rounded-2xl text-[13px] font-bold hover:bg-black transition-all shadow-lg shadow-slate-900/10">
+            <button className="w-full md:w-auto bg-slate-900 text-white px-10 py-4 rounded-2xl text-[13px] font-bold hover:bg-black transition-all shadow-lg shadow-slate-900/10">
               Save Changes
             </button>
           </section>

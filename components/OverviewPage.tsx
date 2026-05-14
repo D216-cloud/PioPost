@@ -70,22 +70,22 @@ export default function OverviewPage() {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto px-8 py-20 space-y-16 animate-in fade-in duration-700">
-      <div className="space-y-3 text-center">
-        <h1 className="text-[42px] font-bold text-slate-900 tracking-tight leading-tight">
-          Hey, <span className="font-logo text-[#2563EB] text-[48px]">{session?.user?.name?.split(' ')[0] || 'Deepak'}</span>!
+    <div className="w-[95%] md:max-w-4xl mx-auto px-4 md:px-8 pt-28 md:py-20 space-y-12 md:space-y-16 animate-in fade-in duration-700">
+      <div className="space-y-3 text-center md:text-left">
+        <h1 className="text-[32px] md:text-[42px] font-bold text-slate-900 tracking-tight leading-tight">
+          Hey, <span className="font-logo text-[#2563EB] text-[36px] md:text-[48px]">{session?.user?.name?.split(' ')[0] || 'Deepak'}</span>!
         </h1>
-        <p className="text-[17px] text-slate-400 font-medium max-w-xl mx-auto">Your content pipeline is looking healthy. Here is what's happening.</p>
+        <p className="text-[15px] md:text-[17px] text-slate-400 font-medium max-w-xl mx-auto md:mx-0">Your content pipeline is looking healthy. Here is what's happening.</p>
       </div>
 
       {/* ChatGPT-Style Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
         {[
           { label: "Total Reels", value: stats.total, icon: Video, color: "text-[#2563EB]" },
           { label: "Scheduled", value: stats.scheduled, icon: Clock, color: "text-[#2563EB]" },
           { label: "Live Posts", value: stats.posted, icon: CheckCircle2, color: "text-[#2563EB]" },
         ].map((card, i) => (
-          <div key={i} className="bg-white rounded-[1.5rem] p-8 border border-slate-200/60 shadow-sm hover:shadow-md transition-all flex flex-col gap-6 group">
+          <div key={i} className="bg-white rounded-[1.5rem] p-6 md:p-8 border border-slate-200/60 shadow-sm hover:shadow-md transition-all flex flex-col gap-6 group">
             <div className="flex items-center justify-between">
               <div className={`w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center ${card.color}`}>
                 <card.icon size={20} />
@@ -93,8 +93,8 @@ export default function OverviewPage() {
               <ArrowUpRight size={18} className="text-slate-300 group-hover:text-slate-900 transition-colors" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-[32px] font-bold text-slate-900 tracking-tight">{card.value}</h3>
-              <p className="text-[14px] font-medium text-slate-400">{card.label}</p>
+              <h3 className="text-[28px] md:text-[32px] font-bold text-slate-900 tracking-tight">{card.value}</h3>
+              <p className="text-[13px] md:text-[14px] font-medium text-slate-400">{card.label}</p>
             </div>
           </div>
         ))}
@@ -117,17 +117,17 @@ export default function OverviewPage() {
         ) : (
           <div className="space-y-4">
             {recentVideos.map((video) => (
-              <div key={video.id} className="flex items-center gap-8 p-4 hover:bg-slate-50 rounded-[2rem] transition-all group">
-                <div className="w-16 aspect-[9/16] rounded-xl bg-slate-900 overflow-hidden shrink-0 shadow-sm">
+              <div key={video.id} className="flex items-center gap-4 md:gap-8 p-3 md:p-4 hover:bg-slate-50 rounded-2xl md:rounded-[2rem] transition-all group">
+                <div className="w-12 md:w-16 aspect-[9/16] rounded-xl bg-slate-900 overflow-hidden shrink-0 shadow-sm">
                    <img src={video.thumbnail_url} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                 </div>
                 <div className="flex-1 min-w-0">
-                   <h4 className="text-[16px] font-bold text-slate-900 truncate">{video.title}</h4>
-                   <p className="text-[12px] text-slate-400 font-medium mt-1 uppercase tracking-wider">{new Date(video.created_at).toLocaleDateString()} — {video.status}</p>
+                   <h4 className="text-[15px] md:text-[16px] font-bold text-slate-900 truncate">{video.title}</h4>
+                   <p className="text-[11px] md:text-[12px] text-slate-400 font-medium mt-1 uppercase tracking-wider">{new Date(video.created_at).toLocaleDateString()} — {video.status}</p>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 md:gap-4">
                   <span className={`w-2 h-2 rounded-full ${video.status === 'posted' ? 'bg-emerald-400' : 'bg-[#2563EB]'}`} />
-                  <button className="text-slate-300 hover:text-slate-900"><MoreVertical size={18} /></button>
+                  <button className="text-slate-300 hover:text-slate-900 p-2"><MoreVertical size={18} /></button>
                 </div>
               </div>
             ))}
