@@ -53,97 +53,114 @@ export function AuthCard() {
   };
 
   return (
-    <div className="w-full max-w-[440px] animate-in fade-in slide-in-from-bottom-6 duration-1000 ease-out">
-      <div className="mb-10 text-center">
-        <h1 className="logo-script text-[48px] text-slate-900 mb-2">PinPost</h1>
-        <p className="text-[15px] text-slate-500 font-medium tracking-tight">
-          {isSignUp ? "Create your account to start creating" : "Sign in to preview your posts across every platform"}
+    <div className="w-full max-w-[460px] relative z-10">
+      {/* Background Glow */}
+      <div className="absolute -top-20 -left-20 w-40 h-40 bg-blue-500/10 rounded-full blur-[80px] animate-pulse" />
+      <div className="absolute -bottom-20 -right-20 w-40 h-40 bg-cyan-500/10 rounded-full blur-[80px] animate-pulse" />
+
+      <div className="mb-12 text-center space-y-3 animate-in fade-in slide-in-from-top-4 duration-1000">
+        <h1 className="logo-script text-[56px] bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 bg-clip-text text-transparent drop-shadow-sm">
+          PinPost
+        </h1>
+        <p className="text-[15px] text-slate-500 font-medium tracking-tight max-w-[280px] mx-auto leading-relaxed">
+          {isSignUp ? "Create your account to start creating" : "Your all-in-one platform for cross-platform post previews"}
         </p>
       </div>
 
-      <div className="bg-white rounded-[2rem] border border-slate-200 shadow-[0_32px_80px_-16px_rgba(0,0,0,0.08)] px-10 py-12 relative overflow-hidden">
-        <button
-          type="button"
-          onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-          className="group relative flex w-full items-center justify-between gap-6 bg-white hover:bg-slate-50 text-slate-900 pl-8 pr-2 py-2 rounded-full text-[15px] font-bold border border-slate-200 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm hover:shadow-md"
-        >
-          <div className="flex items-center gap-3">
-            <GoogleIcon />
-            {isSignUp ? "Sign up with Google" : "Continue with Google"}
-          </div>
-          <div className="bg-slate-900 p-2.5 rounded-full transition-transform group-hover:translate-x-1 shadow-sm">
-            <ArrowRight className="h-4 w-4 text-white" />
-          </div>
-        </button>
-
-        <div className="my-10 flex items-center gap-4 text-[11px] font-bold uppercase tracking-[0.2em] text-slate-300">
-          <span className="h-px flex-1 bg-slate-100" />
-          or
-          <span className="h-px flex-1 bg-slate-100" />
-        </div>
-
-        <form onSubmit={onEmailAuth} className="space-y-8">
-          <div className="space-y-6">
-            <div>
-              <label htmlFor="email" className="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">Email address</label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="you@example.com"
-                className="w-full rounded-2xl border border-slate-100 bg-slate-50/50 px-5 py-4 text-[15px] placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0ea5e9]/20 focus:bg-white transition-all border-transparent focus:border-[#0ea5e9]/30"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                required
-                autoComplete="email"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">Password</label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="••••••••"
-                className="w-full rounded-2xl border border-slate-100 bg-slate-50/50 px-5 py-4 text-[15px] placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0ea5e9]/20 focus:bg-white transition-all border-transparent focus:border-[#0ea5e9]/30"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                required
-                autoComplete={isSignUp ? "new-password" : "current-password"}
-              />
-            </div>
-          </div>
-
+      <div className="glass rounded-[2.5rem] p-1 shadow-[0_32px_120px_-20px_rgba(0,0,0,0.12)] border-white/20 animate-in fade-in zoom-in-95 duration-700">
+        <div className="bg-white/40 backdrop-blur-sm rounded-[2.25rem] px-8 sm:px-10 py-12 border border-white/40 shadow-inner">
           <button
-            type="submit"
-            disabled={isLoading}
-            className="group relative flex w-full items-center justify-between gap-6 bg-slate-900 hover:bg-black text-white pl-8 pr-2 py-2 rounded-full text-[15px] font-bold transition-all hover:scale-[1.02] active:scale-[0.98] shadow-xl hover:shadow-2xl disabled:opacity-60"
+            type="button"
+            onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+            className="group relative flex w-full items-center justify-between gap-6 bg-white hover:bg-slate-50 text-slate-900 pl-8 pr-2 py-2 rounded-full text-[15px] font-bold border border-slate-100 transition-all hover:scale-[1.01] active:scale-[0.99] shadow-sm hover:shadow-md"
           >
             <div className="flex items-center gap-3">
-              <Mail size={18} className="text-slate-400 group-hover:text-white transition-colors" />
-              {isLoading ? (isSignUp ? "Creating account..." : "Signing in...") : (isSignUp ? "Create account" : "Sign in")}
+              <GoogleIcon />
+              <span className="text-slate-700">{isSignUp ? "Sign up with Google" : "Continue with Google"}</span>
             </div>
-            <div className="bg-white p-2.5 rounded-full transition-transform group-hover:translate-x-1 shadow-sm">
-              <ArrowRight className="h-5 w-5 text-[#0ea5e9]" />
+            <div className="bg-slate-900 p-2.5 rounded-full transition-transform group-hover:translate-x-1 shadow-sm">
+              <ArrowRight className="h-4 w-4 text-white" />
             </div>
           </button>
-        </form>
 
-        <p className="mt-10 text-center text-[14px] font-medium text-slate-500">
-          {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
-          <span 
-            className="font-bold text-[#0ea5e9] cursor-pointer hover:underline underline-offset-4"
-            onClick={() => setIsSignUp(!isSignUp)}
-          >
-            {isSignUp ? "Sign in" : "Sign up"}
-          </span>
-        </p>
+          <div className="my-10 flex items-center gap-4 text-[11px] font-bold uppercase tracking-[0.2em] text-slate-300">
+            <span className="h-px flex-1 bg-slate-200/50" />
+            or
+            <span className="h-px flex-1 bg-slate-200/50" />
+          </div>
+
+          <form onSubmit={onEmailAuth} className="space-y-6">
+            <div className="space-y-4">
+              <div className="float-field group">
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder=" "
+                  className="!rounded-2xl !bg-white/80 !border-slate-100 !px-5 !py-5 text-[15px] font-bold text-slate-900 focus:!border-blue-500/30 focus:!ring-blue-500/5 transition-all"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                  autoComplete="email"
+                />
+                <label htmlFor="email">Email address</label>
+              </div>
+
+              <div className="float-field group">
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  placeholder=" "
+                  className="!rounded-2xl !bg-white/80 !border-slate-100 !px-5 !py-5 text-[15px] font-bold text-slate-900 focus:!border-blue-500/30 focus:!ring-blue-500/5 transition-all"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                  autoComplete={isSignUp ? "new-password" : "current-password"}
+                />
+                <label htmlFor="password">Password</label>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="group relative flex w-full items-center justify-between gap-6 bg-slate-900 hover:bg-black text-white pl-8 pr-2 py-2 rounded-full text-[15px] font-bold transition-all hover:scale-[1.01] active:scale-[0.99] shadow-xl hover:shadow-2xl disabled:opacity-60 overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-600/0 via-white/10 to-blue-600/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+              <div className="flex items-center gap-3 relative z-10">
+                <Mail size={18} className="text-slate-400 group-hover:text-white transition-colors" />
+                {isLoading ? (isSignUp ? "Creating account..." : "Signing in...") : (isSignUp ? "Create account" : "Sign in")}
+              </div>
+              <div className="bg-white p-2.5 rounded-full transition-transform group-hover:translate-x-1 shadow-sm relative z-10">
+                <ArrowRight className="h-5 w-5 text-blue-600" />
+              </div>
+            </button>
+          </form>
+
+          <div className="mt-10 pt-8 border-t border-slate-100/50">
+            <p className="text-center text-[14px] font-medium text-slate-500">
+              {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
+              <button 
+                type="button"
+                className="font-bold text-blue-600 hover:text-blue-700 transition-colors"
+                onClick={() => setIsSignUp(!isSignUp)}
+              >
+                {isSignUp ? "Sign in" : "Create one now"}
+              </button>
+            </p>
+          </div>
+        </div>
       </div>
 
-      <p className="mt-10 text-center text-[12px] font-medium text-slate-400 max-w-sm mx-auto leading-relaxed">
-        By continuing, you agree to PinPost's <span className="underline cursor-pointer">Terms of Service</span> and <span className="underline cursor-pointer">Privacy Policy</span>.
-      </p>
+      <div className="mt-12 text-center space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300">
+        <p className="text-[12px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
+          Trusted by <span className="text-slate-900">2,000+</span> creators worldwide
+        </p>
+        <p className="text-[12px] font-medium text-slate-400 max-w-sm mx-auto leading-relaxed">
+          By continuing, you agree to PinPost's <span className="underline cursor-pointer hover:text-slate-600 transition-colors">Terms of Service</span> and <span className="underline cursor-pointer hover:text-slate-600 transition-colors">Privacy Policy</span>.
+        </p>
+      </div>
     </div>
   );
 }

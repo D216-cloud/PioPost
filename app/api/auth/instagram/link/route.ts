@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
+import { getInstagramRedirectUri } from "@/lib/instagram-config";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -9,19 +10,27 @@ export async function GET() {
   }
 
   const CLIENT_ID = process.env.INSTAGRAM_CLIENT_ID;
-  const REDIRECT_URI = `${process.env.NEXTAUTH_URL}/api/auth/instagram/callback`;
+  const REDIRECT_URI = getInstagramRedirectUri();
   
-  // Permissions required for Instagram Reels and Webhooks
+  console.log("[Instagram OAuth] Initiating Auth with Redirect URI:", REDIRECT_URI);
+
+  // Permissions required for Instagram Login for Business
   const scope = [
-    "instagram_basic",
-    "instagram_content_publish",
-    "pages_show_list",
-    "pages_read_engagement",
-    "public_profile",
-    "email"
+    "instagram_business_basic",
+    "instagram_business_content_publish",
+    "instagram_business_manage_messages",
+    "instagram_business_manage_comments"
   ].join(",");
 
-  const authUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=${scope}&state=${session.user.id}`;
+  const params = new URLSearchParams({
+    client_id: CLIENT_ID!,
+    redirect_uri: REDIRECT_URI,
+    response_type: "code",
+    scope: scope,
+    state: session.user.id
+  });
+
+  const authUrl = `https://www.instagram.com/oauth/authorize?${params.toString()}`;
 
   return NextResponse.redirect(authUrl);
 }

@@ -39,17 +39,58 @@ export default function SettingsPage() {
     };
 
     fetchInstagram();
+
+    // Subscribe to real-time updates
+    const channel = supabase
+      .channel('instagram_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'instagram_accounts',
+          filter: `user_id=eq.${session.user.id}`
+        },
+        (payload) => {
+          console.log('Change received!', payload);
+          if (payload.eventType === 'DELETE') {
+            setInstagramAccount(null);
+          } else {
+            setInstagramAccount(payload.new);
+            if (payload.eventType === 'INSERT') {
+              setShowSuccessModal(true);
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [session?.user?.id]);
 
   const connectInstagram = async () => {
     setIsConnecting(true);
-    setConnectionStep("Redirecting to Meta...");
+    setConnectionStep("Redirecting to Instagram...");
     
     // Redirect to our real OAuth initiation route
     window.location.href = "/api/auth/instagram/link";
   };
 
   const disconnectInstagram = async () => {
+    if (!session?.user?.id) return;
+    
+    const { error } = await supabase
+      .from("instagram_accounts")
+      .delete()
+      .eq("user_id", session.user.id);
+
+    if (error) {
+      toast.error("Failed to disconnect account");
+      return;
+    }
+
     setInstagramAccount(null);
     toast.success("Instagram account disconnected");
   };
