@@ -21,7 +21,7 @@ const navItems = [
   { label: "Series", icon: Layers, href: "/dashboard/series" },
   { label: "Videos", icon: Video, href: "/dashboard/videos" },
   { label: "Schedule", icon: Calendar, href: "/dashboard/schedule" },
-  { label: "Guides", icon: BookOpen, href: "/dashboard/guides" },
+  { label: "Automation", icon: BookOpen, href: "/dashboard/automation" },
   { label: "Settings", icon: Settings, href: "/dashboard/settings" },
 ];
 

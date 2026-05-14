@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Trash2, Zap, MessageCircle, MessageSquare, Search, Edit2, Settings, Scissors, ChevronRight, Link as LinkIcon, FileText, CheckCircle2, Send, PlusCircle, Radio, Mail, X, User, Sparkles, Video, ArrowRight, Clock, Image as ImageIcon, Play } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Zap, MessageCircle, MessageSquare, Search, Edit2, Settings, Scissors, ChevronRight, Link as LinkIcon, FileText, CheckCircle2, Send, PlusCircle, Radio, Mail, X, User, Sparkles, Video, ArrowRight, Clock, Image as ImageIcon, Play, Activity } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
@@ -64,6 +64,7 @@ export function AutomationEditor() {
   const [askForEmail, setAskForEmail] = useState(false);
   const [dmType, setDmType] = useState("Text + Button");
   const [activeProvider, setActiveProvider] = useState<"instagram" | "youtube">("instagram");
+  const [igAccount, setIgAccount] = useState<any>(null);
   
   // YouTube to Reels Flow State
   const [currentView, setCurrentView] = useState<"dashboard" | "yt_automation">("dashboard");
@@ -92,6 +93,20 @@ export function AutomationEditor() {
     } catch (e) {
       console.error(e);
     } finally {
+      // Fetch Instagram Account
+      try {
+        const igRes = await fetch("/api/instagram-account");
+        const { data: igData } = await igRes.json();
+        if (igData) {
+          setIgAccount(igData);
+          setIsIgConnected(true);
+        } else {
+          setIgAccount(null);
+          setIsIgConnected(false);
+        }
+      } catch (e) {
+        console.error("IG fetch error:", e);
+      }
       setLoadingData(false);
     }
   }, [user]);
@@ -270,92 +285,62 @@ export function AutomationEditor() {
 
   return (
     <div className="min-h-screen bg-[#fcfcfd] font-sans">
-      <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/80 backdrop-blur-md">
-        <nav className="mx-auto flex w-full max-w-7xl items-center px-8 py-4">
-          <div className="flex-[0.5] flex items-center gap-4">
-            <Link href="/dashboard" className="logo-script text-[26px] text-slate-900">PinPost</Link>
-          </div>
-          <div className="flex flex-[0.5] items-center justify-end gap-4">
-            <div className="flex items-center gap-2.5 bg-slate-50 pl-2 pr-5 py-1.5 rounded-full border border-slate-100">
-              <div className="h-7 w-7 rounded-full bg-slate-900 text-white flex items-center justify-center text-[12px] font-bold uppercase shadow-sm">
-                {session?.user?.email?.[0] || "A"}
-              </div>
-              <span className="text-[13px] font-bold text-slate-600 truncate max-w-[150px]">{session?.user?.email || "amitmaheta2007@gmail.com"}</span>
-            </div>
-          </div>
-        </nav>
-      </header>
 
-      <div className="mx-auto max-w-3xl px-6 py-12 sm:py-16 space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-1000 ease-out">
-        <div>
-          <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-[13px] font-bold text-slate-400 hover:text-[#0ea5e9] mb-6 transition-colors group">
-            <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-1" /> Back to dashboard
-          </Link>
-        </div>
-          <h1 className="text-[36px] font-bold tracking-tight text-slate-900">Automation</h1>
-          <p className="text-[16px] text-slate-500 font-medium leading-relaxed max-w-md">
-            Manage your AI engagement workflows and video transformations.
+      <div className="w-[95%] md:max-w-4xl mx-auto px-4 md:px-8 pt-12 md:pt-20 pb-20 space-y-12 md:space-y-20 animate-in fade-in duration-700">
+        {/* Premium Minimalist Header */}
+        <div className="space-y-3 text-center">
+          <h1 className="text-[32px] md:text-[42px] font-bold text-slate-900 tracking-tight leading-tight">
+            Instagram <span className="font-logo text-[#2563EB] text-[36px] md:text-[48px]">Automation</span>
+          </h1>
+          <p className="text-[15px] md:text-[17px] text-slate-400 font-medium max-w-xl mx-auto">
+            Automate your engagement workflows and viral responses with our advanced AI engine.
           </p>
         </div>
 
         {currentView === "dashboard" ? (
-        <div className="space-y-8 animate-in fade-in duration-500">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-            <div>
-              <h1 className="text-[28px] font-bold text-slate-900 tracking-tight">Automation Rules</h1>
-              <p className="text-[14px] text-slate-500 font-medium mt-1 uppercase tracking-widest">Manage your AI engagement workflows</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="relative group flex-1 sm:flex-initial">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#0ea5e9] transition-colors" size={16} />
-                <input 
-                  placeholder="Search rules..." 
-                  className="w-full sm:w-64 h-11 bg-white border border-slate-100 rounded-full pl-10 pr-4 text-[13px] font-medium placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-[#0ea5e9]/5 focus:border-[#0ea5e9]/30 transition-all shadow-sm"
-                />
+        <div className="space-y-12 animate-in fade-in duration-500">
+
+
+          <section className="relative max-w-3xl mx-auto group">
+            <div className="absolute -inset-1 bg-gradient-to-r from-slate-200/20 to-slate-100/20 rounded-2xl md:rounded-[3rem] blur opacity-0 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
+            <div className="relative bg-white rounded-2xl md:rounded-[3rem] p-2 md:p-2.5 border border-slate-200/60 shadow-xl shadow-slate-200/20 flex items-center gap-4">
+              <div className="flex pl-8 text-slate-400">
+                <div className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 overflow-hidden flex items-center justify-center shadow-inner">
+                  {igAccount?.profile_picture_url ? (
+                    <img src={igAccount.profile_picture_url} alt="" className="w-full h-full object-cover" />
+                  ) : session?.user?.image ? (
+                    <img src={session.user.image} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <InstagramIcon className="w-5 h-5 text-slate-300" />
+                  )}
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                {igAccount ? (
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-[15px] font-bold text-slate-900 tracking-tight">@{igAccount.username}</span>
+                    <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 text-emerald-500 rounded-full border border-emerald-100/50">
+                      <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-[8px] font-black uppercase tracking-widest">Live</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-[15px] font-bold text-slate-400 tracking-tight">No account connected</span>
+                    <Link href="/dashboard/settings" className="text-[11px] font-bold text-[#2563EB] hover:underline">Connect Now</Link>
+                  </div>
+                )}
               </div>
               <button 
                 onClick={handleNewRuleClick}
-                className="group relative flex items-center gap-4 bg-slate-900 hover:bg-black text-white pl-6 pr-1.5 py-1.5 rounded-full text-[13px] font-bold transition-all hover:scale-105 active:scale-95 shadow-lg"
+                disabled={!igAccount}
+                className={`h-12 md:h-16 px-10 rounded-xl md:rounded-[2.5rem] text-[15px] font-bold transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95 whitespace-nowrap ${igAccount ? "bg-[#8e9196] hover:bg-slate-700 text-white" : "bg-slate-100 text-slate-400 cursor-not-allowed"}`}
               >
-                Create New Rule
-                <div className="bg-white p-1 rounded-full transition-transform group-hover:rotate-90 shadow-sm">
-                  <Plus className="h-3.5 w-3.5 text-[#0ea5e9]" />
-                </div>
+                <Sparkles size={18} />
+                Create Rule
               </button>
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="flex items-center gap-4 rounded-3xl border border-slate-100 bg-white px-6 py-5 shadow-sm">
-              <div className="w-10 h-10 rounded-2xl bg-pink-50 flex items-center justify-center text-pink-500 border border-pink-100/50">
-                <InstagramIcon className="h-6 w-6" />
-              </div>
-              <div>
-                <span className="text-[15px] font-bold text-slate-800">Instagram Automation</span>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Auto-DM Tools</p>
-              </div>
-              <div className="ml-auto flex items-center gap-1.5 px-3 py-1 bg-emerald-50 rounded-full border border-emerald-100">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[11px] font-bold text-emerald-600">Connected</span>
-              </div>
-            </div>
-
-            <button 
-              onClick={handleYtShortsClick}
-              className="flex items-center gap-4 rounded-3xl border border-slate-100 bg-white px-6 py-5 shadow-sm hover:border-red-100 hover:bg-red-50/30 transition-all text-left group"
-            >
-              <div className="w-10 h-10 rounded-2xl bg-red-50 flex items-center justify-center text-red-500 border border-red-100/50 group-hover:scale-110 transition-transform">
-                <Video className="h-6 w-6" />
-              </div>
-              <div>
-                <span className="text-[15px] font-bold text-slate-800">YouTube to Reels</span>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">AI Shorts Magic</p>
-              </div>
-              <div className="ml-auto">
-                <ArrowRight size={18} className="text-slate-300 group-hover:text-red-500 transition-colors" />
-              </div>
-            </button>
-          </div>
+          </section>
 
           {loadingData ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -424,21 +409,7 @@ export function AutomationEditor() {
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-24 bg-white border border-slate-100 rounded-[3rem] shadow-sm">
-              <div className="w-20 h-20 bg-slate-50 rounded-[2.5rem] flex items-center justify-center text-slate-200 mb-6 border border-slate-100">
-                <Zap size={40} />
-              </div>
-              <h2 className="text-[20px] font-bold text-slate-900 mb-2">No automation rules yet</h2>
-              <p className="text-[14px] text-slate-500 mb-8 max-w-[300px] text-center">Create your first rule to automate DMs and engagement on Instagram.</p>
-              <button 
-                onClick={handleNewRuleClick}
-                className="inline-flex items-center gap-3 rounded-2xl bg-slate-900 px-8 py-4 text-[14px] font-bold text-white transition-all hover:bg-slate-800 shadow-xl hover:scale-105 active:scale-95"
-              >
-                <Plus size={20} /> Create Your First Rule
-              </button>
-            </div>
-          )}
+          ) : null}
         </div>
       ) : (
         <div className="space-y-8 animate-in slide-in-from-right-8 fade-in duration-700">
@@ -455,7 +426,7 @@ export function AutomationEditor() {
             </div>
           </div>
 
-          <div className="bg-white border border-slate-100 rounded-[3rem] p-8 sm:p-12 shadow-sm min-h-[600px] flex flex-col items-center justify-center relative overflow-hidden">
+          <div className="bg-white border border-slate-200/60 rounded-[3rem] p-8 sm:p-12 shadow-sm min-h-[600px] flex flex-col items-center justify-center relative overflow-hidden">
             {/* Background Accents */}
             <div className="absolute -top-24 -right-24 w-96 h-96 bg-red-500/5 blur-[100px] rounded-full" />
             <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-500/5 blur-[100px] rounded-full" />
@@ -709,8 +680,8 @@ export function AutomationEditor() {
               <div className="flex items-center justify-between px-6 py-5 border-b border-slate-50 shrink-0">
                 <h2 className="text-[17px] font-bold text-slate-900 tracking-tight">
                   {formStep === "trigger_selection" ? "Trigger AutoDM when someone..." : 
-                   formStep === "select_post" ? "When someone comments on your Post/Reel" : 
-                   formStep === "trigger_setup" ? "When someone comments on your Post/Reel" :
+                   formStep === "select_post" ? "Select the Reel to automate" : 
+                   formStep === "trigger_setup" ? "Setup keyword triggers" :
                    formStep === "confirm_launch" ? "Launch AutoDM" :
                    "Create auto-DM rule"}
                 </h2>
@@ -728,11 +699,10 @@ export function AutomationEditor() {
                     {formStep === "trigger_selection" && (
                       <div className="space-y-2.5">
                         {[
-                          { id: "comment", label: "Comments on your Post or Reel", icon: <InstagramIcon size={18} />, color: "bg-emerald-50 text-emerald-500" },
-                          { id: "dm", label: "Sends you a DM", icon: <Send size={18} />, color: "bg-blue-50 text-blue-500" },
+                          { id: "comment_reel", label: "Comments on your Reels", icon: <InstagramIcon size={18} />, color: "bg-pink-50 text-pink-500" },
+                          { id: "comment_post", label: "Comments on your Posts", icon: <Video size={18} />, color: "bg-blue-50 text-blue-500" },
+                          { id: "dm", label: "Sends you a DM", icon: <Send size={18} />, color: "bg-emerald-50 text-emerald-500" },
                           { id: "story_reply", label: "Replies to your Story", icon: <Sparkles size={18} />, color: "bg-purple-50 text-purple-500" },
-                          { id: "live_comment", label: "Comments on your Live", icon: <Video size={18} />, color: "bg-rose-50 text-rose-500" },
-                          { id: "post_dm", label: "DMs your Post or Reel", icon: <Mail size={18} />, color: "bg-amber-50 text-amber-500" },
                         ].map((trigger) => (
                           <button 
                             key={trigger.id}
@@ -771,7 +741,9 @@ export function AutomationEditor() {
                           <div className="relative mb-3">
                             <div className="w-20 h-20 rounded-full p-1 bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600">
                               <div className="w-full h-full rounded-full bg-white p-0.5">
-                                {session?.user?.image ? (
+                                {igAccount?.profile_picture_url ? (
+                                  <img src={igAccount.profile_picture_url} alt="User" className="w-full h-full rounded-full object-cover" />
+                                ) : session?.user?.image ? (
                                   <img src={session.user.image} alt="User" className="w-full h-full rounded-full object-cover" />
                                 ) : (
                                   <div className="w-full h-full rounded-full bg-slate-50 flex items-center justify-center text-slate-300">
@@ -781,8 +753,13 @@ export function AutomationEditor() {
                               </div>
                             </div>
                           </div>
-                          <h3 className="text-[15px] font-bold text-slate-900">{session?.user?.name || "deep.1792816"}</h3>
-                          <button className="text-[12px] font-bold text-[#0ea5e9] hover:underline mt-1">Switch account</button>
+                          <div className="flex flex-col items-center">
+                            <h3 className="text-[15px] font-bold text-slate-900">@{igAccount?.username || session?.user?.name || "connected_account"}</h3>
+                            <div className="flex items-center gap-1.5 mt-1 px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100/50">
+                              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              <span className="text-[9px] font-black uppercase tracking-widest">Connected Live</span>
+                            </div>
+                          </div>
                         </div>
 
                         <div className="space-y-3">
@@ -845,7 +822,9 @@ export function AutomationEditor() {
                           <div className="relative mb-2">
                             <div className="w-16 h-16 rounded-full p-1 bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600">
                               <div className="w-full h-full rounded-full bg-white p-0.5">
-                                {session?.user?.image ? (
+                                {igAccount?.profile_picture_url ? (
+                                  <img src={igAccount.profile_picture_url} alt="User" className="w-full h-full rounded-full object-cover" />
+                                ) : session?.user?.image ? (
                                   <img src={session.user.image} alt="User" className="w-full h-full rounded-full object-cover" />
                                 ) : (
                                   <div className="w-full h-full rounded-full bg-slate-50 flex items-center justify-center text-slate-300">
@@ -855,7 +834,13 @@ export function AutomationEditor() {
                               </div>
                             </div>
                           </div>
-                          <h3 className="text-[14px] font-bold text-slate-900">{session?.user?.name || "deep.1792816"}</h3>
+                          <div className="flex flex-col items-center">
+                            <h3 className="text-[14px] font-bold text-slate-900">@{igAccount?.username || session?.user?.name || "connected_account"}</h3>
+                            <div className="flex items-center gap-1.5 mt-1 px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100/50">
+                              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              <span className="text-[9px] font-black uppercase tracking-widest">Account Synced</span>
+                            </div>
+                          </div>
                         </div>
 
                         <div className="space-y-4">
@@ -1350,34 +1335,23 @@ export function AutomationEditor() {
           </div>
         )}
 
-        <section className="space-y-8">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-            <div className="flex items-center gap-3">
-              <h2 className="text-[22px] font-bold text-slate-900 tracking-tight">Active Rules</h2>
-              <span className="px-2 py-0.5 bg-slate-100 rounded-full text-[11px] font-bold text-slate-500">{rules.length}</span>
+        {rules.length > 0 && (
+          <section className="space-y-8">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <h2 className="text-[22px] font-bold text-slate-900 tracking-tight">Active Rules</h2>
+                <span className="px-2 py-0.5 bg-slate-100 rounded-full text-[11px] font-bold text-slate-500">{rules.length}</span>
+              </div>
             </div>
-          </div>
-          
-          {loadingData ? (
+            
+            {loadingData ? (
             <div className="flex justify-center py-20">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#0ea5e9] border-t-transparent" />
             </div>
-          ) : rules.length === 0 ? (
-            <div className="rounded-[2.5rem] border border-dashed border-slate-200 bg-white py-24 text-center space-y-4 shadow-sm">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-slate-50 mx-auto border border-slate-100 shadow-inner">
-                <Zap className="h-10 w-10 text-slate-300" />
-              </div>
-              <div className="space-y-2">
-                <p className="text-[18px] font-bold text-slate-900">No automation rules</p>
-                <p className="text-[14px] text-slate-400 max-w-xs mx-auto font-medium">
-                  Create your first rule to start automatically replying to comments with DMs.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          ) : rules.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
               {rules.map((rule) => (
-                <div key={rule.id} className="group relative flex flex-col rounded-[2.5rem] border border-slate-100 bg-white p-7 shadow-sm transition-all hover:shadow-2xl hover:border-[#0ea5e9]/20">
+                <div key={rule.id} className="group relative flex flex-col rounded-[2rem] border border-slate-200/60 bg-white p-8 shadow-sm transition-all hover:shadow-xl hover:border-[#2563EB]/20">
                   {/* Header: Platform */}
                   <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-2.5">
@@ -1466,8 +1440,10 @@ export function AutomationEditor() {
                 </div>
               ))}
             </div>
-          )}
-        </section>
+            )}
+          </section>
+        )}
+      </div>
     </div>
   );
 }
