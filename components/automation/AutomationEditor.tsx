@@ -1387,102 +1387,64 @@ export function AutomationEditor() {
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#0ea5e9] border-t-transparent" />
             </div>
           ) : rules.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
+            <div className="grid grid-cols-1 gap-4 animate-in fade-in slide-in-from-bottom-8 duration-700">
               {rules.map((rule) => (
-                <div key={rule.id} className="group relative flex flex-col rounded-[2rem] border border-slate-200/60 bg-white p-8 shadow-sm transition-all hover:shadow-xl hover:border-[#2563EB]/20">
-                  {/* Header: Platform */}
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-9 h-9 rounded-xl bg-pink-50 flex items-center justify-center text-pink-500 border border-pink-100/50">
-                        <InstagramIcon size={18} />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[14px] font-bold text-slate-800">Instagram</span>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Platform</span>
-                      </div>
-                    </div>
-                    {rule.active && (
-                      <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 rounded-full border border-emerald-100">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Live</span>
-                      </div>
-                    )}
+                <div key={rule.id} className="group relative flex flex-col md:flex-row md:items-center justify-between rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-[#2563EB]/20 gap-4 md:gap-0">
+                  <div className="flex items-center gap-6">
+                     <div className="w-12 h-12 rounded-xl bg-pink-50 flex items-center justify-center text-pink-500 border border-pink-100/50 shrink-0">
+                       <InstagramIcon size={24} />
+                     </div>
+                     <div className="flex flex-col min-w-[150px]">
+                        <span className="text-[15px] font-bold text-slate-900 truncate">{rule.name}</span>
+                        <span className="text-[12px] text-slate-500 font-medium">Instagram</span>
+                     </div>
+                     
+                     <div className="h-8 w-px bg-slate-100 mx-2 hidden md:block" />
+                     
+                     <div className="flex flex-col hidden md:flex min-w-[120px]">
+                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Trigger Keyword</span>
+                        <span className="text-[13px] font-bold text-slate-700 truncate">{rule.trigger_keyword || "Any comment"}</span>
+                     </div>
+
+                     <div className="h-8 w-px bg-slate-100 mx-2 hidden md:block" />
+
+                     <div className="flex flex-col hidden md:flex min-w-[80px]">
+                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Executions</span>
+                        <span className="text-[13px] font-bold text-slate-700">{rule.executions || 0}</span>
+                     </div>
+
+                     <div className="h-8 w-px bg-slate-100 mx-2 hidden md:block" />
+
+                     <div className="flex flex-col hidden md:flex min-w-[80px]">
+                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Status</span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          {rule.active ? (
+                            <>
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              <span className="text-[12px] font-bold text-emerald-600">Active</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                              <span className="text-[12px] font-bold text-slate-500">Paused</span>
+                            </>
+                          )}
+                        </div>
+                     </div>
                   </div>
 
-                  {/* Profile Section */}
-                  <div className="flex items-center gap-3 mb-5">
-                    <div className="h-10 w-10 rounded-full bg-slate-50 border border-slate-100 overflow-hidden flex items-center justify-center shadow-inner">
-                      {igAccount?.profile_picture_url ? (
-                        <img src={igAccount.profile_picture_url} alt="" className="w-full h-full object-cover" />
-                      ) : session?.user?.image ? (
-                        <img src={session.user.image} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <User size={20} className="text-slate-300" />
-                      )}
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-[14px] font-bold text-slate-900 truncate">{rule.name}</span>
-                      <span className="text-[12px] font-medium text-slate-500 truncate">@{igAccount?.username || session?.user?.name?.toLowerCase().replace(/\s/g, "") || "handle"}</span>
-                    </div>
-                  </div>
-
-                  {/* Content / DM Preview */}
-                  <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-4 mb-5">
-                    <p className="text-[13px] text-slate-600 line-clamp-3 leading-relaxed font-medium">
-                      {rule.reply_message}
-                    </p>
-                  </div>
-
-                  {/* Target Post Image */}
-                  {rule.target_post_url && (
-                    <div className="flex items-center gap-3 p-3 bg-slate-50/50 border border-slate-100 rounded-2xl mb-6 group-hover:bg-white group-hover:shadow-sm transition-all">
-                      <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-200 shrink-0">
-                        <img 
-                          src={realPosts.find(p => (p.permalink || p.media_url) === rule.target_post_url)?.thumbnail_url || realPosts.find(p => (p.permalink || p.media_url) === rule.target_post_url)?.media_url || rule.target_post_url} 
-                          alt="Target post" 
-                          className="w-full h-full object-cover"
-                          onError={(e: any) => { e.target.src = 'https://placehold.co/100x100?text=Post' }}
-                        />
-                      </div>
-                      <div className="flex flex-col overflow-hidden">
-                        <span className="text-[12px] font-bold text-slate-800 truncate">Target Post</span>
-                        <a href={rule.target_post_url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-[#0ea5e9] truncate hover:underline">
-                          {rule.target_post_url.replace('https://www.instagram.com/', '')}
-                        </a>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Stats Row */}
-                  <div className="grid grid-cols-2 gap-4 border-t border-slate-50 pt-5 mt-auto">
-                    <div>
-                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Triggers</p>
-                      <p className="text-[18px] font-bold text-slate-900 flex items-center gap-1.5">
-                        <Zap size={16} className="text-amber-500 fill-amber-500" /> {rule.executions || 0}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Last Run</p>
-                      <p className="text-[13px] font-bold text-slate-600 flex items-center gap-1.5">
-                        <Clock size={14} className="text-slate-400" /> 
-                        {rule.last_execution ? new Date(rule.last_execution).toLocaleDateString() : "Never"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-2 mt-6">
+                  <div className="flex items-center gap-2 mt-2 md:mt-0 ml-[72px] md:ml-0">
                     <button 
                       onClick={() => toggleRule(rule.id, !rule.active)}
-                      className={`flex-1 py-2.5 rounded-2xl text-[12px] font-bold transition-all ${rule.active ? "bg-slate-50 text-slate-600 hover:bg-slate-100" : "bg-[#0ea5e9] text-white shadow-lg shadow-blue-500/20"}`}
+                      className={`px-6 py-2 rounded-xl text-[12px] font-bold transition-all ${rule.active ? "bg-slate-50 text-slate-600 hover:bg-slate-100" : "bg-[#0ea5e9] text-white shadow-md shadow-blue-500/20"}`}
                     >
-                      {rule.active ? "Pause Rule" : "Activate"}
+                      {rule.active ? "Pause" : "Activate"}
                     </button>
                     <button 
                       onClick={() => deleteRule(rule.id)}
-                      className="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all border border-transparent hover:border-red-100"
+                      className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all border border-transparent hover:border-red-100 shrink-0"
                     >
-                      <Trash2 size={18} />
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 </div>
