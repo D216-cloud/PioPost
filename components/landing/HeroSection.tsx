@@ -43,10 +43,10 @@ export function HeroSection() {
           </div>
 
           <h1
-            className="text-4xl md:text-[64px] font-bold tracking-tight text-[#1E293B] mb-8 leading-[1.1]"
+            className="text-4xl md:text-[64px] font-bold tracking-tight text-black mb-8 leading-[1.1]"
             style={{ textWrap: "balance" }}
           >
-            Create viral <span className="text-black">faceless videos</span> on auto-pilot
+            Create viral faceless videos on auto-pilot
           </h1>
 
           <p

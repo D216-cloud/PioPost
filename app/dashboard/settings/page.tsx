@@ -32,6 +32,32 @@ export default function SettingsPage() {
   const [viewState, setViewState] = useState<ViewState>("loading");
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStep, setConnectionStep] = useState("");
+  const [instagramPosts, setInstagramPosts] = useState<any[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(false);
+  const [postsVisible, setPostsVisible] = useState(false);
+
+  const fetchPosts = async () => {
+    if (postsVisible) {
+      setPostsVisible(false);
+      return;
+    }
+    setPostsVisible(true);
+    if (instagramPosts.length > 0) return;
+    
+    setLoadingPosts(true);
+    try {
+      const res = await fetch("/api/instagram-posts");
+      const { data } = await res.json();
+      if (data) {
+        setInstagramPosts(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch posts:", err);
+    } finally {
+      setLoadingPosts(false);
+    }
+  };
+
 
   useEffect(() => {
     if (!session?.user?.id) return;
@@ -359,34 +385,56 @@ export default function SettingsPage() {
                             <div className="relative w-full sm:w-auto group/dropdown">
                               <button 
                                 className="w-full px-6 py-3.5 bg-white border border-slate-200 rounded-2xl text-[13px] font-bold text-slate-700 hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
-                                onClick={() => (document.getElementById('posts-dropdown') as any).classList.toggle('hidden')}
+                                onClick={fetchPosts}
                               >
                                 See all posts
-                                <ChevronRight size={16} className="rotate-90" />
+                                <ChevronRight size={16} className={`transition-transform duration-300 ${postsVisible ? '-rotate-90' : 'rotate-90'}`} />
                               </button>
                               
-                              {/* Mock Dropdown for Posts */}
-                              <div id="posts-dropdown" className="hidden absolute right-0 top-full mt-4 w-72 bg-white rounded-3xl shadow-2xl border border-slate-100 p-4 z-50 animate-in fade-in slide-in-from-top-2">
-                                <div className="flex items-center justify-between mb-4 px-2">
-                                  <span className="text-[12px] font-black text-slate-400 uppercase tracking-widest">Recent Posts</span>
-                                  <button onClick={() => (document.getElementById('posts-dropdown') as any).classList.add('hidden')}>
-                                    <X size={14} className="text-slate-300 hover:text-slate-600" />
-                                  </button>
-                                </div>
-                                <div className="grid grid-cols-3 gap-2 overflow-y-auto max-h-64 no-scrollbar">
-                                  {[1,2,3,4,5,6].map(i => (
-                                    <div key={i} className="aspect-square bg-slate-100 rounded-xl overflow-hidden group/item cursor-pointer">
-                                      <img 
-                                        src={`https://picsum.photos/seed/${i + 15}/200`} 
-                                        className="w-full h-full object-cover group-hover/item:scale-110 transition-transform" 
-                                      />
+                              <AnimatePresence>
+                                {postsVisible && (
+                                  <motion.div 
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    className="absolute right-0 top-full mt-4 w-72 bg-white rounded-3xl shadow-2xl border border-slate-100 p-4 z-50"
+                                  >
+                                    <div className="flex items-center justify-between mb-4 px-2">
+                                      <span className="text-[12px] font-black text-slate-400 uppercase tracking-widest">Recent Posts</span>
+                                      <button onClick={() => setPostsVisible(false)}>
+                                        <X size={14} className="text-slate-300 hover:text-slate-600" />
+                                      </button>
                                     </div>
-                                  ))}
-                                </div>
-                                <button className="w-full mt-4 py-3 bg-slate-50 rounded-xl text-[11px] font-black text-slate-400 uppercase tracking-widest hover:bg-slate-100 transition-colors">
-                                  Load More
-                                </button>
-                              </div>
+                                    <div className="grid grid-cols-3 gap-2 overflow-y-auto max-h-64 no-scrollbar">
+                                      {loadingPosts ? (
+                                        <div className="col-span-3 py-8 flex justify-center">
+                                          <div className="w-6 h-6 border-2 border-slate-200 border-t-[#2563EB] rounded-full animate-spin" />
+                                        </div>
+                                      ) : instagramPosts.length > 0 ? (
+                                        instagramPosts.map((post: any) => (
+                                          <a key={post.id} href={post.permalink} target="_blank" rel="noopener noreferrer" className="aspect-square bg-slate-100 rounded-xl overflow-hidden group/item block">
+                                            <img 
+                                              src={post.media_type === 'VIDEO' ? (post.thumbnail_url || post.media_url) : post.media_url} 
+                                              alt="Instagram post"
+                                              className="w-full h-full object-cover group-hover/item:scale-110 transition-transform" 
+                                              onError={(e: any) => { e.target.src = 'https://placehold.co/200x200?text=No+Media' }}
+                                            />
+                                          </a>
+                                        ))
+                                      ) : (
+                                        <div className="col-span-3 py-8 text-center">
+                                          <p className="text-xs text-slate-400 font-medium">No posts found.</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                    {instagramPosts.length > 0 && (
+                                      <a href={`https://instagram.com/${instagramAccount.username}`} target="_blank" rel="noopener noreferrer" className="block w-full mt-4 py-3 bg-slate-50 rounded-xl text-[11px] font-black text-slate-400 uppercase tracking-widest hover:bg-slate-100 transition-colors text-center">
+                                        View on Instagram
+                                      </a>
+                                    )}
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
                             </div>
 
                             <button 
