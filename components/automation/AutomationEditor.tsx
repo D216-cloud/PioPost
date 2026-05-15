@@ -75,6 +75,25 @@ export function AutomationEditor() {
   const [scheduledReels, setScheduledReels] = useState<string[]>([]);
   const [postingReel, setPostingReel] = useState<string | null>(null);
   
+  const [realPosts, setRealPosts] = useState<any[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(false);
+
+  useEffect(() => {
+    if (isIgConnected) {
+      setLoadingPosts(true);
+      fetch("/api/instagram-posts")
+        .then(res => res.json())
+        .then(data => {
+          if (data.data) {
+            setRealPosts(data.data);
+          }
+        })
+        .catch(console.error)
+        .finally(() => setLoadingPosts(false));
+    }
+  }, [isIgConnected]);
+
+  
   const [form, setForm] = useState({
     name: "",
     trigger_keyword: "",
@@ -780,16 +799,31 @@ export function AutomationEditor() {
                           </div>
                         </div>
                         
+                        <div className="flex gap-2 mb-4">
+                           <button onClick={() => setContentTab("posts")} className={`px-4 py-1.5 rounded-full text-[12px] font-bold transition-all ${contentTab === "posts" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500"}`}>Posts</button>
+                           <button onClick={() => setContentTab("reels")} className={`px-4 py-1.5 rounded-full text-[12px] font-bold transition-all ${contentTab === "reels" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500"}`}>Reels</button>
+                        </div>
                         <div className="grid grid-cols-3 gap-3 max-h-[300px] overflow-y-auto pr-1 hide-scrollbar">
-                          {(contentTab === "posts" ? MOCK_POSTS : MOCK_REELS).map((post, i) => (
-                            <div 
-                              key={post.id} 
-                              onClick={() => handleSelectPost(post.url)}
-                              className={`cursor-pointer group relative rounded-xl overflow-hidden border transition-all aspect-square ${form.target_post_url === post.url ? "ring-2 ring-[#0ea5e9] ring-offset-2" : "border-slate-100 hover:shadow-md"}`}
-                            >
-                              <img src={post.url} alt={`Content ${i}`} className="w-full h-full object-cover" />
-                            </div>
-                          ))}
+                          {loadingPosts ? (
+                             <div className="col-span-3 flex justify-center py-8">
+                                <div className="w-6 h-6 border-2 border-slate-200 border-t-[#2563EB] rounded-full animate-spin" />
+                             </div>
+                          ) : (
+                             (realPosts.length > 0 ? realPosts.filter(p => contentTab === "reels" ? p.media_type === "VIDEO" : p.media_type !== "VIDEO") : (contentTab === "posts" ? MOCK_POSTS : MOCK_REELS)).map((post, i) => {
+                               const imageUrl = post.media_url || post.url;
+                               const thumbUrl = post.thumbnail_url || imageUrl;
+                               const targetUrl = post.permalink || imageUrl;
+                               return (
+                                <div 
+                                  key={post.id} 
+                                  onClick={() => handleSelectPost(targetUrl)}
+                                  className={`cursor-pointer group relative rounded-xl overflow-hidden border transition-all aspect-square ${form.target_post_url === targetUrl ? "ring-2 ring-[#0ea5e9] ring-offset-2" : "border-slate-100 hover:shadow-md"}`}
+                                >
+                                  <img src={thumbUrl} alt={`Content ${i}`} className="w-full h-full object-cover" />
+                                </div>
+                               )
+                             })
+                          )}
                         </div>
 
                         <div className="flex items-center justify-between pt-6 border-t border-slate-50 mt-4 shrink-0">
@@ -933,9 +967,11 @@ export function AutomationEditor() {
                       <div className="space-y-5">
                         <div className="flex flex-col items-center text-center">
                           <div className="relative mb-2">
-                            <div className="w-14 h-14 rounded-full p-1 border border-slate-100">
-                              <div className="w-full h-full rounded-full bg-slate-50 p-0.5">
-                                {session?.user?.image ? (
+                            <div className="w-14 h-14 rounded-full p-1 border border-slate-100 bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600">
+                              <div className="w-full h-full rounded-full bg-white p-0.5">
+                                {igAccount?.profile_picture_url ? (
+                                  <img src={igAccount.profile_picture_url} alt="User" className="w-full h-full rounded-full object-cover" />
+                                ) : session?.user?.image ? (
                                   <img src={session.user.image} alt="User" className="w-full h-full rounded-full object-cover" />
                                 ) : (
                                   <div className="w-full h-full rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
@@ -945,7 +981,9 @@ export function AutomationEditor() {
                               </div>
                             </div>
                           </div>
-                          <h3 className="text-[13px] font-bold text-slate-900">{session?.user?.name || "deep.1792816"}</h3>
+                          <div className="flex flex-col items-center">
+                            <h3 className="text-[13px] font-bold text-slate-900">@{igAccount?.username || session?.user?.name || "connected_account"}</h3>
+                          </div>
                         </div>
 
                         <div className="space-y-3">
@@ -1098,7 +1136,7 @@ export function AutomationEditor() {
                                 <div className="flex items-start gap-2 ml-4">
                                   <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-yellow-400 to-purple-600 p-0.5">
                                     <div className="w-full h-full rounded-full bg-white p-0.5">
-                                      <img src={session?.user?.image || "/api/placeholder/24/24"} className="w-full h-full rounded-full object-cover" />
+                                      <img src={igAccount?.profile_picture_url || session?.user?.image || "/api/placeholder/24/24"} className="w-full h-full rounded-full object-cover" />
                                     </div>
                                   </div>
                                   <div className="flex flex-col">
