@@ -803,7 +803,7 @@ export function AutomationEditor() {
                            <button onClick={() => setContentTab("posts")} className={`px-4 py-1.5 rounded-full text-[12px] font-bold transition-all ${contentTab === "posts" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500"}`}>Posts</button>
                            <button onClick={() => setContentTab("reels")} className={`px-4 py-1.5 rounded-full text-[12px] font-bold transition-all ${contentTab === "reels" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500"}`}>Reels</button>
                         </div>
-                        <div className="grid grid-cols-3 gap-3 max-h-[300px] overflow-y-auto pr-1 hide-scrollbar">
+                        <div className="grid grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-1 hide-scrollbar">
                           {loadingPosts ? (
                              <div className="col-span-3 flex justify-center py-8">
                                 <div className="w-6 h-6 border-2 border-slate-200 border-t-[#2563EB] rounded-full animate-spin" />
@@ -1412,7 +1412,9 @@ export function AutomationEditor() {
                   {/* Profile Section */}
                   <div className="flex items-center gap-3 mb-5">
                     <div className="h-10 w-10 rounded-full bg-slate-50 border border-slate-100 overflow-hidden flex items-center justify-center shadow-inner">
-                      {session?.user?.image ? (
+                      {igAccount?.profile_picture_url ? (
+                        <img src={igAccount.profile_picture_url} alt="" className="w-full h-full object-cover" />
+                      ) : session?.user?.image ? (
                         <img src={session.user.image} alt="" className="w-full h-full object-cover" />
                       ) : (
                         <User size={20} className="text-slate-300" />
@@ -1420,7 +1422,7 @@ export function AutomationEditor() {
                     </div>
                     <div className="flex flex-col min-w-0">
                       <span className="text-[14px] font-bold text-slate-900 truncate">{rule.name}</span>
-                      <span className="text-[12px] font-medium text-slate-500 truncate">@{session?.user?.name?.toLowerCase().replace(/\s/g, "") || "handle"}</span>
+                      <span className="text-[12px] font-medium text-slate-500 truncate">@{igAccount?.username || session?.user?.name?.toLowerCase().replace(/\s/g, "") || "handle"}</span>
                     </div>
                   </div>
 
@@ -1433,12 +1435,20 @@ export function AutomationEditor() {
 
                   {/* Target Post Image */}
                   {rule.target_post_url && (
-                    <div className="relative aspect-square rounded-3xl overflow-hidden border border-slate-100 mb-6 group-hover:shadow-md transition-shadow">
-                      <img src={rule.target_post_url} alt="Target post" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                      <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm">
-                        <span className="text-[10px] font-bold text-slate-700 flex items-center gap-1">
-                          <ImageIcon size={12} className="text-[#0ea5e9]" /> Target Post
-                        </span>
+                    <div className="flex items-center gap-3 p-3 bg-slate-50/50 border border-slate-100 rounded-2xl mb-6 group-hover:bg-white group-hover:shadow-sm transition-all">
+                      <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-200 shrink-0">
+                        <img 
+                          src={realPosts.find(p => (p.permalink || p.media_url) === rule.target_post_url)?.thumbnail_url || realPosts.find(p => (p.permalink || p.media_url) === rule.target_post_url)?.media_url || rule.target_post_url} 
+                          alt="Target post" 
+                          className="w-full h-full object-cover"
+                          onError={(e: any) => { e.target.src = 'https://placehold.co/100x100?text=Post' }}
+                        />
+                      </div>
+                      <div className="flex flex-col overflow-hidden">
+                        <span className="text-[12px] font-bold text-slate-800 truncate">Target Post</span>
+                        <a href={rule.target_post_url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-[#0ea5e9] truncate hover:underline">
+                          {rule.target_post_url.replace('https://www.instagram.com/', '')}
+                        </a>
                       </div>
                     </div>
                   )}
