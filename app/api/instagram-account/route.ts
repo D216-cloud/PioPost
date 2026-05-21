@@ -15,11 +15,11 @@ export async function GET() {
       .from('instagram_accounts')
       .select('*')
       .eq('user_id', session.user.id)
-      .maybeSingle();
+      .order('created_at', { ascending: false });
 
     if (error) throw error;
 
-    return NextResponse.json({ data });
+    return NextResponse.json({ data: data ?? [] });
   } catch (error: any) {
     console.error('Instagram account fetch error:', error);
     return NextResponse.json({ error: error.message || 'Failed to fetch Instagram account' }, { status: 500 });

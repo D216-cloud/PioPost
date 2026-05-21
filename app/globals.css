@@ -1,5 +1,6 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Pacifico&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&display=swap');
 @import "tailwindcss";
 
 
@@ -12,6 +13,8 @@
   --brand-1: #2563eb;
   --brand-2: #06b6d4;
   --shadow: 0 20px 60px rgba(15, 23, 42, 0.12);
+  --font-logo: "Pacifico", cursive;
+  --font-display: "Playfair Display", serif;
 }
 
 .dark {
@@ -163,8 +166,8 @@ body {
   animation: fade-up 0.6s ease-out 0.2s forwards;
 }
 
-:root {
-  --font-logo: "Pacifico", cursive;
+.display-serif {
+  font-family: var(--font-display), serif;
 }
 
 @keyframes pulse-live {

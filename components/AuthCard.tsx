@@ -37,7 +37,7 @@ export function AuthCard() {
     const result = await signIn("credentials", {
       email,
       password,
-      redirect: false,
+      redirect: true,
       callbackUrl: "/dashboard",
     });
 
@@ -48,8 +48,9 @@ export function AuthCard() {
       return;
     }
 
-    toast.success("Welcome back to PinPost.");
-    window.location.href = result?.url ?? "/dashboard";
+    if (result?.ok && !result.error) {
+      toast.success("Welcome back to PinPost.");
+    }
   };
 
   return (

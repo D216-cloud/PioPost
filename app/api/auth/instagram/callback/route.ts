@@ -80,7 +80,7 @@ export async function GET(req: Request) {
         username: username,
         profile_picture_url: profilePictureUrl,
         updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id' });
+      }, { onConflict: 'instagram_business_id' });
 
     if (error) throw error;
 

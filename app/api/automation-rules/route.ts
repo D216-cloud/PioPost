@@ -3,16 +3,25 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { data, error } = await supabaseAdmin
+    const { searchParams } = new URL(req.url);
+    const accountId = searchParams.get('accountId');
+
+    let query = supabaseAdmin
       .from('automation_rules')
       .select('*')
       .eq('user_id', session.user.id)
       .order('created_at', { ascending: false });
+
+    if (accountId) {
+      query = query.eq('instagram_account_id', accountId);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw error;
     return NextResponse.json({ data });

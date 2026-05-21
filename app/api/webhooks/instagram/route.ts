@@ -45,7 +45,7 @@ export async function POST(req: Request) {
             // 1. Fetch the user's instagram account details from DB to get their access token
             const { data: igAccount, error: accError } = await supabaseAdmin
               .from('instagram_accounts')
-              .select('user_id, access_token')
+              .select('id, user_id, access_token')
               .eq('instagram_business_id', igAccountId)
               .maybeSingle();
 
@@ -59,6 +59,7 @@ export async function POST(req: Request) {
               .from('automation_rules')
               .select('*')
               .eq('user_id', igAccount.user_id)
+              .or(`instagram_account_id.eq.${igAccount.id},instagram_account_id.is.null`)
               .eq('active', true);
 
             if (rulesError || !rules || rules.length === 0) {

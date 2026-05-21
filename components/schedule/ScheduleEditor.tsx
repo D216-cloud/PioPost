@@ -88,9 +88,13 @@ export function ScheduleEditor() {
   }, [user]);
 
   useEffect(() => {
-    if (user) {
+    let mounted = true;
+    if (user && mounted) {
       load();
     }
+    return () => {
+      mounted = false;
+    };
   }, [user, load]);
 
   const togglePlatform = (id: string) => {

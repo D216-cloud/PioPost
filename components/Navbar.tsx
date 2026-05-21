@@ -1,18 +1,16 @@
 
 import Link from "next/link";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 export function Navbar() {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 border-b border-slate-100 bg-white/80 backdrop-blur-md">
       <nav className="mx-auto flex w-full max-w-7xl items-center px-8 py-4">
         {/* Logo */}
-        <div className="flex-[0.5] flex items-center gap-3">
-          <div className="w-9 h-9 bg-[#2563EB] rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
-            <Sparkles size={20} className="fill-white/20" />
-          </div>
-          <Link href="/" className="text-[26px] font-logo text-slate-900">
-            PinPost
+        <div className="flex-[0.5] flex items-center">
+          <Link href="/" className="text-[26px] font-logo font-bold tracking-tight text-slate-900 flex items-center">
+            Pin<span className="text-[#2563EB]">Post</span>
+            <span className="w-2 h-2 rounded-full bg-[#2563EB] ml-1 mt-2"></span>
           </Link>
         </div>
 

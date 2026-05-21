@@ -12,12 +12,14 @@ import {
   LayoutDashboard,
   PanelLeftClose,
   Search,
-  LogOut
+  LogOut,
+  Sliders
 } from "lucide-react";
 
 const navItems = [
   { label: "Overview", icon: LayoutDashboard, href: "/dashboard" },
   { label: "Create", icon: Sparkles, href: "/dashboard/create" },
+  { label: "Control Post", icon: Sliders, href: "/dashboard/control-post" },
   { label: "Series", icon: Layers, href: "/dashboard/series" },
   { label: "Videos", icon: Video, href: "/dashboard/videos" },
   { label: "Schedule", icon: Calendar, href: "/dashboard/schedule" },
@@ -40,11 +42,11 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
       
       <aside className={`fixed md:sticky top-0 left-0 h-screen bg-white flex flex-col transition-all duration-500 ease-in-out overflow-hidden z-[110] border-r border-slate-100 ${isOpen ? 'w-64 p-6 shadow-2xl md:shadow-none' : 'w-0 p-0 opacity-0 -translate-x-20'}`}>
       <div className={`flex items-center justify-between mb-12 px-2 transition-all duration-500 ${isOpen ? 'opacity-100' : 'opacity-0'}`}>
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-[#2563EB] rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20 shrink-0">
-            <Sparkles size={20} className="fill-white/20" />
-          </div>
-          <h2 className="text-[24px] font-logo text-slate-900 pt-1 whitespace-nowrap">PinPost</h2>
+        <div className="flex items-center">
+          <Link href="/" className="text-[26px] font-logo font-bold tracking-tight text-slate-900 flex items-center">
+            Pin<span className="text-[#2563EB]">Post</span>
+            <span className="w-2 h-2 rounded-full bg-[#2563EB] ml-1 mt-2"></span>
+          </Link>
         </div>
         <div className="flex items-center gap-2 shrink-0">
            <button onClick={onClose} className="text-slate-400 hover:text-slate-900 transition-colors p-1">

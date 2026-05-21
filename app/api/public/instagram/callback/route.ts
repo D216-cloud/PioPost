@@ -24,11 +24,12 @@ export async function GET(req: NextRequest) {
     // Mock successful connection
     const { error } = await supabase.from("instagram_accounts").upsert({
       user_id: session.user.id,
+      instagram_business_id: `mock_${Date.now()}`,
       access_token: "mock_token_" + Math.random().toString(36).substring(7),
       username: "connected_user",
-      platform: "instagram",
-      connected_at: new Date().toISOString()
-    });
+      profile_picture_url: null,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'instagram_business_id' });
 
     if (error) throw error;
 
