@@ -104,7 +104,7 @@ export default function VideosPage() {
   );
 
   return (
-    <div className="w-[95%] md:max-w-6xl mx-auto px-4 md:px-8 pt-28 md:py-12 space-y-10 animate-in fade-in duration-700">
+    <div className="w-[95%] max-w-6xl mx-auto px-4 md:px-8 pt-28 pb-16 md:pb-20 space-y-10 animate-in fade-in duration-700">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1 text-center md:text-left">
           <h1 className="text-[28px] md:text-[32px] font-bold text-slate-900 tracking-tight">Your Videos</h1>

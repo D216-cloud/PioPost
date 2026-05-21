@@ -147,9 +147,9 @@ export default function CreatePage() {
   };
 
   return (
-    <div className="w-[95%] md:max-w-4xl mx-auto px-4 md:px-8 pt-28 md:py-20 space-y-12 md:space-y-20 animate-in fade-in duration-700">
+    <div className="w-[95%] max-w-6xl mx-auto px-4 md:px-8 pt-28 pb-16 md:pb-20 space-y-12 md:space-y-20 animate-in fade-in duration-700">
       {/* Premium Minimalist Header */}
-      <div className="space-y-3 text-center">
+      <div className="space-y-3 text-center md:text-left">
         <h1 className="text-[32px] md:text-[42px] font-bold text-slate-900 tracking-tight leading-tight">
           Create <span className="font-logo text-[#2563EB] text-[36px] md:text-[48px]">Viral</span> Reels
         </h1>

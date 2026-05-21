@@ -307,7 +307,7 @@ export function AutomationEditor() {
 
   return (
     <div className="min-h-screen bg-white font-sans">
-      <div className="relative mx-auto max-w-6xl px-4 md:px-8 pt-12 md:pt-20 pb-20 space-y-12 md:space-y-16 animate-in fade-in duration-700">
+      <div className="relative mx-auto max-w-6xl px-4 md:px-8 pt-28 md:pt-20 pb-20 space-y-12 md:space-y-16 animate-in fade-in duration-700">
         <div className="absolute inset-0 -z-10">
           <div className="absolute -top-24 right-[-60px] h-72 w-72 rounded-full bg-sky-200/30 blur-[120px]" />
           <div className="absolute -bottom-24 left-[-40px] h-72 w-72 rounded-full bg-amber-200/30 blur-[120px]" />

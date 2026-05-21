@@ -109,7 +109,7 @@ export default function ControlPostPage() {
   };
 
   return (
-    <div className={`${bodyFont.className} min-h-screen bg-white pt-20 text-black`}>
+    <div className={`${bodyFont.className} min-h-screen bg-white pt-28 md:pt-20 text-black`}>
       <div className="relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute -top-24 left-10 h-64 w-64 rounded-full bg-[#1D4ED8]/25 blur-[120px]" />
@@ -117,10 +117,10 @@ export default function ControlPostPage() {
         </div>
       </div>
 
-      <section className="relative px-4 pb-20 sm:px-8">
+      <section className="relative px-4 pb-16 sm:px-8 md:pb-20">
         <div className="mx-auto max-w-6xl">
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-3">
+          <div className="text-center md:text-left">
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
               <h1 className={`${headingFont.className} text-3xl font-semibold md:text-4xl`}>
                 AutoPost for Instagram and LinkedIn
               </h1>

@@ -49,10 +49,10 @@ export default function GuidesPage() {
   ];
 
   return (
-    <div className="max-w-6xl mx-auto px-8 py-12 space-y-12 animate-in fade-in duration-700">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-[40px] font-bold text-slate-900 tracking-tight leading-tight">Platform Guides</h1>
-        <p className="text-[18px] text-slate-500 font-medium">Everything you need to master faceless content automation.</p>
+    <div className="w-[95%] max-w-6xl mx-auto px-4 md:px-8 pt-28 pb-16 md:pb-20 space-y-12 animate-in fade-in duration-700">
+      <div className="flex flex-col gap-2 text-center md:text-left">
+        <h1 className="text-[32px] md:text-[40px] font-bold text-slate-900 tracking-tight leading-tight">Platform Guides</h1>
+        <p className="text-[15px] md:text-[18px] text-slate-500 font-medium">Everything you need to master faceless content automation.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
