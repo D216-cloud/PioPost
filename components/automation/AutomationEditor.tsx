@@ -16,6 +16,54 @@ const hideScrollbarStyle = `
   .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 `;
 
+function parseReplyMessage(message: string = "") {
+  let text = message;
+  let fileLink = "";
+  let button: { name: string; link: string } | null = null;
+  let followRequest = "";
+  let attachedImage = "";
+
+  // Extract attached image
+  const imageRegex = /\n\n\[Attached Image: (.*?)\]/;
+  const imageMatch = text.match(imageRegex);
+  if (imageMatch) {
+    attachedImage = imageMatch[1];
+    text = text.replace(imageRegex, "");
+  }
+
+  // Extract follow request
+  const followRegex = /\n\n\[Follow Request: (.*?)\]/;
+  const followMatch = text.match(followRegex);
+  if (followMatch) {
+    followRequest = followMatch[1];
+    text = text.replace(followRegex, "");
+  }
+
+  // Extract button
+  const buttonRegex = /\n\n\[Button: (.*?)\]\((.*?)\)/;
+  const buttonMatch = text.match(buttonRegex);
+  if (buttonMatch) {
+    button = { name: buttonMatch[1], link: buttonMatch[2] };
+    text = text.replace(buttonRegex, "");
+  }
+
+  // Extract file link
+  const fileLinkRegex = /\n\nHere is your file: ([^\n]+)/;
+  const fileLinkMatch = text.match(fileLinkRegex);
+  if (fileLinkMatch) {
+    fileLink = fileLinkMatch[1];
+    text = text.replace(fileLinkRegex, "");
+  }
+
+  return {
+    text: text.trim(),
+    fileLink: fileLink.trim(),
+    button,
+    followRequest: followRequest.trim(),
+    attachedImage: attachedImage.trim()
+  };
+}
+
 interface Rule {
   id: string;
   name: string;
@@ -74,19 +122,35 @@ export function AutomationEditor() {
   const [loadingPosts, setLoadingPosts] = useState(false);
 
   useEffect(() => {
-    if (!isIgConnected || !selectedAccount?.id) return;
+    if (!isIgConnected) return;
 
     setLoadingPosts(true);
-    fetch(`/api/instagram-posts?accountId=${encodeURIComponent(selectedAccount.id)}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.data) {
-          setRealPosts(data.data);
-        }
+    
+    // Determine which accounts to fetch posts for
+    const accountsToFetch = selectedAccountId 
+      ? instagramAccounts.filter(acc => acc.id === selectedAccountId)
+      : instagramAccounts;
+
+    const fetchPromises = accountsToFetch.map(acc => 
+      fetch(`/api/instagram-posts?accountId=${encodeURIComponent(acc.id)}`)
+        .then(res => res.json())
+        .then(data => data.data || [])
+        .catch(err => {
+          console.error(`Error fetching posts for ${acc.username}:`, err);
+          return [];
+        })
+    );
+
+    Promise.all(fetchPromises)
+      .then(results => {
+        const allPosts = results.flat().sort((a: any, b: any) => 
+          new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime()
+        );
+        setRealPosts(allPosts);
       })
       .catch(console.error)
       .finally(() => setLoadingPosts(false));
-  }, [isIgConnected, selectedAccount?.id]);
+  }, [isIgConnected, selectedAccountId, instagramAccounts]);
 
   
   const [form, setForm] = useState({
@@ -149,6 +213,9 @@ export function AutomationEditor() {
   }, [showForm]);
 
   const handleNewRuleClick = () => {
+    if (!selectedAccountId && instagramAccounts.length > 0) {
+      setSelectedAccountId(instagramAccounts[0].id);
+    }
     setShowForm(true);
     setFormStep("trigger_selection");
   };
@@ -398,12 +465,13 @@ export function AutomationEditor() {
               </div>
 
               <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto justify-end">
-                {instagramAccounts.length > 1 && (
+                {instagramAccounts.length > 0 && (
                   <select
                     value={selectedAccountId ?? ""}
-                    onChange={(event) => setSelectedAccountId(event.target.value)}
+                    onChange={(event) => setSelectedAccountId(event.target.value || null)}
                     className="h-10 rounded-full border border-slate-200 bg-white px-4 text-[13px] font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-200 w-full sm:w-auto"
                   >
+                    <option value="">All Accounts</option>
                     {instagramAccounts.map((account) => (
                       <option key={account.id} value={account.id}>
                         @{account.username}
@@ -441,67 +509,191 @@ export function AutomationEditor() {
             </div>
           ) : rules.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {rules.map((rule) => (
-                <div key={rule.id} className="group relative bg-white border border-[#e4e4e7] rounded-[20px] p-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.04)] hover:-translate-y-0.5 transition-all duration-300">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 border border-slate-100 shadow-sm group-hover:bg-[#faf5ff] group-hover:text-[#a855f7] transition-colors">
-                        {rule.platform === "instagram" ? <InstagramIcon size={18} /> : <Zap size={18} />}
-                      </div>
-                      <div>
-                        <h3 className="text-[14px] font-bold text-slate-800 line-clamp-1">{rule.name || `Rule #${rule.id.slice(0, 4)}`}</h3>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{rule.platform}</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-0.5">
-                      <button className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-900 transition-all">
-                        <Edit2 size={14} />
-                      </button>
-                      <button 
-                        onClick={() => deleteRule(rule.id)}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
+              {rules.map((rule) => {
+                const ruleAccount = instagramAccounts.find(acc => acc.id === rule.instagram_account_id);
+                const parsed = parseReplyMessage(rule.reply_message);
+                const matchingPost = realPosts.find(p => p.id === rule.instagram_media_id);
+                const thumbUrl = matchingPost?.thumbnail_url || matchingPost?.media_url;
+                const postCaption = matchingPost?.caption || "Instagram Post";
 
-                  <div className="space-y-4 pt-2">
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                      <div className="flex items-center gap-2 mb-1">
-                        <MessageSquare size={12} className="text-slate-400" />
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Trigger Keyword</span>
-                      </div>
-                      <p className="text-[12.5px] font-bold text-slate-700 truncate">{rule.trigger_keyword}</p>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-1">
-                      <div className="flex items-center gap-4">
-                        <div className="flex flex-col">
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Executions</span>
-                          <span className="text-[13px] font-bold text-slate-800">{rule.executions || 0}</span>
+                return (
+                  <div key={rule.id} className="group relative bg-white border border-[#e4e4e7] rounded-[24px] p-5.5 shadow-[0_4px_24px_rgba(0,0,0,0.02)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.06)] hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between gap-5">
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] p-[1.5px] shadow-sm">
+                            <div className="w-full h-full rounded-[10px] bg-white flex items-center justify-center text-slate-700">
+                              <InstagramIcon size={18} />
+                            </div>
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="text-[14px] font-bold text-slate-800 line-clamp-1">{rule.name || `Rule #${rule.id.slice(0, 4)}`}</h3>
+                            {ruleAccount && (
+                              <p className="text-[10.5px] font-bold text-slate-400 mt-0.5">@{ruleAccount.username}</p>
+                            )}
+                          </div>
                         </div>
-                        <div className="w-px h-5 bg-slate-100" />
-                        <div className="flex flex-col">
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Status</span>
-                          <span className={`text-[12px] font-bold ${rule.active ? "text-emerald-500" : "text-slate-300"}`}>
-                            {rule.active ? "Active" : "Paused"}
-                          </span>
+                        <div className="flex gap-0.5">
+                          <button 
+                            onClick={() => deleteRule(rule.id)}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all"
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         </div>
                       </div>
-                      <button 
-                        onClick={() => toggleRule(rule.id, rule.active)}
-                        className={`w-10 h-5.5 rounded-full transition-all relative ${rule.active ? "bg-[#2dd4bf]" : "bg-slate-200"}`}
-                      >
-                        <div className={`absolute top-0.5 w-4.5 h-4.5 rounded-full bg-white shadow-sm transition-all ${rule.active ? "left-5" : "left-0.5"}`} />
-                      </button>
+
+                      <div className="pt-1">
+                        {rule.comment_scope === "specific" ? (
+                          <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100/80 hover:bg-slate-100/50 transition-colors">
+                            {thumbUrl ? (
+                              <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 border border-slate-200">
+                                <img src={thumbUrl} alt="Post preview" className="w-full h-full object-cover" />
+                              </div>
+                            ) : (
+                              <div className="w-10 h-10 rounded-lg bg-pink-50 border border-pink-100 flex items-center justify-center text-pink-500 shrink-0">
+                                <InstagramIcon size={16} />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[11.5px] font-bold text-slate-700 truncate">{postCaption}</p>
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Specific Content</span>
+                                {rule.target_post_url && (
+                                  <a 
+                                    href={rule.target_post_url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="text-[9px] font-bold text-sky-600 hover:text-sky-700 flex items-center gap-0.5 hover:underline"
+                                  >
+                                    <span>View Post</span>
+                                    <ChevronRight size={10} />
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ) : rule.comment_scope === "any" ? (
+                          <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100/80">
+                            <div className="w-10 h-10 rounded-lg bg-violet-50 border border-violet-100 flex items-center justify-center text-violet-500 shrink-0">
+                              <InstagramIcon size={16} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[12px] font-bold text-slate-800">Any Post or Reel</p>
+                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mt-0.5">All Account Media</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100/80">
+                            <div className="w-10 h-10 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-500 shrink-0">
+                              <PlusCircle size={16} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[12px] font-bold text-slate-800">Next Post or Reel</p>
+                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mt-0.5">Future Uploads Only</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-3 pt-2">
+                        <div className="relative pl-6 border-l-2 border-dashed border-slate-200">
+                          <div className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-slate-300" />
+                          <div className="flex items-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">
+                            <MessageSquare size={10} />
+                            <span>When someone comments</span>
+                          </div>
+                          <div className="inline-block px-3 py-1.5 bg-slate-50 text-slate-700 rounded-2xl rounded-tl-none text-[11.5px] font-bold border border-slate-200/50 max-w-full truncate">
+                            {rule.trigger_keyword === "Any comment" ? (
+                              <span className="italic text-slate-500">Any comment</span>
+                            ) : (
+                              <span>"{rule.trigger_keyword}"</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="relative pl-6 border-l-2 border-dashed border-transparent pb-1">
+                          <div className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-[#0ea5e9]" />
+                          <div className="flex items-center gap-1.5 text-[9px] font-black text-[#0ea5e9] uppercase tracking-wider mb-1">
+                            <Send size={10} />
+                            <span>Send Auto DM</span>
+                          </div>
+                          
+                          <div className="bg-gradient-to-br from-[#0ea5e9]/5 to-sky-500/10 border border-[#0ea5e9]/10 rounded-2xl rounded-tl-none p-3 space-y-2.5 shadow-sm">
+                            {parsed.attachedImage && (
+                              <div className="w-full max-h-24 rounded-lg overflow-hidden border border-[#0ea5e9]/10 bg-white">
+                                <img src={parsed.attachedImage} alt="Attachment" className="w-full h-full object-cover" />
+                              </div>
+                            )}
+                            
+                            {parsed.text && (
+                              <p className="text-[12px] font-semibold text-slate-700 leading-relaxed whitespace-pre-wrap">{parsed.text}</p>
+                            )}
+
+                            {parsed.fileLink && (
+                              <div className="flex items-center gap-2 p-2 bg-white border border-sky-100/50 rounded-xl">
+                                <FileText size={13} className="text-[#0ea5e9] shrink-0" />
+                                <a 
+                                  href={parsed.fileLink} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  className="text-[10.5px] font-bold text-[#0ea5e9] hover:underline truncate flex-1"
+                                >
+                                  Attached Link
+                                </a>
+                              </div>
+                            )}
+
+                            {parsed.button && (
+                              <a 
+                                href={parsed.button.link} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="block w-full py-1.5 bg-[#0ea5e9] hover:bg-[#0284c7] text-white text-center text-[11px] font-bold rounded-xl shadow-sm shadow-blue-500/10 transition-all text-ellipsis overflow-hidden whitespace-nowrap"
+                              >
+                                {parsed.button.name}
+                              </a>
+                            )}
+
+                            {parsed.followRequest && (
+                              <div className="flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-700 rounded-lg border border-amber-200/30 text-[9.5px] font-bold">
+                                <Plus size={11} className="shrink-0" />
+                                <span className="truncate">{parsed.followRequest}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Mint accent line identical to dashboard card bottom */}
-                    <div className="h-[1px] w-full bg-[#2dd4bf]/25 mt-4" />
+                    <div className="space-y-4">
+                      <div className="h-[1px] w-full bg-slate-100" />
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="flex flex-col">
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Executions</span>
+                            <span className="text-[13px] font-bold text-slate-800 mt-0.5">{rule.executions || 0}</span>
+                          </div>
+                          <div className="w-px h-5 bg-slate-100" />
+                          <div className="flex flex-col">
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Status</span>
+                            <span className={`text-[12px] font-bold mt-0.5 ${rule.active ? "text-emerald-500" : "text-slate-300"}`}>
+                              {rule.active ? "Active" : "Paused"}
+                            </span>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => toggleRule(rule.id, rule.active)}
+                          className={`w-10 h-5.5 rounded-full transition-all relative ${rule.active ? "bg-[#2dd4bf]" : "bg-slate-200"}`}
+                        >
+                          <div className={`absolute top-0.5 w-4.5 h-4.5 rounded-full bg-white shadow-sm transition-all ${rule.active ? "left-5" : "left-0.5"}`} />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : null}
         </div>
@@ -1554,36 +1746,104 @@ export function AutomationEditor() {
             </div>
           ) : rules.length > 0 && (
             <div className="grid grid-cols-1 gap-4 animate-in fade-in slide-in-from-bottom-8 duration-700">
-              {rules.map((rule) => (
-                <div key={rule.id} className="group relative flex flex-col md:flex-row md:items-center justify-between rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-[#2563EB]/20 gap-4 md:gap-0">
-                  <div className="flex items-center gap-6">
-                     <div className="w-12 h-12 rounded-xl bg-pink-50 flex items-center justify-center text-pink-500 border border-pink-100/50 shrink-0">
-                       <InstagramIcon size={24} />
-                     </div>
-                     <div className="flex flex-col min-w-[150px]">
-                        <span className="text-[15px] font-bold text-slate-900 truncate">{rule.name}</span>
-                        <span className="text-[12px] text-slate-500 font-medium">Instagram</span>
-                     </div>
-                     
-                     <div className="h-8 w-px bg-slate-100 mx-2 hidden md:block" />
-                     
-                     <div className="flex flex-col hidden md:flex min-w-[120px]">
-                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Trigger Keyword</span>
-                        <span className="text-[13px] font-bold text-slate-700 truncate">{rule.trigger_keyword || "Any comment"}</span>
-                     </div>
+              {rules.map((rule) => {
+                const ruleAccount = instagramAccounts.find(acc => acc.id === rule.instagram_account_id);
+                const parsed = parseReplyMessage(rule.reply_message);
+                const matchingPost = realPosts.find(p => p.id === rule.instagram_media_id);
+                const thumbUrl = matchingPost?.thumbnail_url || matchingPost?.media_url;
+                const postCaption = matchingPost?.caption || "Instagram Post";
 
-                     <div className="h-8 w-px bg-slate-100 mx-2 hidden md:block" />
+                return (
+                  <div key={rule.id} className="group relative flex flex-col md:flex-row md:items-center justify-between rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-[#2563EB]/20 gap-4 md:gap-0">
+                    <div className="flex items-center gap-5 flex-wrap md:flex-nowrap flex-1">
+                      <div className="flex items-center gap-3.5 min-w-[200px] max-w-[250px]">
+                        <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] p-[1.5px] shadow-sm shrink-0">
+                          <div className="w-full h-full rounded-[10px] bg-white flex items-center justify-center text-slate-700">
+                            <InstagramIcon size={20} />
+                          </div>
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-[14px] font-bold text-slate-900 truncate">{rule.name || `Rule #${rule.id.slice(0, 4)}`}</span>
+                          {ruleAccount ? (
+                            <span className="text-[11px] text-slate-400 font-bold mt-0.5">@{ruleAccount.username}</span>
+                          ) : (
+                            <span className="text-[11.5px] text-slate-400 font-medium">Instagram</span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="h-8 w-px bg-slate-100 hidden md:block" />
+                      
+                      <div className="flex flex-col min-w-[150px] max-w-[200px]">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Target Content</span>
+                        {rule.comment_scope === "specific" ? (
+                          <div className="flex items-center gap-2">
+                            {thumbUrl ? (
+                              <img src={thumbUrl} alt="Target post" className="w-7 h-7 rounded-md object-cover border border-slate-200 shrink-0" />
+                            ) : (
+                              <div className="w-7 h-7 rounded-md bg-pink-50 flex items-center justify-center text-pink-500 border border-pink-100 shrink-0">
+                                <InstagramIcon size={12} />
+                              </div>
+                            )}
+                            <span className="text-[12px] font-bold text-slate-700 truncate">{postCaption}</span>
+                          </div>
+                        ) : rule.comment_scope === "any" ? (
+                          <span className="text-[12px] font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-md w-fit">Any Post/Reel</span>
+                        ) : (
+                          <span className="text-[12px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md w-fit">Next Post/Reel</span>
+                        )}
+                      </div>
 
-                     <div className="flex flex-col hidden md:flex min-w-[80px]">
-                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Executions</span>
-                        <span className="text-[13px] font-bold text-slate-700">{rule.executions || 0}</span>
-                     </div>
+                      <div className="h-8 w-px bg-slate-100 hidden md:block" />
+                      
+                      <div className="flex flex-col min-w-[110px]">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Trigger Keyword</span>
+                        <span className="text-[12.5px] font-bold text-slate-700 truncate">
+                          {rule.trigger_keyword === "Any comment" ? (
+                            <span className="italic text-slate-400">Any comment</span>
+                          ) : (
+                            <span>"{rule.trigger_keyword}"</span>
+                          )}
+                        </span>
+                      </div>
 
-                     <div className="h-8 w-px bg-slate-100 mx-2 hidden md:block" />
+                      <div className="h-8 w-px bg-slate-100 hidden md:block" />
 
-                     <div className="flex flex-col hidden md:flex min-w-[80px]">
-                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Status</span>
-                        <div className="flex items-center gap-1.5 mt-0.5">
+                      <div className="flex flex-col min-w-[200px] max-w-[300px] flex-1">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Auto DM Message</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[12px] font-bold text-slate-700 truncate max-w-[180px]">
+                            {parsed.text || <span className="italic text-slate-400">No text content</span>}
+                          </span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {parsed.attachedImage && (
+                              <span className="px-1.5 py-0.5 bg-sky-50 text-sky-600 rounded text-[9px] font-black uppercase tracking-wider" title="Image Attached">Image</span>
+                            )}
+                            {parsed.fileLink && (
+                              <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black uppercase tracking-wider" title="File Link Attached">File</span>
+                            )}
+                            {parsed.button && (
+                              <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[9px] font-black uppercase tracking-wider" title={`Button: ${parsed.button.name}`}>Button</span>
+                            )}
+                            {parsed.followRequest && (
+                              <span className="px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded text-[9px] font-black uppercase tracking-wider" title="Follow Required">Follow</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="h-8 w-px bg-slate-100 hidden md:block" />
+
+                      <div className="flex flex-col min-w-[70px]">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Executions</span>
+                        <span className="text-[13px] font-bold text-slate-800">{rule.executions || 0}</span>
+                      </div>
+
+                      <div className="h-8 w-px bg-slate-100 hidden md:block" />
+
+                      <div className="flex flex-col min-w-[80px]">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Status</span>
+                        <div className="flex items-center gap-1.5">
                           {rule.active ? (
                             <>
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -1596,25 +1856,26 @@ export function AutomationEditor() {
                             </>
                           )}
                         </div>
-                     </div>
-                  </div>
+                      </div>
+                    </div>
 
-                  <div className="flex items-center gap-2 mt-2 md:mt-0 ml-[72px] md:ml-0">
-                    <button 
-                      onClick={() => toggleRule(rule.id, !rule.active)}
-                      className={`px-6 py-2 rounded-xl text-[12px] font-bold transition-all ${rule.active ? "bg-slate-50 text-slate-600 hover:bg-slate-100" : "bg-[#0ea5e9] text-white shadow-md shadow-blue-500/20"}`}
-                    >
-                      {rule.active ? "Pause" : "Activate"}
-                    </button>
-                    <button 
-                      onClick={() => deleteRule(rule.id)}
-                      className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all border border-transparent hover:border-red-100 shrink-0"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    <div className="flex items-center gap-2 mt-2 md:mt-0 shrink-0">
+                      <button 
+                        onClick={() => toggleRule(rule.id, !rule.active)}
+                        className={`px-5 py-2 rounded-xl text-[12px] font-bold transition-all ${rule.active ? "bg-slate-50 text-slate-600 hover:bg-slate-100" : "bg-[#0ea5e9] text-white shadow-md shadow-blue-500/20"}`}
+                      >
+                        {rule.active ? "Pause" : "Activate"}
+                      </button>
+                      <button 
+                        onClick={() => deleteRule(rule.id)}
+                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all border border-transparent hover:border-red-100 shrink-0"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             )}
           </section>
