@@ -55,6 +55,7 @@ export function AutomationEditor() {
   const [autoReply, setAutoReply] = useState(false);
   const [askToFollow, setAskToFollow] = useState(false);
   const [askForEmail, setAskForEmail] = useState(false);
+  const [showButtonSetup, setShowButtonSetup] = useState(false);
   const [dmType, setDmType] = useState("Text + Button");
   const [activeProvider, setActiveProvider] = useState<"instagram" | "youtube">("instagram");
   const selectedAccount = instagramAccounts.find((account) => account.id === selectedAccountId) || instagramAccounts[0] || null;
@@ -223,7 +224,8 @@ export function AutomationEditor() {
   };
 
   const createRule = useCallback(async () => {
-    if (!user || !form.reply_message.trim() || !selectedAccountId) return;
+    const hasContent = form.reply_message.trim() || form.link_attachment.trim() || form.image_url.trim();
+    if (!user || !hasContent || !selectedAccountId) return;
     if (triggerType === "keyword" && keywords.length === 0) return;
     
     setSaving(true);
@@ -1161,25 +1163,43 @@ export function AutomationEditor() {
                               </div>
                             )}
 
-                            <div className="space-y-2">
-                              <label className="text-[12px] font-bold text-slate-800 block">Action Button</label>
-                              <div className="flex gap-2">
-                                <input
-                                  type="text"
-                                  value={form.button_name}
-                                  onChange={(e) => setForm((f) => ({ ...f, button_name: e.target.value }))}
-                                  placeholder="Button text (e.g. Get Started)"
-                                  className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] text-slate-800 focus:outline-none focus:border-[#0096d6]"
-                                />
-                                <input
-                                  type="text"
-                                  value={form.button_link}
-                                  onChange={(e) => setForm((f) => ({ ...f, button_link: e.target.value }))}
-                                  placeholder="Button URL"
-                                  className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] text-slate-800 focus:outline-none focus:border-[#0096d6]"
-                                />
+                            {!showButtonSetup ? (
+                              <button 
+                                onClick={() => setShowButtonSetup(true)}
+                                className="w-full py-2 border border-slate-200 border-dashed rounded-xl text-[12px] font-bold text-slate-600 hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+                              >
+                                <Plus size={14} /> Add a button
+                              </button>
+                            ) : (
+                              <div className="space-y-2 p-3 bg-slate-50 border border-slate-100 rounded-xl relative">
+                                <button 
+                                  onClick={() => {
+                                    setShowButtonSetup(false);
+                                    setForm(f => ({ ...f, button_name: "", button_link: "" }));
+                                  }}
+                                  className="absolute top-2 right-2 text-slate-400 hover:text-red-500"
+                                >
+                                  <X size={14} />
+                                </button>
+                                <label className="text-[12px] font-bold text-slate-800 block">Action Button</label>
+                                <div className="flex gap-2">
+                                  <input
+                                    type="text"
+                                    value={form.button_name}
+                                    onChange={(e) => setForm((f) => ({ ...f, button_name: e.target.value }))}
+                                    placeholder="Button text (e.g. Get Started)"
+                                    className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] text-slate-800 focus:outline-none focus:border-[#0096d6]"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={form.button_link}
+                                    onChange={(e) => setForm((f) => ({ ...f, button_link: e.target.value }))}
+                                    placeholder="Button URL"
+                                    className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] text-slate-800 focus:outline-none focus:border-[#0096d6]"
+                                  />
+                                </div>
                               </div>
-                            </div>
+                            )}
                           </div>
 
                           <button className="w-full py-2 border border-[#0096d6] border-dashed rounded-xl text-[12px] font-bold text-[#0096d6] bg-blue-50/50 hover:bg-blue-50 transition-colors flex items-center justify-center gap-2">
