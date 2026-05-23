@@ -225,8 +225,18 @@ export function AutomationEditor() {
 
   const createRule = useCallback(async () => {
     const hasContent = form.reply_message.trim() || form.link_attachment.trim() || form.image_url.trim();
-    if (!user || !hasContent || !selectedAccountId) return;
-    if (triggerType === "keyword" && keywords.length === 0) return;
+    if (!user || !selectedAccountId) {
+      toast.error("Please connect an Instagram account first");
+      return;
+    }
+    if (!hasContent) {
+      toast.error("Please add DM content, a link, or an image");
+      return;
+    }
+    if (triggerType === "keyword" && keywords.length === 0) {
+      toast.error("Please add at least one trigger keyword");
+      return;
+    }
     
     setSaving(true);
     

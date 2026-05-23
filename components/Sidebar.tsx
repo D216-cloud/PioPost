@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { Logo } from "@/components/Logo";
 import {
   LayoutDashboard,
@@ -17,6 +17,7 @@ import {
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
+  LogOut,
 } from "lucide-react";
 
 const navItems = [
@@ -150,28 +151,37 @@ export function Sidebar({
               </div>
 
               {/* Profile card */}
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_1px_6px_rgba(0,0,0,0.05)] px-3.5 py-3 flex items-center gap-3">
-                {avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={avatarUrl}
-                    alt="avatar"
-                    className="w-9 h-9 rounded-full object-cover flex-shrink-0 ring-2 ring-[#a855f7]/20"
-                  />
-                ) : (
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#7c3aed] to-[#d946ef] flex items-center justify-center text-white text-[13px] font-black flex-shrink-0">
-                    {username.charAt(1)?.toUpperCase() ?? "D"}
-                  </div>
-                )}
-                <div className="min-w-0">
-                  <p className="text-[13px] font-bold text-slate-900 truncate">{username}</p>
-                  <span className="inline-flex items-center gap-1 mt-0.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#10b981]" />
-                    <span className="text-[9px] font-black text-[#10b981] uppercase tracking-wider">
-                      Online
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_1px_6px_rgba(0,0,0,0.05)] px-3.5 py-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  {avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={avatarUrl}
+                      alt="avatar"
+                      className="w-9 h-9 rounded-full object-cover flex-shrink-0 ring-2 ring-[#a855f7]/20"
+                    />
+                  ) : (
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#7c3aed] to-[#d946ef] flex items-center justify-center text-white text-[13px] font-black flex-shrink-0">
+                      {username.charAt(1)?.toUpperCase() ?? "D"}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-bold text-slate-900 truncate">{username}</p>
+                    <span className="inline-flex items-center gap-1 mt-0.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#10b981]" />
+                      <span className="text-[9px] font-black text-[#10b981] uppercase tracking-wider">
+                        Online
+                      </span>
                     </span>
-                  </span>
+                  </div>
                 </div>
+                <button
+                  onClick={() => signOut({ callbackUrl: "/" })}
+                  className="w-8 h-8 rounded-full bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 flex items-center justify-center transition-colors shadow-sm border border-slate-100 flex-shrink-0"
+                  title="Sign out"
+                >
+                  <LogOut size={14} />
+                </button>
               </div>
             </>
           ) : (
@@ -199,6 +209,14 @@ export function Sidebar({
                   {username.charAt(1)?.toUpperCase() ?? "D"}
                 </div>
               )}
+              <div className="w-full h-px bg-slate-200 my-1" />
+              <button
+                onClick={() => signOut({ callbackUrl: "/" })}
+                className="w-7 h-7 rounded-full bg-white border border-slate-100 shadow-sm flex items-center justify-center hover:bg-red-50 hover:text-red-500 hover:border-red-100 transition-all text-slate-400"
+                title="Sign out"
+              >
+                <LogOut size={12} />
+              </button>
             </div>
           )}
         </div>
