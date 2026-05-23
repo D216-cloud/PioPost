@@ -2,7 +2,8 @@
 
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
-import { User, Mail, Calendar, Instagram, Edit2, Check, X } from "lucide-react";
+import { User, Mail, Calendar, Edit2, Check, X } from "lucide-react";
+import { InstagramIcon as Instagram } from "@/components/icons";
 import { toast } from "sonner";
 
 export default function ProfilePage() {
