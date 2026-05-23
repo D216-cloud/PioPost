@@ -96,7 +96,13 @@ export function AutomationEditor() {
     instagram_media_id: "",
     comment_scope: "any" as "specific" | "any" | "next",
     link_attachment: "",
-    action_type: "message" as "message" | "link" | "pdf"
+    action_type: "message" as "message" | "link" | "pdf",
+    target_post_thumbnail: "",
+    button_name: "",
+    button_link: "",
+    dm_type: "Message Only",
+    follow_message: "",
+    image_url: "",
   });
 
   const load = useCallback(async () => {
@@ -211,8 +217,8 @@ export function AutomationEditor() {
     window.location.href = "/api/auth/instagram/link";
   };
 
-  const handleSelectPost = (url: string, mediaId: string) => {
-    setForm(prev => ({ ...prev, target_post_url: url, instagram_media_id: mediaId }));
+  const handleSelectPost = (url: string, mediaId: string, thumbUrl: string) => {
+    setForm(prev => ({ ...prev, target_post_url: url, instagram_media_id: mediaId, target_post_thumbnail: thumbUrl }));
     setFormStep("trigger_setup");
   };
 
@@ -223,9 +229,14 @@ export function AutomationEditor() {
     setSaving(true);
     
     const finalTrigger = triggerType === "keyword" ? keywords.join(", ") : "Any comment";
+    
+    const buttonStr = form.button_name ? `\n\n[Button: ${form.button_name}](${form.button_link})` : "";
+    const followStr = askToFollow && form.follow_message ? `\n\n[Follow Request: ${form.follow_message}]` : "";
+    const imageStr = form.image_url ? `\n\n[Attached Image: ${form.image_url}]` : "";
+
     const finalMessage = form.link_attachment 
-      ? `${form.reply_message.trim()}\n\nHere is your file: ${form.link_attachment}` 
-      : form.reply_message.trim();
+      ? `${form.reply_message.trim()}\n\nHere is your file: ${form.link_attachment}${buttonStr}${followStr}${imageStr}` 
+      : `${form.reply_message.trim()}${buttonStr}${followStr}${imageStr}`;
 
     try {
       const res = await fetch("/api/automation-rules", {
@@ -262,6 +273,12 @@ export function AutomationEditor() {
         comment_scope: "any",
         link_attachment: "",
         action_type: "message",
+        target_post_thumbnail: "",
+        button_name: "",
+        button_link: "",
+        dm_type: "Message Only",
+        follow_message: "",
+        image_url: "",
       });
       setKeywords([]);
       setShowForm(false);
@@ -870,7 +887,7 @@ export function AutomationEditor() {
                                 return (
                                   <div 
                                     key={post.id} 
-                                    onClick={() => handleSelectPost(targetUrl, post.id)}
+                                    onClick={() => handleSelectPost(targetUrl, post.id, thumbUrl)}
                                     className={`cursor-pointer group relative rounded-xl overflow-hidden border transition-all aspect-square ${form.instagram_media_id === post.id ? "ring-2 ring-[#0ea5e9] ring-offset-2" : "border-slate-100 hover:shadow-md"}`}
                                   >
                                     <img src={thumbUrl} alt={`Content ${i}`} className="w-full h-full object-cover" />
@@ -1056,6 +1073,18 @@ export function AutomationEditor() {
                                 <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-sm ${askToFollow ? "left-6" : "left-1"}`} />
                               </button>
                             </div>
+                            {askToFollow && (
+                              <div className="px-5 py-3 bg-slate-50 border border-slate-100 rounded-2xl animate-in fade-in slide-in-from-top-2">
+                                <label className="text-[12px] font-bold text-slate-700 mb-1 block">Follow Request Message</label>
+                                <input
+                                  type="text"
+                                  value={form.follow_message}
+                                  onChange={(e) => setForm((f) => ({ ...f, follow_message: e.target.value }))}
+                                  placeholder="Hey! Make sure to follow me first so I can send the link!"
+                                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] text-slate-800 focus:outline-none focus:border-[#0096d6]"
+                                />
+                              </div>
+                            )}
                             <div className="flex items-center justify-between p-4 sm:p-5 bg-white border border-slate-200/80 rounded-[1.5rem] shadow-sm">
                               <span className="text-[14px] font-bold text-slate-800">Ask to share their email</span>
                               <button 
@@ -1080,38 +1109,77 @@ export function AutomationEditor() {
                             <div>
                               <label className="text-[12px] font-bold text-slate-800 mb-1 block">DM type</label>
                               <select 
-                                value={dmType}
-                                onChange={(e) => setDmType(e.target.value)}
+                                value={form.dm_type}
+                                onChange={(e) => setForm(f => ({ ...f, dm_type: e.target.value }))}
                                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] text-slate-800 focus:outline-none focus:border-[#0096d6] transition-all"
                               >
-                                <option>Text + Button</option>
-                                <option>Text Only</option>
-                                <option>Image + Text</option>
+                                <option>Message Only</option>
+                                <option>Message + Link + Image</option>
+                                <option>Link Only</option>
+                                <option>Image Only</option>
                               </select>
                             </div>
 
-                            <div>
-                              <label className="text-[12px] font-bold text-slate-800 mb-1 block">DM content</label>
-                              <div className="rounded-xl border border-slate-200 overflow-hidden">
-                                <textarea
-                                  value={form.reply_message}
-                                  onChange={(e) => setForm((f) => ({ ...f, reply_message: e.target.value }))}
-                                  placeholder="Hi there! Appreciate your comment..."
-                                  rows={4}
-                                  className="w-full p-3 text-[13px] text-slate-800 focus:outline-none resize-none"
-                                />
-                                <div className="flex items-center justify-between px-3 py-1.5 bg-slate-50 border-t border-slate-200">
-                                  <button className="text-[11px] font-bold text-slate-600 border border-slate-200 bg-white px-2 py-1 rounded-lg flex items-center gap-1 hover:bg-slate-50 transition-colors">
-                                    <span className="text-[13px]">#</span> Add a variable
-                                  </button>
-                                  <span className="text-[10px] font-medium text-slate-400">{form.reply_message.length}/900</span>
+                            {form.dm_type.includes("Message") && (
+                              <div>
+                                <label className="text-[12px] font-bold text-slate-800 mb-1 block">DM content</label>
+                                <div className="rounded-xl border border-slate-200 overflow-hidden">
+                                  <textarea
+                                    value={form.reply_message}
+                                    onChange={(e) => setForm((f) => ({ ...f, reply_message: e.target.value }))}
+                                    placeholder="Hi there! Appreciate your comment..."
+                                    rows={4}
+                                    className="w-full p-3 text-[13px] text-slate-800 focus:outline-none resize-none"
+                                  />
                                 </div>
                               </div>
-                            </div>
+                            )}
 
-                            <button className="w-full py-2 border border-slate-200 border-dashed rounded-xl text-[12px] font-bold text-slate-600 hover:bg-slate-50 transition-colors flex items-center justify-center gap-2">
-                              <Plus size={14} /> Add a button
-                            </button>
+                            {form.dm_type.includes("Image") && (
+                              <div>
+                                <label className="text-[12px] font-bold text-slate-800 mb-1 block">Image URL</label>
+                                <input
+                                  type="text"
+                                  value={form.image_url}
+                                  onChange={(e) => setForm((f) => ({ ...f, image_url: e.target.value }))}
+                                  placeholder="https://example.com/image.jpg"
+                                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] text-slate-800 focus:outline-none focus:border-[#0096d6]"
+                                />
+                              </div>
+                            )}
+
+                            {form.dm_type.includes("Link") && (
+                              <div>
+                                <label className="text-[12px] font-bold text-slate-800 mb-1 block">URL Link</label>
+                                <input
+                                  type="text"
+                                  value={form.link_attachment}
+                                  onChange={(e) => setForm((f) => ({ ...f, link_attachment: e.target.value }))}
+                                  placeholder="https://yourwebsite.com"
+                                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] text-slate-800 focus:outline-none focus:border-[#0096d6]"
+                                />
+                              </div>
+                            )}
+
+                            <div className="space-y-2">
+                              <label className="text-[12px] font-bold text-slate-800 block">Action Button</label>
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={form.button_name}
+                                  onChange={(e) => setForm((f) => ({ ...f, button_name: e.target.value }))}
+                                  placeholder="Button text (e.g. Get Started)"
+                                  className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] text-slate-800 focus:outline-none focus:border-[#0096d6]"
+                                />
+                                <input
+                                  type="text"
+                                  value={form.button_link}
+                                  onChange={(e) => setForm((f) => ({ ...f, button_link: e.target.value }))}
+                                  placeholder="Button URL"
+                                  className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] text-slate-800 focus:outline-none focus:border-[#0096d6]"
+                                />
+                              </div>
+                            </div>
                           </div>
 
                           <button className="w-full py-2 border border-[#0096d6] border-dashed rounded-xl text-[12px] font-bold text-[#0096d6] bg-blue-50/50 hover:bg-blue-50 transition-colors flex items-center justify-center gap-2">
@@ -1130,7 +1198,7 @@ export function AutomationEditor() {
                             </button>
                             <button 
                               onClick={() => setFormStep("confirm_launch")}
-                              disabled={!form.reply_message}
+                              disabled={(!form.reply_message && !form.link_attachment && !form.image_url)}
                               className="group relative flex items-center gap-4 bg-slate-900 hover:bg-black text-white pl-6 pr-1 py-1 rounded-full text-[13px] font-bold transition-all hover:scale-105 active:scale-95 shadow-lg disabled:opacity-50"
                             >
                               Review & Launch
@@ -1156,7 +1224,7 @@ export function AutomationEditor() {
                               </div>
                               <div className="space-y-3 flex-1">
                                 <p className="text-[14px] font-bold text-slate-800">comments on this specific post</p>
-                                <img src={form.target_post_url} alt="Target" className="w-40 h-40 rounded-2xl object-cover shadow-md border border-slate-100" />
+                                <img src={form.target_post_thumbnail || form.target_post_url || "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=400"} alt="Target" className="w-40 h-40 rounded-2xl object-cover shadow-md border border-slate-100" />
                               </div>
                             </div>
                           </div>
@@ -1216,7 +1284,17 @@ export function AutomationEditor() {
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 10l5 5 5-5"/></svg>
                               </div>
                               <div className="flex-1 max-w-[80%] bg-slate-50 border border-slate-100 rounded-2xl p-4">
-                                <p className="text-[14px] text-slate-700 whitespace-pre-wrap leading-relaxed">{form.reply_message}</p>
+                                <p className="text-[14px] text-slate-700 whitespace-pre-wrap leading-relaxed">
+                                  {form.reply_message}
+                                  {askToFollow && form.follow_message && <span className="block mt-2 text-indigo-500 font-medium">[Follow Request: {form.follow_message}]</span>}
+                                  {form.image_url && <span className="block mt-2 text-sky-500 font-medium">[Attached Image: {form.image_url}]</span>}
+                                  {form.link_attachment && <span className="block mt-2 text-sky-500 font-medium">[Attached Link: {form.link_attachment}]</span>}
+                                </p>
+                                {form.button_name && (
+                                  <div className="mt-3 inline-block px-4 py-2 bg-[#0ea5e9] text-white text-[12px] font-bold rounded-lg shadow-sm">
+                                    {form.button_name}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </div>
