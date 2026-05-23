@@ -8,20 +8,20 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const logoFont = Pacifico({ subsets: ["latin"], weight: "400", variable: "--font-logo" });
 
 export const metadata: Metadata = {
-  title: "PinPost | Social Post Preview Platform",
+  title: "ReelFlow | Automate Your Instagram Growth",
   description:
-    "Preview your content across Instagram, LinkedIn, X, and Facebook before publishing.",
-  keywords: ["social media", "post preview", "instagram", "linkedin", "x", "facebook"],
+    "AI powered reels scheduling, DM automation and engagement tools. Built specifically for creators, digital strategists, and modern brands.",
+  keywords: ["social media", "instagram", "reels", "dm automation", "growth tools", "scheduler"],
   openGraph: {
-    title: "PinPost",
-    description: "See exactly how your post looks before the world does.",
-    siteName: "PinPost",
+    title: "ReelFlow",
+    description: "Automate Your Instagram Growth with AI powered reels scheduling and DM automation.",
+    siteName: "ReelFlow",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "PinPost",
-    description: "Preview your content across every platform in one editor.",
+    title: "ReelFlow",
+    description: "Automate Your Instagram Growth with AI powered reels scheduling and DM automation.",
   },
 };
 

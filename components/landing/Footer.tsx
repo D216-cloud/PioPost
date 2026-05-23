@@ -1,13 +1,16 @@
 import React from "react";
 import Link from "next/link";
+import { Logo } from "@/components/Logo";
 
 export function Footer() {
   return (
     <footer className="py-24 bg-white border-t border-slate-50">
       <div className="mx-auto max-w-6xl px-6 text-center">
-        <p className="logo-script text-[32px] mb-4 text-slate-900">
-          PinPost
-        </p>
+        <div className="flex items-center justify-center mb-4">
+          <Link href="/">
+            <Logo size="md" />
+          </Link>
+        </div>
         <p className="max-w-md mx-auto text-slate-400 text-[14px] leading-relaxed mb-10">
           Precision previews for modern marketing teams. Built for creators <br />
           who care about how their content looks.
@@ -20,7 +23,7 @@ export function Footer() {
         </div>
 
         <p className="text-slate-300 text-[11px] font-black uppercase tracking-tighter">
-          © {new Date().getFullYear()} PINPOST. ALL RIGHTS RESERVED.
+          © {new Date().getFullYear()} REELFLOW. ALL RIGHTS RESERVED.
         </p>
       </div>
     </footer>

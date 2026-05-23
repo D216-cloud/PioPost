@@ -4,8 +4,6 @@ import { Sidebar } from "@/components/Sidebar";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { PanelLeftOpen, Search, Plus } from "lucide-react";
 
 export default function DashboardLayout({
   children,
@@ -16,19 +14,14 @@ export default function DashboardLayout({
   const router = useRouter();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  // Auto-close sidebar on mobile on initial load or navigation
+  // Auto-collapse on mobile
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 768) {
-        setIsSidebarOpen(false);
-      } else {
-        setIsSidebarOpen(true);
-      }
+      setIsSidebarOpen(window.innerWidth >= 768);
     };
-    
-    handleResize(); // Set initial state
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   useEffect(() => {
@@ -40,7 +33,7 @@ export default function DashboardLayout({
   if (status === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#a855f7] border-t-transparent" />
       </div>
     );
   }
@@ -48,31 +41,31 @@ export default function DashboardLayout({
   if (!session) return null;
 
   return (
-    <div className="flex h-screen bg-white overflow-hidden">
-      {/* Sidebar - Handles its own internal visibility but needs the state */}
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-      
-      <main className={`flex-1 h-full overflow-y-auto relative transition-all duration-500 ease-in-out`}>
-        {/* Floating Toggle Pill (Shows when sidebar is closed) */}
-        <div className={`fixed top-6 left-6 z-[60] flex items-center gap-4 transition-all duration-500 ease-in-out ${!isSidebarOpen ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 -translate-x-10 scale-90 pointer-events-none md:opacity-100 md:translate-x-0 md:scale-100 md:pointer-events-auto'}`}>
-           <Link href="/" className="text-[26px] font-logo font-bold tracking-tight text-slate-900 flex items-center">
-            Pin<span className="text-[#2563EB]">Post</span>
-            <span className="w-2 h-2 rounded-full bg-[#2563EB] ml-1 mt-2"></span>
-          </Link>
-           
-           <div className="flex items-center gap-4 bg-white/80 backdrop-blur-md border border-slate-200/60 rounded-full px-5 py-2.5 shadow-sm hover:shadow-md transition-all">
-              <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="text-slate-900 hover:text-[#2563EB] transition-colors">
-                 <PanelLeftOpen size={20} className={`transition-transform duration-500 ${isSidebarOpen ? 'rotate-180' : ''}`} />
-              </button>
-              <div className="w-[1px] h-4 bg-slate-200" />
-              <button className="text-slate-400 hover:text-slate-900 transition-colors">
-                 <Plus size={18} />
-              </button>
-           </div>
+    <div className="flex h-screen bg-white overflow-hidden relative">
+      <Sidebar
+        isOpen={isSidebarOpen}
+        onToggle={() => setIsSidebarOpen((v) => !v)}
+      />
+      <main className="flex-1 h-full overflow-y-auto flex flex-col relative w-full">
+        {/* Mobile Header */}
+        <div className="md:hidden flex items-center justify-between p-4 border-b border-slate-100 bg-white sticky top-0 z-30">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-1 -ml-1 text-slate-500 hover:text-slate-800 transition-colors"
+            >
+              {/* @ts-ignore */}
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+            </button>
+          </div>
+          {/* We import Logo later or just inline text if Logo isn't available in this file. Wait, let's just use text for now to avoid breaking imports, or add the import. I will add the import above using multi_replace instead if needed. For now I'll just put standard text or import Logo. */}
+          <span className="font-black tracking-tight text-[17px] text-slate-900">
+            ReelFlow<span className="text-[#a855f7]">.</span>
+          </span>
+          <div className="w-8" /> {/* spacer for center alignment */}
         </div>
-        
-        <div className={`transition-all duration-500 ${isSidebarOpen ? 'md:pl-0' : ''}`}>
-           {children}
+        <div className="flex-1">
+          {children}
         </div>
       </main>
     </div>

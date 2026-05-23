@@ -32,9 +32,12 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Instagram account not found' }, { status: 404 });
     }
 
+    const mediaType = searchParams.get('type'); // optional: VIDEO, IMAGE, CAROUSEL_ALBUM
+    const limit = searchParams.get('limit') || '50';
+
     // Fetch posts using the access token
     const mediaRes = await fetch(
-      `https://graph.instagram.com/me/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp&access_token=${account.access_token}&limit=6`
+      `https://graph.instagram.com/me/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp&access_token=${account.access_token}&limit=${limit}`
     );
     const mediaData = await mediaRes.json();
 
@@ -43,7 +46,14 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: mediaData.error.message || 'Failed to fetch media' }, { status: 500 });
     }
 
-    return NextResponse.json({ data: mediaData.data });
+    let posts = mediaData.data ?? [];
+
+    // Filter by type if requested
+    if (mediaType) {
+      posts = posts.filter((p: any) => p.media_type === mediaType);
+    }
+
+    return NextResponse.json({ data: posts });
   } catch (error: any) {
     console.error('Instagram posts fetch error:', error);
     return NextResponse.json({ error: error.message || 'Failed to fetch Instagram posts' }, { status: 500 });

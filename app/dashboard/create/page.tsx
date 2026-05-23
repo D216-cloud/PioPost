@@ -147,21 +147,29 @@ export default function CreatePage() {
   };
 
   return (
-    <div className="w-[95%] max-w-6xl mx-auto px-4 md:px-8 pt-28 pb-16 md:pb-20 space-y-12 md:space-y-20 animate-in fade-in duration-700">
-      {/* Premium Minimalist Header */}
-      <div className="space-y-3 text-center md:text-left">
-        <h1 className="text-[32px] md:text-[42px] font-bold text-slate-900 tracking-tight leading-tight">
-          Create <span className="font-logo text-[#2563EB] text-[36px] md:text-[48px]">Viral</span> Reels
-        </h1>
-        <p className="text-[15px] md:text-[17px] text-slate-400 font-medium max-w-xl mx-auto">
-          Turn any YouTube video into high-quality short-form content with our advanced AI engine.
-        </p>
+    <div className="relative mx-auto max-w-6xl px-6 md:px-8 pt-8 md:pt-24 pb-16 space-y-12 md:space-y-16 animate-in fade-in duration-700">
+      {/* Ambient glows */}
+      <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 right-1/4 h-80 w-80 rounded-full bg-violet-100/30 blur-[120px]" />
+        <div className="absolute bottom-10 left-1/4 h-80 w-80 rounded-full bg-pink-100/20 blur-[120px]" />
+      </div>
+
+      {/* Header */}
+      <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between mb-10">
+        <div className="space-y-3">
+          <h1 className="text-[32px] md:text-[52px] font-normal tracking-tight text-slate-900 leading-none">
+            Create <span className="text-[#a855f7] font-medium">Viral Reels</span>
+          </h1>
+          <p className="text-[14.5px] md:text-[16px] text-slate-500 font-medium max-w-xl leading-relaxed">
+            Turn any YouTube video into high-quality short-form content with our advanced AI engine.
+          </p>
+        </div>
       </div>
 
       {/* High-Fidelity Input Pill */}
-      <section className="relative max-w-3xl mx-auto group">
-        <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-2xl md:rounded-[2.5rem] blur opacity-0 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
-        <div className="relative bg-white rounded-2xl md:rounded-[2rem] p-2 md:p-3 border border-slate-200/60 shadow-xl shadow-slate-200/20 flex flex-col md:flex-row items-center gap-2 md:gap-4">
+      <section className="relative max-w-3xl group">
+        <div className="absolute -inset-1 bg-gradient-to-r from-[#a855f7]/20 to-[#e84c9f]/20 rounded-2xl md:rounded-[2.5rem] blur opacity-0 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
+        <div className="relative bg-white rounded-2xl md:rounded-[2rem] p-2 md:p-3 border border-[#e4e4e7] shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col md:flex-row items-center gap-2 md:gap-4">
           <div className="hidden md:flex pl-6 text-slate-400">
             <Youtube size={24} />
           </div>
@@ -187,7 +195,7 @@ export default function CreatePage() {
         <section className="animate-in fade-in slide-in-from-bottom-8 duration-700 space-y-12">
           {/* Metadata Card - ChatGPT Style */}
           {data ? (
-            <div className="bg-white rounded-[1.5rem] p-6 md:p-8 border border-slate-200/60 shadow-sm flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-8 group animate-in zoom-in-95 duration-500 text-center md:text-left">
+            <div className="bg-white rounded-[24px] p-6 md:p-8 border border-[#e4e4e7] shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-8 group animate-in zoom-in-95 duration-500 text-center md:text-left">
                <div className="w-full md:w-40 aspect-video rounded-2xl overflow-hidden shadow-sm shrink-0 border border-slate-100">
                  <img src={data.thumbnail} className="w-full h-full object-cover" />
                </div>
@@ -201,7 +209,7 @@ export default function CreatePage() {
                </div>
             </div>
           ) : (
-            <div className="bg-white rounded-[1.5rem] p-8 border border-slate-200/60 shadow-sm flex items-center gap-8 animate-pulse">
+            <div className="bg-white rounded-[24px] p-8 border border-[#e4e4e7] shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex items-center gap-8 animate-pulse">
                <div className="w-40 aspect-video rounded-2xl bg-slate-100 shrink-0" />
                <div className="flex-1 space-y-3">
                   <div className="h-2 w-24 bg-slate-100 rounded-full" />
@@ -213,7 +221,7 @@ export default function CreatePage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
              {/* Configuration */}
-             <div className="bg-white rounded-[1.5rem] p-6 md:p-8 border border-slate-200/60 shadow-sm space-y-6 md:space-y-8 flex flex-col">
+             <div className="bg-white rounded-[24px] p-6 md:p-8 border border-[#e4e4e7] shadow-[0_4px_24px_rgba(0,0,0,0.02)] space-y-6 md:space-y-8 flex flex-col">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
                     <SettingsIcon size={20} />
@@ -225,13 +233,13 @@ export default function CreatePage() {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <label className="text-[12px] font-bold text-slate-400 uppercase tracking-wider">Quantity</label>
-                      <span className="text-[14px] font-black text-[#2563EB]">{numReels} Reels</span>
+                      <span className="text-[14px] font-black text-[#a855f7]">{numReels} Reels</span>
                     </div>
                     <input 
                       type="range" min="1" max={data?.clips?.length || 5} 
                       value={numReels}
                       onChange={(e) => setNumReels(parseInt(e.target.value))}
-                      className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-[#2563EB]"
+                      className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-[#a855f7]"
                     />
                   </div>
 
@@ -240,7 +248,7 @@ export default function CreatePage() {
                     <textarea 
                       value={captionTemplate}
                       onChange={(e) => setCaptionTemplate(e.target.value)}
-                      className="w-full h-24 p-4 bg-slate-50/50 rounded-2xl border border-slate-100 focus:border-[#2563EB]/20 focus:bg-white transition-all text-[14px] font-medium resize-none outline-none"
+                      className="w-full h-24 p-4 bg-slate-50/50 rounded-2xl border border-slate-100 focus:border-[#a855f7]/20 focus:bg-white transition-all text-[14px] font-medium resize-none outline-none"
                       placeholder="Use {keyword} for variety..."
                     />
                   </div>
@@ -258,7 +266,7 @@ export default function CreatePage() {
              </div>
 
              {/* Scheduling */}
-             <div className="bg-white rounded-[1.5rem] p-6 md:p-8 border border-slate-200/60 shadow-sm space-y-6 md:space-y-8 flex flex-col">
+             <div className="bg-white rounded-[24px] p-6 md:p-8 border border-[#e4e4e7] shadow-[0_4px_24px_rgba(0,0,0,0.02)] space-y-6 md:space-y-8 flex flex-col">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
                     <CalendarIcon size={20} />
@@ -273,7 +281,7 @@ export default function CreatePage() {
                       <input 
                         type="date" value={startDate}
                         onChange={(e) => setStartDate(e.target.value)}
-                        className="w-full p-4 bg-slate-50/50 rounded-2xl border border-slate-100 focus:border-[#2563EB]/20 text-[14px] font-bold outline-none"
+                        className="w-full p-4 bg-slate-50/50 rounded-2xl border border-slate-100 focus:border-[#a855f7]/20 text-[14px] font-bold outline-none"
                       />
                     </div>
                     <div className="space-y-2">
@@ -281,7 +289,7 @@ export default function CreatePage() {
                       <input 
                         type="time" value={startTime}
                         onChange={(e) => setStartTime(e.target.value)}
-                        className="w-full p-4 bg-slate-50/50 rounded-2xl border border-slate-100 focus:border-[#2563EB]/20 text-[14px] font-bold outline-none"
+                        className="w-full p-4 bg-slate-50/50 rounded-2xl border border-slate-100 focus:border-[#a855f7]/20 text-[14px] font-bold outline-none"
                       />
                     </div>
                   </div>
@@ -317,7 +325,7 @@ export default function CreatePage() {
                    {status === "ready" ? `Discovered ${discoveredClips.length} Reels` : "AI Discovery in Progress"}
                  </h4>
                  {processingStep && (
-                   <p className="text-[14px] text-[#2563EB] font-bold uppercase tracking-wider animate-pulse flex items-center justify-center sm:justify-start gap-2">
+                   <p className="text-[14px] text-[#a855f7] font-bold uppercase tracking-wider animate-pulse flex items-center justify-center sm:justify-start gap-2">
                      <Loader2 size={14} className="animate-spin" />
                      {processingStep}
                    </p>
@@ -331,7 +339,7 @@ export default function CreatePage() {
             
             <div className="flex flex-wrap justify-center gap-8 md:gap-12 pb-10">
               {discoveredClips.slice(0, numReels).map((clip: any, i: number) => (
-                <div key={i} className="w-full sm:w-[280px] aspect-[9/16] bg-slate-900 rounded-[2.5rem] relative overflow-hidden shadow-2xl border-[6px] border-white shrink-0 group transition-all duration-700 animate-in fade-in slide-in-from-bottom-10 hover:scale-[1.03] hover:shadow-blue-500/10">
+                <div key={i} className="w-full sm:w-[280px] aspect-[9/16] bg-slate-900 rounded-[2.5rem] relative overflow-hidden shadow-2xl border-[6px] border-white shrink-0 group transition-all duration-700 animate-in fade-in slide-in-from-bottom-10 hover:scale-[1.03] hover:shadow-purple-500/10">
                   <img src={clip.thumb} className="absolute inset-0 w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity duration-700" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/10" />
                   

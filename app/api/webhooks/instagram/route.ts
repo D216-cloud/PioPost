@@ -67,9 +67,13 @@ export async function POST(req: Request) {
               continue;
             }
 
-            // 3. Match the comment text to the rule trigger keywords
+            // 3. Match the comment text to the rule trigger keywords and scope
             let matchedRule = null;
             for (const rule of rules) {
+              if (rule.comment_scope === "specific" && rule.instagram_media_id && rule.instagram_media_id !== mediaId) {
+                continue;
+              }
+
               if (rule.trigger_keyword === "Any comment") {
                 matchedRule = rule;
                 break;

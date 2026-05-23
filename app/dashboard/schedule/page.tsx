@@ -82,27 +82,36 @@ export default function SchedulePage() {
   }).sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="mx-auto w-[95%] max-w-6xl px-4 md:px-8 pt-28 pb-16 md:pb-20 space-y-12 md:space-y-16 animate-in fade-in duration-700">
-        {/* Header - Aligned with the provided image */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 text-center md:text-left">
-          <div className="space-y-1">
-            <h1 className="text-[28px] md:text-[32px] font-bold text-slate-900 tracking-tight">Schedule</h1>
-            <p className="text-[14px] md:text-[16px] text-slate-500 font-medium">All your upcoming reel posts.</p>
-          </div>
-          <Link 
-            href="/dashboard/create"
-            className="w-full md:w-auto bg-[#8B5CF6] hover:bg-[#7C3AED] text-white px-6 py-3 rounded-xl text-[14px] md:text-[15px] font-bold transition-all shadow-lg shadow-purple-500/20 flex items-center justify-center gap-2"
-          >
-            <Sparkles size={18} />
-            Create new reel
-          </Link>
+    <div className="relative mx-auto max-w-6xl px-6 md:px-8 pt-8 md:pt-24 pb-16 md:pb-20 space-y-12 animate-in fade-in duration-700">
+      {/* Ambient glows */}
+      <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 right-1/4 h-80 w-80 rounded-full bg-violet-100/30 blur-[120px]" />
+        <div className="absolute bottom-10 left-1/4 h-80 w-80 rounded-full bg-pink-100/20 blur-[120px]" />
+      </div>
+
+      {/* Header - Aligned with the new UI */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 text-center md:text-left mb-10">
+        <div className="space-y-3">
+          <h1 className="text-[32px] md:text-[52px] font-normal tracking-tight text-slate-900 leading-none">
+            Content <span className="text-[#a855f7] font-medium">Schedule</span>
+          </h1>
+          <p className="text-[14.5px] md:text-[16px] text-slate-500 font-medium max-w-xl leading-relaxed">
+            All your upcoming reel posts managed in one place.
+          </p>
         </div>
+        <Link 
+          href="/dashboard/create"
+          className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-[#e84c9f] via-[#b656e3] to-[#5a60f6] text-white text-[13.5px] font-bold rounded-full shadow-[0_8px_20px_-4px_rgba(182,86,227,0.25)] transition-all hover:scale-[1.01]"
+        >
+          <Sparkles size={16} className="fill-white stroke-white/50" />
+          Create Reel
+        </Link>
+      </div>
 
         {/* Top Grid - Calendar & Day Details */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Calendar Picker Card */}
-          <div className="bg-white rounded-[1.5rem] border border-slate-200/60 p-6 md:p-10 shadow-sm flex flex-col items-center">
+          <div className="bg-white rounded-[24px] border border-[#e4e4e7] shadow-[0_4px_24px_rgba(0,0,0,0.02)] p-6 md:p-10 flex flex-col items-center">
             <div className="flex items-center justify-between w-full max-w-[300px] mb-8">
               <button onClick={prevMonth} className="p-2 hover:bg-slate-50 rounded-lg text-slate-400"><ChevronLeft size={20} /></button>
               <div className="text-[16px] font-bold text-slate-900">{monthName} {currentDate.getFullYear()}</div>
@@ -126,8 +135,8 @@ export default function SchedulePage() {
                     key={day}
                     onClick={() => setSelectedDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), day))}
                     className={`h-10 w-full rounded-lg text-[14px] font-medium transition-all relative flex items-center justify-center
-                      ${active ? 'bg-[#8B5CF6] text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}
-                      ${hasVideos && !active ? 'after:content-[""] after:absolute after:bottom-1 after:w-1 after:h-1 after:bg-[#8B5CF6] after:rounded-full' : ''}
+                      ${active ? 'bg-[#a855f7] text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}
+                      ${hasVideos && !active ? 'after:content-[""] after:absolute after:bottom-1 after:w-1 after:h-1 after:bg-[#a855f7] after:rounded-full' : ''}
                     `}
                   >
                     {day}
@@ -138,7 +147,7 @@ export default function SchedulePage() {
           </div>
 
           {/* Day Details Card */}
-          <div className="bg-white rounded-[1.5rem] border border-slate-200/60 p-6 md:p-8 shadow-sm flex flex-col space-y-6">
+          <div className="bg-white rounded-[24px] border border-[#e4e4e7] shadow-[0_4px_24px_rgba(0,0,0,0.02)] p-6 md:p-8 flex flex-col space-y-6">
             <h3 className="text-[18px] font-bold text-slate-900 border-b border-slate-50 pb-4">
               {selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
             </h3>
@@ -170,8 +179,8 @@ export default function SchedulePage() {
         </div>
 
         {/* Bottom Card - Upcoming Queue */}
-        <div className="bg-white rounded-[1.5rem] border border-slate-200/60 p-6 md:p-8 shadow-sm space-y-8">
-           <div className="flex items-center gap-3 text-[#8B5CF6]">
+        <div className="bg-white rounded-[24px] border border-[#e4e4e7] shadow-[0_4px_24px_rgba(0,0,0,0.02)] p-6 md:p-8 space-y-8">
+           <div className="flex items-center gap-3 text-[#a855f7]">
               <CalendarIcon size={20} />
               <h3 className="text-[18px] font-bold text-slate-900">Upcoming queue</h3>
            </div>
@@ -200,7 +209,6 @@ export default function SchedulePage() {
                 </div>
               )}
            </div>
-        </div>
       </div>
     </div>
   );

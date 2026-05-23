@@ -1,97 +1,208 @@
+"use client";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
-import { 
-  Plus,
-  Video, 
-  BookOpen, 
-  Settings, 
-  Layers,
-  Sparkles,
-  Calendar,
+import { useSession } from "next-auth/react";
+import { Logo } from "@/components/Logo";
+import {
   LayoutDashboard,
+  Zap,
+  Film,
+  CalendarDays,
+  MessageSquare,
+  GitBranch,
+  BarChart2,
+  User,
+  Settings,
+  Moon,
   PanelLeftClose,
-  Search,
-  LogOut,
-  Sliders
+  PanelLeftOpen,
 } from "lucide-react";
 
 const navItems = [
-  { label: "Overview", icon: LayoutDashboard, href: "/dashboard" },
-  { label: "Create", icon: Sparkles, href: "/dashboard/create" },
-  { label: "Control Post", icon: Sliders, href: "/dashboard/control-post" },
-  { label: "Series", icon: Layers, href: "/dashboard/series" },
-  { label: "Videos", icon: Video, href: "/dashboard/videos" },
-  { label: "Schedule", icon: Calendar, href: "/dashboard/schedule" },
-  { label: "Automation", icon: BookOpen, href: "/dashboard/automation" },
-  { label: "Settings", icon: Settings, href: "/dashboard/settings" },
+  { label: "Dashboard",        icon: LayoutDashboard, href: "/dashboard" },
+  { label: "Automation",       icon: Zap,             href: "/dashboard/automation" },
+  { label: "Reels",            icon: Film,            href: "/dashboard/reels" },
+  { label: "Scheduler",        icon: CalendarDays,    href: "/dashboard/schedule" },
+  { label: "DM Automation",    icon: MessageSquare,   href: "/dashboard/dm-automation" },
+  { label: "Comment Triggers", icon: GitBranch,       href: "/dashboard/comment-triggers" },
+  { label: "Analytics",        icon: BarChart2,       href: "/dashboard/analytics" },
+  { label: "Profile",          icon: User,            href: "/dashboard/profile" },
+  { label: "Settings",         icon: Settings,        href: "/dashboard/settings" },
 ];
 
-export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+export function Sidebar({
+  isOpen,
+  onToggle,
+}: {
+  isOpen: boolean;
+  onToggle: () => void;
+}) {
   const pathname = usePathname();
+  const { data: session } = useSession();
+
+  const username = session?.user?.name
+    ? "@" + session.user.name.toLowerCase().replace(/\s+/g, ".")
+    : "@deepak.ai";
+  const avatarUrl = session?.user?.image;
 
   return (
     <>
-      {/* Mobile Overlay */}
+      {/* Mobile Backdrop */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] md:hidden"
-          onClick={onClose}
+          className="md:hidden fixed inset-0 bg-slate-900/20 z-40 backdrop-blur-sm transition-opacity"
+          onClick={onToggle}
         />
       )}
       
-      <aside className={`fixed md:sticky top-0 left-0 h-screen bg-white flex flex-col transition-all duration-500 ease-in-out overflow-hidden z-[110] border-r border-slate-100 ${isOpen ? 'w-64 p-6 shadow-2xl md:shadow-none' : 'w-0 p-0 opacity-0 -translate-x-20'}`}>
-      <div className={`flex items-center justify-between mb-12 px-2 transition-all duration-500 ${isOpen ? 'opacity-100' : 'opacity-0'}`}>
-        <div className="flex items-center">
-          <Link href="/" className="text-[26px] font-logo font-bold tracking-tight text-slate-900 flex items-center">
-            Pin<span className="text-[#2563EB]">Post</span>
-            <span className="w-2 h-2 rounded-full bg-[#2563EB] ml-1 mt-2"></span>
-          </Link>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-           <button onClick={onClose} className="text-slate-400 hover:text-slate-900 transition-colors p-1">
-              <PanelLeftClose size={18} />
-           </button>
-        </div>
-      </div>
-      
-      <nav className={`space-y-1.5 flex-1 transition-all duration-500 delay-75 ${isOpen ? 'opacity-100' : 'opacity-0'}`}>
-        {navItems.map((item) => {
-          const Icon = item.icon
-          const active = pathname === item.href;
-          return (
-            <Link
-              key={item.label}
-              href={item.href || "#"}
-              className={`flex items-center gap-3 rounded-xl px-4 py-3 text-[14px] font-bold transition-all ${
-                active 
-                  ? "bg-[#EFF6FF] text-[#2563EB]" 
-                  : "text-[#64748B] hover:bg-slate-50 hover:text-slate-900"
-              }`}
-            >
-              <Icon size={18} />
-              {item.label}
-            </Link>
-          );
-        })}
-        
-        <button
-          onClick={() => signOut({ callbackUrl: "/" })}
-          className="w-full flex items-center gap-3 rounded-xl px-4 py-3 text-[14px] font-bold text-[#64748B] hover:bg-red-50 hover:text-red-600 transition-all mt-4"
-        >
-          <LogOut size={18} />
-          Sign out
-        </button>
-      </nav>
+      <aside
+        className={`fixed md:relative z-50 h-[100dvh] bg-[#f8f8f8] flex flex-col flex-shrink-0 border-r border-slate-100/80 transition-all duration-300 ease-in-out ${
+          isOpen ? "translate-x-0 w-[240px]" : "-translate-x-full md:translate-x-0 md:w-[68px]"
+        }`}
+      >
+      <div className="flex flex-col h-full py-6 overflow-hidden">
 
-      <div className={`mt-auto pt-6 transition-all duration-500 delay-100 ${isOpen ? 'opacity-100' : 'opacity-0'}`}>
-        <div className="bg-[#EFF6FF] rounded-2xl p-4 border border-[#DBEAFE]">
-          <p className="text-[12px] font-bold text-[#2563EB] uppercase tracking-wider mb-1">Current Plan</p>
-          <p className="text-[14px] font-bold text-slate-900 mb-3">Free Tier</p>
-          <button className="w-full bg-[#2563EB] text-white py-2 rounded-xl text-[12px] font-bold hover:bg-[#1D4ED8] transition-all">
-            Upgrade
-          </button>
+        {/* ── Logo row ── */}
+        <div className={`flex items-center mb-10 px-4 ${isOpen ? "justify-between" : "justify-center"}`}>
+          {/* Squircle icon — always visible */}
+          <Link href="/dashboard" className="flex items-center gap-3 min-w-0">
+            {isOpen ? (
+              <Logo size="md" />
+            ) : (
+              <Logo size="md" withText={false} />
+            )}
+          </Link>
+
+          {/* Collapse/Expand button — inside sidebar */}
+          {isOpen && (
+            <button
+              onClick={onToggle}
+              className="w-7 h-7 rounded-lg hover:bg-slate-200/70 flex items-center justify-center text-slate-400 hover:text-slate-700 transition-all flex-shrink-0 ml-2"
+              title="Collapse sidebar"
+            >
+              <PanelLeftClose size={15} />
+            </button>
+          )}
         </div>
+
+        {/* Expand button when collapsed */}
+        {!isOpen && (
+          <div className="flex justify-center mb-6 -mt-4">
+            <button
+              onClick={onToggle}
+              className="w-8 h-8 rounded-lg hover:bg-slate-200/70 flex items-center justify-center text-slate-400 hover:text-slate-700 transition-all"
+              title="Expand sidebar"
+            >
+              <PanelLeftOpen size={15} />
+            </button>
+          </div>
+        )}
+
+        {/* ── Navigation ── */}
+        <nav className="flex-1 space-y-0.5 px-3">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const active =
+              pathname === item.href ||
+              (item.href !== "/dashboard" && pathname.startsWith(item.href));
+
+            return (
+              <Link
+                key={item.label}
+                href={item.href}
+                title={!isOpen ? item.label : undefined}
+                className={`flex items-center gap-3.5 rounded-2xl px-4 py-2.5 text-[13.5px] font-semibold transition-all duration-150 group relative ${
+                  isOpen ? "" : "justify-center"
+                } ${
+                  active
+                    ? "bg-white text-slate-900 shadow-[0_1px_4px_rgba(0,0,0,0.04)] border border-slate-100"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-white/60"
+                }`}
+              >
+                <Icon
+                  size={18}
+                  strokeWidth={active ? 2.2 : 1.8}
+                  className={`flex-shrink-0 ${
+                    active
+                      ? "text-slate-800"
+                      : "text-slate-400 group-hover:text-slate-600"
+                  }`}
+                />
+                {isOpen && <span className="truncate">{item.label}</span>}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* ── Bottom section ── */}
+        <div className="mt-4 px-3 space-y-3">
+          {isOpen ? (
+            <>
+              {/* Theme label + moon */}
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.18em]">
+                  Theme Style
+                </span>
+                <button className="w-6 h-6 rounded-full bg-white border border-slate-100 shadow-sm flex items-center justify-center hover:bg-slate-50 transition-all">
+                  <Moon size={12} className="text-slate-500" />
+                </button>
+              </div>
+
+              {/* Profile card */}
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_1px_6px_rgba(0,0,0,0.05)] px-3.5 py-3 flex items-center gap-3">
+                {avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={avatarUrl}
+                    alt="avatar"
+                    className="w-9 h-9 rounded-full object-cover flex-shrink-0 ring-2 ring-[#a855f7]/20"
+                  />
+                ) : (
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#7c3aed] to-[#d946ef] flex items-center justify-center text-white text-[13px] font-black flex-shrink-0">
+                    {username.charAt(1)?.toUpperCase() ?? "D"}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="text-[13px] font-bold text-slate-900 truncate">{username}</p>
+                  <span className="inline-flex items-center gap-1 mt-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#10b981]" />
+                    <span className="text-[9px] font-black text-[#10b981] uppercase tracking-wider">
+                      Online
+                    </span>
+                  </span>
+                </div>
+              </div>
+            </>
+          ) : (
+            /* Collapsed: just avatar + moon icon stacked */
+            <div className="flex flex-col items-center gap-3">
+              <button
+                className="w-7 h-7 rounded-full bg-white border border-slate-100 shadow-sm flex items-center justify-center hover:bg-slate-50 transition-all"
+                title="Toggle theme"
+              >
+                <Moon size={12} className="text-slate-500" />
+              </button>
+              {avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={avatarUrl}
+                  alt="avatar"
+                  title={username}
+                  className="w-9 h-9 rounded-full object-cover ring-2 ring-[#a855f7]/20"
+                />
+              ) : (
+                <div
+                  title={username}
+                  className="w-9 h-9 rounded-full bg-gradient-to-br from-[#7c3aed] to-[#d946ef] flex items-center justify-center text-white text-[13px] font-black"
+                >
+                  {username.charAt(1)?.toUpperCase() ?? "D"}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
       </div>
     </aside>
     </>

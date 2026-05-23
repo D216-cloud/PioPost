@@ -24,22 +24,13 @@ interface Rule {
   reply_message: string;
   target_post_url: string;
   instagram_account_id?: string | null;
+  instagram_media_id?: string | null;
+  comment_scope?: "specific" | "any" | "next";
   active: boolean;
   created_at: string;
   executions?: number;
   last_execution?: string;
 }
-
-const MOCK_POSTS = [
-  { id: "p1", url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=300&h=300&fit=crop", type: "post" },
-  { id: "p2", url: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=300&h=300&fit=crop", type: "post" },
-  { id: "p3", url: "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=300&h=300&fit=crop", type: "post" }
-];
-
-const MOCK_REELS = [
-  { id: "r1", url: "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=300&h=533&fit=crop", type: "reel" },
-  { id: "r2", url: "https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?w=300&h=533&fit=crop", type: "reel" }
-];
 
 export function AutomationEditor() {
   const { data: session, status } = useSession();
@@ -102,6 +93,8 @@ export function AutomationEditor() {
     trigger_keyword: "",
     reply_message: "",
     target_post_url: "",
+    instagram_media_id: "",
+    comment_scope: "any" as "specific" | "any" | "next",
     link_attachment: "",
     action_type: "message" as "message" | "link" | "pdf"
   });
@@ -218,8 +211,8 @@ export function AutomationEditor() {
     window.location.href = "/api/auth/instagram/link";
   };
 
-  const handleSelectPost = (url: string) => {
-    setForm(prev => ({ ...prev, target_post_url: url }));
+  const handleSelectPost = (url: string, mediaId: string) => {
+    setForm(prev => ({ ...prev, target_post_url: url, instagram_media_id: mediaId }));
     setFormStep("trigger_setup");
   };
 
@@ -244,6 +237,8 @@ export function AutomationEditor() {
           trigger_keyword: finalTrigger,
           reply_message: finalMessage,
           target_post_url: form.target_post_url.trim(),
+          instagram_media_id: commentType === "specific" ? form.instagram_media_id : null,
+          comment_scope: commentType,
           instagram_account_id: selectedAccountId,
           active: true,
         })
@@ -258,7 +253,16 @@ export function AutomationEditor() {
         await load();
       }
 
-      setForm({ name: "", trigger_keyword: "", reply_message: "", target_post_url: "", link_attachment: "", action_type: "message" });
+      setForm({
+        name: "",
+        trigger_keyword: "",
+        reply_message: "",
+        target_post_url: "",
+        instagram_media_id: "",
+        comment_scope: "any",
+        link_attachment: "",
+        action_type: "message",
+      });
       setKeywords([]);
       setShowForm(false);
       toast.success("Automation rule created!");
@@ -307,36 +311,36 @@ export function AutomationEditor() {
 
   return (
     <div className="min-h-screen bg-white font-sans">
-      <div className="relative mx-auto max-w-6xl px-4 md:px-8 pt-28 md:pt-20 pb-20 space-y-12 md:space-y-16 animate-in fade-in duration-700">
-        <div className="absolute inset-0 -z-10">
-          <div className="absolute -top-24 right-[-60px] h-72 w-72 rounded-full bg-sky-200/30 blur-[120px]" />
-          <div className="absolute -bottom-24 left-[-40px] h-72 w-72 rounded-full bg-amber-200/30 blur-[120px]" />
-        </div>
+      <div className="relative mx-auto max-w-6xl px-6 md:px-8 pt-8 md:pt-24 pb-16 md:pb-20 space-y-12 md:space-y-16 animate-in fade-in duration-700">
+      {/* Decorative clean ambient glows */}
+      <div className="absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute top-0 right-1/4 h-80 w-80 rounded-full bg-violet-100/30 blur-[120px]" />
+        <div className="absolute bottom-10 left-1/4 h-80 w-80 rounded-full bg-pink-100/20 blur-[120px]" />
+      </div>
 
-        {/* Header */}
-        <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-          <div className="space-y-3 text-center md:text-left">
-            <h1 className="text-[32px] md:text-[44px] font-semibold text-slate-900 tracking-tight leading-tight">
-              Instagram <span className="display-serif text-slate-900">Automation</span>
-            </h1>
-            <p className="text-[15px] md:text-[17px] text-slate-500 font-medium max-w-2xl mx-auto md:mx-0">
-              Automate engagement workflows, capture leads, and keep every DM reply consistent.
-            </p>
-          </div>
-          <div className="text-[12px] font-semibold uppercase tracking-[0.2em] text-slate-400 text-center md:text-right">
-            Workflow studio
-          </div>
+      {/* Header welcome & actions */}
+      <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+        <div className="space-y-3 text-left">
+          <h1 className="text-[32px] md:text-[52px] font-normal tracking-tight text-slate-900 leading-none">
+            Instagram <span className="text-[#a855f7] font-medium">Automation</span>
+          </h1>
+          <p className="text-[14.5px] md:text-[16px] text-slate-500 font-medium max-w-xl leading-relaxed">
+            Automate engagement workflows, capture leads, and keep every DM reply consistent.
+          </p>
         </div>
+        <div className="text-[12px] font-semibold uppercase tracking-[0.2em] text-slate-400 text-center md:text-right shrink-0">
+          Workflow studio
+        </div>
+      </div>
 
         {currentView === "dashboard" ? (
         <div className="space-y-12 animate-in fade-in duration-500">
 
 
-          <section className="relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-slate-200/30 to-slate-100/30 rounded-2xl md:rounded-[2.5rem] blur opacity-0 group-hover:opacity-100 transition duration-700" />
-            <div className="relative grid gap-4 md:grid-cols-[1fr_auto] items-center bg-white/90 rounded-2xl md:rounded-[2.5rem] p-4 md:p-5 border border-slate-200/70 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 overflow-hidden flex items-center justify-center shadow-inner">
+          <section className="relative">
+            <div className="bg-white rounded-[24px] border border-[#e4e4e7] p-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col md:flex-row items-center justify-between gap-5">
+              <div className="flex items-center gap-4 text-left w-full md:w-auto">
+                <div className="w-12 h-12 rounded-[16px] bg-slate-50 border border-slate-100 overflow-hidden flex items-center justify-center shadow-inner flex-shrink-0">
                   {selectedAccount?.profile_picture_url ? (
                     <img src={selectedAccount.profile_picture_url} alt="" className="w-full h-full object-cover" />
                   ) : session?.user?.image ? (
@@ -348,7 +352,7 @@ export function AutomationEditor() {
                 <div className="min-w-0">
                   {selectedAccount ? (
                     <div className="flex flex-wrap items-center gap-2.5">
-                      <span className="text-[16px] font-semibold text-slate-900 tracking-tight">@{selectedAccount.username}</span>
+                      <span className="text-[16px] font-bold text-slate-900 tracking-tight">@{selectedAccount.username}</span>
                       <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100/50">
                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                         <span className="text-[9px] font-black uppercase tracking-widest">Live</span>
@@ -360,16 +364,16 @@ export function AutomationEditor() {
                       <Link href="/dashboard/settings" className="text-[11px] font-bold text-sky-600 hover:text-sky-700">Connect Now</Link>
                     </div>
                   )}
-                  <p className="text-[12px] text-slate-400 mt-1">Create and monitor DM automations for posts and reels.</p>
+                  <p className="text-[12px] text-slate-400 mt-0.5">Create and monitor DM automations for posts and reels.</p>
                 </div>
               </div>
-              {instagramAccounts.length > 1 && (
-                <div className="flex flex-col gap-1 text-left">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Account</span>
+
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto justify-end">
+                {instagramAccounts.length > 1 && (
                   <select
                     value={selectedAccountId ?? ""}
                     onChange={(event) => setSelectedAccountId(event.target.value)}
-                    className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-[13px] font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                    className="h-10 rounded-full border border-slate-200 bg-white px-4 text-[13px] font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-200 w-full sm:w-auto"
                   >
                     {instagramAccounts.map((account) => (
                       <option key={account.id} value={account.id}>
@@ -377,16 +381,16 @@ export function AutomationEditor() {
                       </option>
                     ))}
                   </select>
-                </div>
-              )}
-              <button 
-                onClick={handleNewRuleClick}
-                disabled={!selectedAccount}
-                className={`h-12 md:h-14 px-8 rounded-full text-[14px] font-bold transition-all flex items-center justify-center gap-3 shadow-sm active:scale-95 whitespace-nowrap ${selectedAccount ? "bg-slate-900 hover:bg-black text-white" : "bg-slate-100 text-slate-400 cursor-not-allowed"}`}
-              >
-                <Sparkles size={18} />
-                Create Rule
-              </button>
+                )}
+                <button 
+                  onClick={handleNewRuleClick}
+                  disabled={!selectedAccount}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-[#e84c9f] via-[#b656e3] to-[#5a60f6] text-white text-[13.5px] font-bold rounded-full shadow-[0_8px_20px_-4px_rgba(182,86,227,0.25)] transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
+                >
+                  <Sparkles size={14} />
+                  Create Rule
+                </button>
+              </div>
             </div>
           </section>
 
@@ -409,48 +413,48 @@ export function AutomationEditor() {
           ) : rules.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {rules.map((rule) => (
-                <div key={rule.id} className="group relative bg-white border border-slate-100 rounded-[2.5rem] p-6 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                <div key={rule.id} className="group relative bg-white border border-[#e4e4e7] rounded-[20px] p-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.04)] hover:-translate-y-0.5 transition-all duration-300">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 border border-slate-100 shadow-sm group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
-                        {rule.platform === "instagram" ? <InstagramIcon size={20} /> : <Zap size={20} />}
+                      <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 border border-slate-100 shadow-sm group-hover:bg-[#faf5ff] group-hover:text-[#a855f7] transition-colors">
+                        {rule.platform === "instagram" ? <InstagramIcon size={18} /> : <Zap size={18} />}
                       </div>
                       <div>
-                        <h3 className="text-[15px] font-bold text-slate-800 line-clamp-1">{rule.name || `Rule #${rule.id.slice(0, 4)}`}</h3>
-                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{rule.platform}</p>
+                        <h3 className="text-[14px] font-bold text-slate-800 line-clamp-1">{rule.name || `Rule #${rule.id.slice(0, 4)}`}</h3>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{rule.platform}</p>
                       </div>
                     </div>
-                    <div className="flex gap-1">
-                      <button className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:bg-slate-50 hover:text-slate-900 transition-all">
-                        <Edit2 size={16} />
+                    <div className="flex gap-0.5">
+                      <button className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-900 transition-all">
+                        <Edit2 size={14} />
                       </button>
                       <button 
                         onClick={() => deleteRule(rule.id)}
-                        className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all"
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </div>
 
                   <div className="space-y-4 pt-2">
-                    <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                       <div className="flex items-center gap-2 mb-1">
                         <MessageSquare size={12} className="text-slate-400" />
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Trigger Keyword</span>
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Trigger Keyword</span>
                       </div>
-                      <p className="text-[13px] font-bold text-slate-700 truncate">{rule.trigger_keyword}</p>
+                      <p className="text-[12.5px] font-bold text-slate-700 truncate">{rule.trigger_keyword}</p>
                     </div>
 
-                    <div className="flex items-center justify-between border-t border-slate-50 pt-4">
+                    <div className="flex items-center justify-between pt-1">
                       <div className="flex items-center gap-4">
                         <div className="flex flex-col">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Executions</span>
-                          <span className="text-[14px] font-bold text-slate-800">{rule.executions || 0}</span>
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Executions</span>
+                          <span className="text-[13px] font-bold text-slate-800">{rule.executions || 0}</span>
                         </div>
-                        <div className="w-px h-6 bg-slate-100" />
+                        <div className="w-px h-5 bg-slate-100" />
                         <div className="flex flex-col">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</span>
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Status</span>
                           <span className={`text-[12px] font-bold ${rule.active ? "text-emerald-500" : "text-slate-300"}`}>
                             {rule.active ? "Active" : "Paused"}
                           </span>
@@ -458,11 +462,14 @@ export function AutomationEditor() {
                       </div>
                       <button 
                         onClick={() => toggleRule(rule.id, rule.active)}
-                        className={`w-12 h-6 rounded-full transition-all relative ${rule.active ? "bg-emerald-400" : "bg-slate-200"}`}
+                        className={`w-10 h-5.5 rounded-full transition-all relative ${rule.active ? "bg-[#2dd4bf]" : "bg-slate-200"}`}
                       >
-                        <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-all ${rule.active ? "left-7" : "left-1"}`} />
+                        <div className={`absolute top-0.5 w-4.5 h-4.5 rounded-full bg-white shadow-sm transition-all ${rule.active ? "left-5" : "left-0.5"}`} />
                       </button>
                     </div>
+
+                    {/* Mint accent line identical to dashboard card bottom */}
+                    <div className="h-[1px] w-full bg-[#2dd4bf]/25 mt-4" />
                   </div>
                 </div>
               ))}
@@ -829,7 +836,12 @@ export function AutomationEditor() {
                               return (
                                 <button 
                                   key={type}
-                                  onClick={() => setCommentType(type)}
+                                  onClick={() => {
+                                    setCommentType(type);
+                                    if (type !== "specific") {
+                                      setForm(prev => ({ ...prev, instagram_media_id: "", target_post_url: "" }));
+                                    }
+                                  }}
                                   className={`flex-1 py-2.5 text-[12px] font-bold rounded-xl transition-all ${commentType === type ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:text-slate-800"}`}
                                 >
                                   {label}
@@ -848,21 +860,27 @@ export function AutomationEditor() {
                              <div className="col-span-3 flex justify-center py-8">
                                 <div className="w-6 h-6 border-2 border-slate-200 border-t-[#2563EB] rounded-full animate-spin" />
                              </div>
+                          ) : realPosts.length > 0 ? (
+                            realPosts
+                              .filter(p => contentTab === "reels" ? p.media_type === "VIDEO" : p.media_type !== "VIDEO")
+                              .map((post, i) => {
+                                const imageUrl = post.media_url;
+                                const thumbUrl = post.thumbnail_url || imageUrl;
+                                const targetUrl = post.permalink || imageUrl;
+                                return (
+                                  <div 
+                                    key={post.id} 
+                                    onClick={() => handleSelectPost(targetUrl, post.id)}
+                                    className={`cursor-pointer group relative rounded-xl overflow-hidden border transition-all aspect-square ${form.instagram_media_id === post.id ? "ring-2 ring-[#0ea5e9] ring-offset-2" : "border-slate-100 hover:shadow-md"}`}
+                                  >
+                                    <img src={thumbUrl} alt={`Content ${i}`} className="w-full h-full object-cover" />
+                                  </div>
+                                );
+                              })
                           ) : (
-                             (realPosts.length > 0 ? realPosts.filter(p => contentTab === "reels" ? p.media_type === "VIDEO" : p.media_type !== "VIDEO") : (contentTab === "posts" ? MOCK_POSTS : MOCK_REELS)).map((post, i) => {
-                               const imageUrl = post.media_url || post.url;
-                               const thumbUrl = post.thumbnail_url || imageUrl;
-                               const targetUrl = post.permalink || imageUrl;
-                               return (
-                                <div 
-                                  key={post.id} 
-                                  onClick={() => handleSelectPost(targetUrl)}
-                                  className={`cursor-pointer group relative rounded-xl overflow-hidden border transition-all aspect-square ${form.target_post_url === targetUrl ? "ring-2 ring-[#0ea5e9] ring-offset-2" : "border-slate-100 hover:shadow-md"}`}
-                                >
-                                  <img src={thumbUrl} alt={`Content ${i}`} className="w-full h-full object-cover" />
-                                </div>
-                               )
-                             })
+                            <div className="col-span-3 text-center py-8 text-[12px] font-semibold text-slate-400">
+                              No Instagram {contentTab === "reels" ? "reels" : "posts"} found.
+                            </div>
                           )}
                         </div>
 
