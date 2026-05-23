@@ -25,6 +25,16 @@ export async function POST(req: Request) {
     const body = await req.json();
     console.log("Instagram Webhook Received:", JSON.stringify(body, null, 2));
 
+    try {
+      await supabaseAdmin.from('webhook_events').insert({
+        event_type: 'instagram_webhook',
+        payload: body,
+        processed: true
+      });
+    } catch (e) {
+      console.error("Failed to log webhook event", e);
+    }
+
     if (body.object === "instagram") {
       for (const entry of body.entry) {
         const igAccountId = entry.id; // The instagram business account ID that received the webhook
@@ -45,7 +55,7 @@ export async function POST(req: Request) {
             // 1. Fetch the user's instagram account details from DB to get their access token
             const { data: igAccount, error: accError } = await supabaseAdmin
               .from('instagram_accounts')
-              .select('id, user_id, access_token')
+              .select('id, user_id, access_token, facebook_page_id')
               .eq('instagram_business_id', igAccountId)
               .maybeSingle();
 
@@ -117,7 +127,8 @@ export async function POST(req: Request) {
             }
 
             // 5. Send the DM to the user (Private Reply to Comment)
-            const dmRes = await fetch(`https://graph.facebook.com/v19.0/${igAccountId}/messages`, {
+            const pageIdToUse = igAccount.facebook_page_id || igAccountId;
+            const dmRes = await fetch(`https://graph.facebook.com/v19.0/${pageIdToUse}/messages`, {
               method: 'POST',
               headers: { 
                 'Content-Type': 'application/json',
@@ -132,8 +143,23 @@ export async function POST(req: Request) {
             const dmData = await dmRes.json();
             if (dmData.error) {
               console.error("[Webhook] Failed to send DM:", dmData.error);
+              
+              await supabaseAdmin.from('automation_logs').insert({
+                automation_id: matchedRule.id,
+                instagram_user_id: commenterId,
+                comment_text: commentText,
+                dm_sent: false,
+                error_message: JSON.stringify(dmData.error)
+              });
             } else {
               console.log("[Webhook] DM Sent Successfully to:", commenterId);
+              
+              await supabaseAdmin.from('automation_logs').insert({
+                automation_id: matchedRule.id,
+                instagram_user_id: commenterId,
+                comment_text: commentText,
+                dm_sent: true
+              });
               
               // Update stats in database
               await supabaseAdmin.from('automation_rules')

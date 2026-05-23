@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Zap, Clock, User, Send, Heart, Wifi, Battery, Signal } from "lucide-react";
+import { Zap, Clock, User, Send, Heart, Wifi, Battery, Signal, BarChart2 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function DMAutomationPage() {
   const [activeTab, setActiveTab] = useState("Keyword Triggers");
@@ -16,6 +17,71 @@ export default function DMAutomationPage() {
   // Story Reply State
   const [storyKeyword, setStoryKeyword] = useState("🔥");
   const [storyResponse, setStoryResponse] = useState("Thanks for the love! Here's the link I promised in my story:\nhttps://reelflow.ai/link");
+
+  // Data fetching
+  const [instagramAccounts, setInstagramAccounts] = useState<any[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const [rules, setRules] = useState<any[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/instagram-account")
+      .then(res => res.json())
+      .then(data => {
+         const accounts = Array.isArray(data.data) ? data.data : [];
+         setInstagramAccounts(accounts);
+         if (accounts.length > 0) setSelectedAccountId(accounts[0].id);
+      })
+      .catch(console.error);
+
+    fetch("/api/automation-rules")
+      .then(res => res.json())
+      .then(data => {
+         if (data.data) setRules(data.data);
+      })
+      .catch(console.error);
+  }, []);
+
+  const totalExecutions = rules.reduce((acc, rule) => acc + (rule.executions || 0), 0);
+  const activeRulesCount = rules.filter(r => r.active).length;
+
+  const handleApplyRule = async (triggerType: string, triggerKeyword: string, messageValue: string) => {
+    if (!selectedAccountId) {
+       toast.error("Please connect an Instagram account first");
+       return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/automation-rules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          platform: "instagram",
+          name: `${triggerType} Rule - ${triggerKeyword}`,
+          trigger_keyword: triggerKeyword,
+          reply_message: messageValue,
+          trigger_type: triggerType,
+          comment_scope: "any",
+          instagram_account_id: selectedAccountId,
+          active: true,
+        })
+      });
+      if (res.ok) {
+        toast.success(`${triggerType} rule created successfully!`);
+        // Refresh rules
+        const rulesRes = await fetch("/api/automation-rules");
+        const rulesData = await rulesRes.json();
+        if (rulesData.data) setRules(rulesData.data);
+      } else {
+        toast.error("Failed to create rule");
+      }
+    } catch (e) {
+      toast.error("Error creating rule");
+    } finally {
+      setSaving(false);
+    }
+  };
+
 
   // Typing animation states
   const [isTyping, setIsTyping] = useState(false);
@@ -59,6 +125,53 @@ export default function DMAutomationPage() {
           </p>
         </div>
       </div>
+      
+      {/* Analytics Summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex items-center justify-between">
+           <div>
+             <p className="text-[12px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total DMs Sent</p>
+             <p className="text-[28px] font-black text-slate-800">{totalExecutions}</p>
+           </div>
+           <div className="w-12 h-12 bg-sky-50 text-sky-500 rounded-xl flex items-center justify-center">
+             <Send size={20} />
+           </div>
+        </div>
+        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex items-center justify-between">
+           <div>
+             <p className="text-[12px] font-bold text-slate-400 uppercase tracking-wider mb-1">Active Rules</p>
+             <p className="text-[28px] font-black text-slate-800">{activeRulesCount}</p>
+           </div>
+           <div className="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-xl flex items-center justify-center">
+             <Zap size={20} />
+           </div>
+        </div>
+        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex items-center justify-between">
+           <div>
+             <p className="text-[12px] font-bold text-slate-400 uppercase tracking-wider mb-1">Connected Accounts</p>
+             <p className="text-[28px] font-black text-slate-800">{instagramAccounts.length}</p>
+           </div>
+           <div className="w-12 h-12 bg-purple-50 text-purple-500 rounded-xl flex items-center justify-center">
+             <User size={20} />
+           </div>
+        </div>
+      </div>
+
+      {/* Account Selector */}
+      {instagramAccounts.length > 0 && (
+         <div className="flex items-center gap-4 mb-4">
+            <span className="text-sm font-semibold text-slate-600">Select Account:</span>
+            <select
+              value={selectedAccountId || ""}
+              onChange={(e) => setSelectedAccountId(e.target.value)}
+              className="px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-[#a855f7] bg-white text-sm font-medium"
+            >
+               {instagramAccounts.map(acc => (
+                  <option key={acc.id} value={acc.id}>@{acc.username}</option>
+               ))}
+            </select>
+         </div>
+      )}
 
       {/* Tabs */}
       <div className="flex items-center gap-8 border-b border-slate-200 overflow-x-auto no-scrollbar">
@@ -110,9 +223,13 @@ export default function DMAutomationPage() {
                   />
                 </div>
 
-                <button className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-[#a855f7] to-[#8B5CF6] text-white text-[15px] font-bold rounded-[14px] shadow-[0_8px_20px_-4px_rgba(168,85,247,0.3)] transition-all hover:scale-[1.01]">
+                <button 
+                  onClick={() => handleApplyRule("Welcome", "Any new follower", welcomeResponse)}
+                  disabled={saving}
+                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-[#a855f7] to-[#8B5CF6] text-white text-[15px] font-bold rounded-[14px] shadow-[0_8px_20px_-4px_rgba(168,85,247,0.3)] transition-all hover:scale-[1.01] disabled:opacity-70"
+                >
                   <User size={18} className="fill-white/20" />
-                  Apply Welcome Rule
+                  {saving ? "Saving..." : "Apply Welcome Rule"}
                 </button>
               </div>
             </>
@@ -124,7 +241,7 @@ export default function DMAutomationPage() {
               <div>
                 <h2 className="text-[20px] font-bold text-slate-900">Configure DM Keyword Trigger</h2>
                 <p className="text-[14px] text-slate-500 mt-2 leading-relaxed">
-                  When a user sends this specific keyword privately, the auto-system fires your message instantly.
+                  When a user sends this specific keyword privately or in a comment, the auto-system fires your message instantly.
                 </p>
               </div>
 
@@ -154,9 +271,13 @@ export default function DMAutomationPage() {
                   />
                 </div>
 
-                <button className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-[#a855f7] to-[#8B5CF6] text-white text-[15px] font-bold rounded-[14px] shadow-[0_8px_20px_-4px_rgba(168,85,247,0.3)] transition-all hover:scale-[1.01]">
+                <button 
+                  onClick={() => handleApplyRule("Keyword", keyword, keywordResponse)}
+                  disabled={saving}
+                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-[#a855f7] to-[#8B5CF6] text-white text-[15px] font-bold rounded-[14px] shadow-[0_8px_20px_-4px_rgba(168,85,247,0.3)] transition-all hover:scale-[1.01] disabled:opacity-70"
+                >
                   <Zap size={18} className="fill-white/20" />
-                  Apply Keyword dm Rule
+                  {saving ? "Saving..." : "Apply Keyword DM Rule"}
                 </button>
               </div>
             </>
@@ -198,9 +319,13 @@ export default function DMAutomationPage() {
                   />
                 </div>
 
-                <button className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-[#a855f7] to-[#8B5CF6] text-white text-[15px] font-bold rounded-[14px] shadow-[0_8px_20px_-4px_rgba(168,85,247,0.3)] transition-all hover:scale-[1.01]">
+                <button 
+                  onClick={() => handleApplyRule("Story", storyKeyword, storyResponse)}
+                  disabled={saving}
+                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-[#a855f7] to-[#8B5CF6] text-white text-[15px] font-bold rounded-[14px] shadow-[0_8px_20px_-4px_rgba(168,85,247,0.3)] transition-all hover:scale-[1.01] disabled:opacity-70"
+                >
                   <Clock size={18} className="fill-white/20" />
-                  Apply Story Rule
+                  {saving ? "Saving..." : "Apply Story Rule"}
                 </button>
               </div>
             </>
