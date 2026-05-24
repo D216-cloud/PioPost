@@ -158,28 +158,30 @@ export async function POST(req: Request) {
 
         // STEP 5 — Send the private DM
         // 
-        // The Messages API requires a Facebook Page ID as the sender.
-        // facebook_page_id must be set on the instagram_accounts row.
-        // If it's missing, we log a clear error and still try with igAccountId as last resort.
-        //
-        const pageIdToUse = igAccount.facebook_page_id || igAccountId;
-        if (!igAccount.facebook_page_id) {
-          console.warn(
-            "[Webhook] ⚠️ facebook_page_id is NULL on instagram_accounts row!",
-            "Falling back to Instagram Business ID:", igAccountId,
-            "— THIS WILL LIKELY FAIL. Fix: UPDATE instagram_accounts SET facebook_page_id='YOUR_FB_PAGE_ID' WHERE id='" + igAccount.id + "';"
-          );
-        } else {
-          console.log("[Webhook] Using Facebook Page ID:", pageIdToUse, "to send DM");
-        }
+        // For Instagram Private Replies, the Graph API requires the Instagram Business Account ID,
+        // NOT the Facebook Page ID.
+        // Also, Private Replies must be plain text, so we clean the message of any visual markdown.
+        
+        let cleanedMessage = matchedRule.reply_message;
+        
+        // Remove image tags completely (images aren't supported in comment replies)
+        cleanedMessage = cleanedMessage.replace(/\n\n\[Attached Image: .*?\]/g, "");
+        
+        // Convert [Button: Name](Link) into "Name: Link"
+        cleanedMessage = cleanedMessage.replace(/\[Button: (.*?)\]\((.*?)\)/g, "$1: $2");
+        
+        // Convert [Follow Request: Text] into just the text
+        cleanedMessage = cleanedMessage.replace(/\[Follow Request: (.*?)\]/g, "$1");
+        
+        cleanedMessage = cleanedMessage.trim();
 
-        console.log("[Webhook] Sending DM to commenter:", commenterId, "via page:", pageIdToUse);
-        const dmRes  = await fetch(`https://graph.facebook.com/v19.0/${pageIdToUse}/messages`, {
+        console.log("[Webhook] Sending DM to commenter:", commenterId, "via IG Account:", igAccountId);
+        const dmRes  = await fetch(`https://graph.facebook.com/v19.0/${igAccountId}/messages`, {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${tokenToUse}` },
           body: JSON.stringify({
             recipient: { comment_id: commentId },
-            message:   { text: matchedRule.reply_message },
+            message:   { text: cleanedMessage },
           }),
         });
         const dmData = await dmRes.json();
