@@ -22,6 +22,15 @@ export function Footer() {
           <Link href="/dashboard" className="text-[12px] font-black text-slate-300 hover:text-slate-900 uppercase tracking-widest transition-colors">Dashboard</Link>
         </div>
 
+        <div className="mb-12">
+          <Link
+            href="/delete-data"
+            className="inline-flex items-center justify-center rounded-full bg-slate-900 px-6 py-3 text-[12px] font-black uppercase tracking-widest text-white transition-colors hover:bg-slate-700"
+          >
+            Delete My Data
+          </Link>
+        </div>
+
         <p className="text-slate-300 text-[11px] font-black uppercase tracking-tighter">
           © {new Date().getFullYear()} REELFLOW. ALL RIGHTS RESERVED.
         </p>
