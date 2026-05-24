@@ -6,7 +6,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const code = searchParams.get("code");
   const userId = searchParams.get("state"); // We passed the user.id in the state
-  const REDIRECT_URI = getInstagramRedirectUri();
+  const REDIRECT_URI = getInstagramRedirectUri(new URL(req.url).origin);
 
   console.log("[Instagram OAuth] Callback received. Using Redirect URI for exchange:", REDIRECT_URI);
 

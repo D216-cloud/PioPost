@@ -5,8 +5,7 @@
  * 2. Consistent protocol (https in production)
  * 3. No query parameters
  */
-export function getInstagramRedirectUri() {
-  const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+export function getInstagramRedirectUri(baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000") {
   
   // Remove any trailing slash from the base URL
   const normalizedBase = baseUrl.replace(/\/$/, "");

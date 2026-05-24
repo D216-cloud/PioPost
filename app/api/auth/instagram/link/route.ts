@@ -3,14 +3,14 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
 import { getInstagramRedirectUri } from "@/lib/instagram-config";
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const CLIENT_ID = process.env.INSTAGRAM_CLIENT_ID;
-  const REDIRECT_URI = getInstagramRedirectUri();
+  const REDIRECT_URI = getInstagramRedirectUri(new URL(req.url).origin);
   
   console.log("[Instagram OAuth] Initiating Auth with Redirect URI:", REDIRECT_URI);
 
