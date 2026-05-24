@@ -26,7 +26,6 @@ const navItems = [
   { label: "Reels",            icon: Film,            href: "/dashboard/reels" },
   { label: "Scheduler",        icon: CalendarDays,    href: "/dashboard/schedule" },
   { label: "DM Automation",    icon: MessageSquare,   href: "/dashboard/autodm" },
-  { label: "Comment Triggers", icon: GitBranch,       href: "/dashboard/automation" },
   { label: "Analytics",        icon: BarChart2,       href: "/dashboard/analytics" },
   { label: "Profile",          icon: User,            href: "/dashboard/profile" },
   { label: "Settings",         icon: Settings,        href: "/dashboard/settings" },

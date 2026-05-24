@@ -32,18 +32,18 @@ export function CTASection() {
         }}
       >
         {/* Badge */}
-        <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-slate-50 px-4 py-1 text-[12px] font-bold text-slate-500 uppercase tracking-widest mb-8">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse"></span>
+        <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-slate-50/50 px-4 py-1 text-[13px] font-semibold text-slate-600 shadow-sm">
+          <span className="h-2 w-2 rounded-full bg-[#10b981] animate-pulse"></span>
           Get started today
         </div>
 
         {/* Headline */}
-        <h2 className="text-[36px] md:text-[56px] font-bold tracking-tight text-black leading-[1.1] mb-6">
+        <h2 className="mt-8 text-[32px] md:text-[68px] font-normal tracking-tight text-black leading-[1.08] max-w-none mx-auto md:whitespace-nowrap mb-6">
           Ready to scale your Instagram growth?
         </h2>
 
         {/* Subheading */}
-        <p className="text-slate-500 text-[16px] md:text-[18px] font-medium leading-relaxed max-w-xl mx-auto mb-12">
+        <p className="mt-8 mx-auto max-w-2xl text-[16px] md:text-[18px] text-slate-500 leading-relaxed font-medium mb-12">
           Get started in 60 seconds. Unlock AI scheduling, automated engagement, and DM automation — free.
         </p>
 

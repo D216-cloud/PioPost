@@ -100,6 +100,8 @@ export function AutomationEditor() {
   const [triggerType, setTriggerType] = useState<"keyword" | "any">("keyword");
   const [keywords, setKeywords] = useState<string[]>([]);
   const [keywordInput, setKeywordInput] = useState("");
+  const [quickKeyword, setQuickKeyword] = useState("");
+  const [quickMessage, setQuickMessage] = useState("");
   const [autoReply, setAutoReply] = useState(false);
   const [askToFollow, setAskToFollow] = useState(false);
   const [askForEmail, setAskForEmail] = useState(false);
@@ -283,6 +285,43 @@ export function AutomationEditor() {
   const handleConnect = () => {
     setSaving(true);
     window.location.href = "/api/auth/instagram/link";
+  };
+
+  const handleQuickAutoDM = async () => {
+    if (!selectedAccountId) {
+      toast.error("Please connect an Instagram account first");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/automation-rules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          platform: "instagram",
+          name: `Auto DM: ${quickKeyword}`,
+          trigger_keyword: quickKeyword,
+          reply_message: quickMessage,
+          target_post_url: "",
+          instagram_media_id: null,
+          comment_scope: "any",
+          instagram_account_id: selectedAccountId,
+          active: true,
+        })
+      });
+      if (res.ok) {
+        toast.success("Auto DM activated successfully!");
+        setQuickKeyword("");
+        setQuickMessage("");
+        load();
+      } else {
+        toast.error("Failed to create rule");
+      }
+    } catch (e) {
+      toast.error("Error creating Auto DM");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSelectPost = (url: string, mediaId: string, thumbUrl: string) => {
@@ -487,6 +526,59 @@ export function AutomationEditor() {
                   <Sparkles size={14} />
                   Create Rule
                 </button>
+              </div>
+            </div>
+          </section>
+
+          {/* Quick Setup: Comment Auto DM */}
+          <section className="bg-white rounded-[24px] border border-[#e4e4e7] p-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
+            <div className="flex flex-col md:flex-row gap-6">
+              <div className="flex-1 space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Zap size={20} className="text-[#a855f7]" />
+                  <h2 className="text-[20px] font-bold text-slate-900">Quick Setup: Comment Auto DM</h2>
+                </div>
+                <p className="text-[14px] text-slate-500">
+                  Instantly send a DM when a user comments on any of your posts with a specific keyword.
+                </p>
+                <div className="space-y-3">
+                  <input 
+                    type="text" 
+                    placeholder="Trigger keyword (e.g. 'link')" 
+                    value={quickKeyword}
+                    onChange={e => setQuickKeyword(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[14px] focus:border-[#a855f7] focus:outline-none"
+                  />
+                  <textarea 
+                    placeholder="Message to send..." 
+                    value={quickMessage}
+                    onChange={e => setQuickMessage(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[14px] focus:border-[#a855f7] focus:outline-none min-h-[80px]"
+                  />
+                  <button 
+                    onClick={handleQuickAutoDM}
+                    disabled={!quickKeyword || !quickMessage || saving}
+                    className="px-6 py-2.5 bg-slate-900 text-white font-bold rounded-xl text-[14px] hover:bg-slate-800 disabled:opacity-50 transition-all shadow-md"
+                  >
+                    Activate Auto DM
+                  </button>
+                </div>
+              </div>
+              <div className="hidden md:flex w-[300px] shrink-0 items-center justify-center bg-slate-50 rounded-2xl border border-slate-100 p-4 relative overflow-hidden">
+                 {/* Mini chat preview */}
+                 <div className="w-full space-y-3 z-10">
+                    <div className="flex gap-2">
+                      <div className="w-6 h-6 rounded-full bg-slate-200 shrink-0" />
+                      <div className="bg-white p-2 rounded-xl rounded-tl-none border border-slate-100 shadow-sm text-[11px] text-slate-600">
+                         {quickKeyword || "link"}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <div className="bg-gradient-to-tr from-[#ec4899] to-[#a855f7] text-white p-2 rounded-xl rounded-tr-none shadow-sm text-[11px] max-w-[80%] break-words">
+                         {quickMessage || "Here is the link you requested!"}
+                      </div>
+                    </div>
+                 </div>
               </div>
             </div>
           </section>

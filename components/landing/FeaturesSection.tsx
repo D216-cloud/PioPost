@@ -71,13 +71,14 @@ export function FeaturesSection() {
         {/* ── Why creators choose us ── */}
         <div className="space-y-14">
           <div className="text-center space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-slate-50 px-4 py-1 text-[12px] font-bold text-slate-500 uppercase tracking-widest">
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-slate-50/50 px-4 py-1 text-[13px] font-semibold text-slate-600 shadow-sm">
+              <span className="h-2 w-2 rounded-full bg-[#e84c9f] animate-pulse"></span>
               Comparison
             </div>
-            <h2 className="text-[36px] md:text-[52px] font-bold tracking-tight text-black leading-[1.1]">
+            <h2 className="mt-8 text-[32px] md:text-[68px] font-normal tracking-tight text-black leading-[1.08] max-w-none mx-auto md:whitespace-nowrap">
               Why creators choose us
             </h2>
-            <p className="text-slate-500 font-medium max-w-xl mx-auto text-[16px] leading-relaxed">
+            <p className="mt-8 mx-auto max-w-2xl text-[16px] md:text-[18px] text-slate-500 leading-relaxed font-medium">
               Stop wasting thousands on editors or hours on manual work.
             </p>
           </div>
@@ -115,10 +116,11 @@ export function FeaturesSection() {
         {/* ── Testimonials ── */}
         <div className="space-y-14">
           <div className="text-center space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-slate-50 px-4 py-1 text-[12px] font-bold text-slate-500 uppercase tracking-widest">
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-slate-50/50 px-4 py-1 text-[13px] font-semibold text-slate-600 shadow-sm">
+              <span className="h-2 w-2 rounded-full bg-[#5a60f6] animate-pulse"></span>
               Testimonials
             </div>
-            <h2 className="text-[36px] md:text-[52px] font-bold tracking-tight text-black leading-[1.1]">
+            <h2 className="mt-8 text-[32px] md:text-[68px] font-normal tracking-tight text-black leading-[1.08] max-w-none mx-auto md:whitespace-nowrap">
               Trusted by world-class creators
             </h2>
           </div>

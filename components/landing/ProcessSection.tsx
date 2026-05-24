@@ -73,13 +73,14 @@ export function ProcessSection() {
 
         {/* Header */}
         <div className="text-center mb-20 space-y-4">
-          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-white px-4 py-1 text-[12px] font-bold text-slate-500 uppercase tracking-widest shadow-sm">
+          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-white px-4 py-1 text-[13px] font-semibold text-slate-600 shadow-sm">
+            <span className="h-2 w-2 rounded-full bg-[#a855f7] animate-pulse"></span>
             How it works
           </div>
-          <h2 className="text-[36px] md:text-[52px] font-bold tracking-tight text-black leading-[1.1]">
+          <h2 className="mt-8 text-[32px] md:text-[68px] font-normal tracking-tight text-black leading-[1.08] max-w-none mx-auto md:whitespace-nowrap">
             From sign-up to growth in minutes
           </h2>
-          <p className="text-slate-500 font-medium max-w-xl mx-auto text-[16px] leading-relaxed">
+          <p className="mt-8 mx-auto max-w-2xl text-[16px] md:text-[18px] text-slate-500 leading-relaxed font-medium">
             Four simple steps to automate your entire Instagram presence.
           </p>
         </div>
