@@ -89,7 +89,7 @@ export default function LoginPage() {
               <>
                 {/* Continue with Google */}
                 <button
-                  onClick={() => signIn("google", { callbackUrl: "/connect" })}
+                  onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
                   disabled={isLoading}
                   className="w-full py-3.5 bg-white hover:bg-slate-50 text-slate-800 text-[14.5px] font-bold rounded-full border border-slate-200/80 shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2.5 disabled:opacity-70"
                 >

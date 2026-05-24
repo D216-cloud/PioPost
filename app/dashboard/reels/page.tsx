@@ -238,9 +238,9 @@ export default function ReelsPage() {
             <h3 className="text-[18px] font-bold text-slate-900 mb-1">No Instagram Account Connected</h3>
             <p className="text-[13.5px] text-slate-500 max-w-xs mx-auto">Connect your Instagram account to view and manage your media here.</p>
           </div>
-          <Link href="/connect" className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#e84c9f] via-[#b656e3] to-[#5a60f6] text-white text-[13.5px] font-bold rounded-full shadow-[0_8px_20px_-4px_rgba(182,86,227,0.25)] transition-all hover:scale-[1.01]">
+          <a href="/api/auth/instagram/link" className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#e84c9f] via-[#b656e3] to-[#5a60f6] text-white text-[13.5px] font-bold rounded-full shadow-[0_8px_20px_-4px_rgba(182,86,227,0.25)] transition-all hover:scale-[1.01]">
             Connect Instagram
-          </Link>
+          </a>
         </div>
       )}
 
