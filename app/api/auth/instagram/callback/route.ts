@@ -3,16 +3,17 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getInstagramRedirectUri } from "@/lib/instagram-config";
 
 export async function GET(req: Request) {
+  const origin = new URL(req.url).origin;
   const { searchParams } = new URL(req.url);
   const code = searchParams.get("code");
   const userId = searchParams.get("state"); // We passed the user.id in the state
-  const REDIRECT_URI = getInstagramRedirectUri(new URL(req.url).origin);
+  const REDIRECT_URI = getInstagramRedirectUri(origin);
 
   console.log("[Instagram OAuth] Callback received. Using Redirect URI for exchange:", REDIRECT_URI);
 
   if (!code || !userId) {
     console.error("[Instagram OAuth] Missing code or userId in callback:", { code, userId });
-    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/dashboard?error=no_code`);
+    return NextResponse.redirect(`${origin}/dashboard?error=no_code`);
   }
 
   try {
@@ -66,7 +67,7 @@ export async function GET(req: Request) {
     const pageId = null; // No Facebook Page ID needed for direct Instagram Login flows
 
     if (!igBusinessId) {
-      return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/dashboard?error=no_ig_business_account`);
+      return NextResponse.redirect(`${origin}/dashboard?error=no_ig_business_account`);
     }
 
     // 4. Store in Supabase
@@ -84,9 +85,9 @@ export async function GET(req: Request) {
 
     if (error) throw error;
 
-    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/dashboard/reels?connected=true`);
+    return NextResponse.redirect(`${origin}/dashboard/reels?connected=true`);
   } catch (error: any) {
     console.error("Instagram Connection Error:", error);
-    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/dashboard?error=${encodeURIComponent(error.message)}`);
+    return NextResponse.redirect(`${origin}/dashboard?error=${encodeURIComponent(error.message)}`);
   }
 }
