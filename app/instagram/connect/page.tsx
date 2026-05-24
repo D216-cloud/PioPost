@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Instagram, ShieldCheck, Link2, Webhook } from "lucide-react";
+import { ArrowLeft, ShieldCheck, Link2, Webhook } from "lucide-react";
+import { InstagramIcon as Instagram } from "@/components/icons";
 
 export default function InstagramConnectPage() {
   const [origin, setOrigin] = useState("");
