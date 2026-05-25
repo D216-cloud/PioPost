@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { AutomationDashboard } from "@/components/automation/AutomationDashboard";
 
 export default function AutomationPage() {
-  redirect("/dashboard");
+  return <AutomationDashboard />;
 }

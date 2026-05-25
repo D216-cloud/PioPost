@@ -316,65 +316,70 @@ export default function SettingsPage() {
             </motion.div>
           )}
 
-          {/* STEP 2: SUCCESS MODAL/CARD (MATCHING IMAGE) */}
+          {/* STEP 2: SUCCESS MODAL/CARD */}
           {viewState === "success" && (
             <motion.div 
               key="success"
-              initial={{ opacity: 0, scale: 0.9 }}
+              initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, y: -20 }}
-              className="flex items-center justify-center min-h-[70vh] p-4"
+              className="flex items-center justify-center min-h-[60vh] p-4"
             >
               {(() => {
                 const latestAccount = instagramAccounts[0];
                 return (
-              <div className="bg-white w-full max-w-105 rounded-[3rem] p-10 shadow-[0_30px_70px_rgba(0,0,0,0.1)] text-center space-y-10 border border-slate-50 relative">
-                {/* Checkmark Icon */}
-                <div className="flex justify-center">
-                  <div className="w-24 h-24 bg-[#4ADE80] rounded-full flex items-center justify-center shadow-2xl shadow-emerald-200 border-8 border-white ring-1 ring-slate-100">
-                    <CheckCircle2 size={42} className="text-white" strokeWidth={3} />
-                  </div>
-                </div>
-                
-                <div className="space-y-10">
-                  <h2 className="text-[28px] font-bold text-slate-900 tracking-tight leading-[1.2] px-2">
-                    Account reconnected successfully!
-                  </h2>
-
-                  <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] flex items-center justify-between group transition-all">
-                    <div className="flex items-center gap-4 text-left">
-                      <div className="w-14 h-14 rounded-full overflow-hidden ring-4 ring-slate-50 shadow-sm bg-slate-100 flex items-center justify-center font-bold text-slate-400">
-                        {latestAccount?.profile_picture_url || latestAccount?.username ? (
-                          <img 
-                            src={latestAccount?.profile_picture_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${latestAccount?.username || "account"}`} 
-                            alt="avatar" 
-                            className="w-full h-full object-cover"
-                          />
-                        ) : "IG"}
-                      </div>
-                      <div>
-                        <p className="text-[17px] font-bold text-slate-900 leading-tight mb-0.5">
-                          {latestAccount?.username || 'Connected Account'}
-                        </p>
-                        <p className="text-[13px] text-slate-400 font-semibold tracking-tight">
-                          {latestAccount ? "Account ready" : "Synchronizing..."}
-                        </p>
+                  <div className="bg-white w-full max-w-sm rounded-[2.5rem] p-6 md:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.08)] text-center space-y-8 border border-slate-100/80 relative">
+                    {/* Checkmark Icon */}
+                    <div className="flex justify-center">
+                      <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg shadow-emerald-100 border-4 border-white ring-1 ring-slate-100">
+                        <CheckCircle2 size={36} className="text-white" strokeWidth={3} />
                       </div>
                     </div>
-                    <div className="w-7 h-7 bg-[#4ADE80] rounded-full flex items-center justify-center shadow-sm">
-                      <CheckCircle2 size={16} className="text-white" strokeWidth={3} />
+                    
+                    <div className="space-y-8">
+                      <div className="space-y-2">
+                        <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">
+                          Connected!
+                        </h2>
+                        <p className="text-xs text-slate-400 font-semibold">
+                          Your Instagram account is ready for automation.
+                        </p>
+                      </div>
+
+                      <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-center justify-between gap-4 transition-all w-full min-w-0">
+                        <div className="flex items-center gap-3 text-left min-w-0">
+                          <div className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-slate-100 shadow-xs bg-slate-100 flex items-center justify-center shrink-0">
+                            {latestAccount?.profile_picture_url || latestAccount?.username ? (
+                              <img 
+                                src={latestAccount?.profile_picture_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${latestAccount?.username || "account"}`} 
+                                alt="avatar" 
+                                className="w-full h-full object-cover"
+                              />
+                            ) : "IG"}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[15px] font-bold text-slate-900 leading-tight mb-0.5 truncate">
+                              @{latestAccount?.username || 'Connected Account'}
+                            </p>
+                            <p className="text-[11px] text-slate-400 font-semibold tracking-tight">
+                              Account ready
+                            </p>
+                          </div>
+                        </div>
+                        <div className="w-5.5 h-5.5 bg-emerald-500 rounded-full flex items-center justify-center shadow-xs shrink-0">
+                          <CheckCircle2 size={12} className="text-white" strokeWidth={3} />
+                        </div>
+                      </div>
+
+                      <button 
+                        onClick={() => setViewState("settings")}
+                        className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-[14px] font-bold transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-2"
+                      >
+                        Continue
+                        <ChevronRight size={16} strokeWidth={2.5} />
+                      </button>
                     </div>
                   </div>
-
-                  <button 
-                    onClick={() => setViewState("settings")}
-                    className="w-full py-5 border border-slate-200 rounded-4xl text-[16px] font-bold text-slate-800 hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-2"
-                  >
-                    Continue
-                    <ChevronRight size={18} className="text-slate-400" />
-                  </button>
-                </div>
-              </div>
                 );
               })()}
             </motion.div>
