@@ -1,4 +1,4 @@
-import { AutomationEditor } from "@/components/automation/AutomationEditor";
+import { AutomationDashboard } from "@/components/automation/AutomationDashboard";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function AutomationPage() {
-  return <AutomationEditor />;
+  return <AutomationDashboard />;
 }

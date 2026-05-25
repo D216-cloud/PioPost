@@ -284,7 +284,7 @@ export function AutomationEditor() {
 
   const handleConnect = () => {
     setSaving(true);
-    window.location.href = "/instagram/connect";
+    window.location.href = "/api/auth/instagram/link";
   };
 
   const handleQuickAutoDM = async () => {

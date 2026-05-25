@@ -111,7 +111,7 @@ export default function SettingsPage() {
   const connectInstagram = async () => {
     setIsConnecting(true);
     setConnectionStep("Redirecting to Instagram...");
-    window.location.href = "/instagram/connect";
+    window.location.href = "/api/auth/instagram/link";
   };
 
   const disconnectInstagram = async (accountId: string) => {

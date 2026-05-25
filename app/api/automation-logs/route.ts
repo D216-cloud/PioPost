@@ -1,0 +1,43 @@
+import { NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabase-admin';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/auth';
+
+export async function GET(req: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { searchParams } = new URL(req.url);
+    const automationId = searchParams.get('automationId');
+    const limit = parseInt(searchParams.get('limit') || '50');
+
+    // First get all rule IDs for this user
+    const { data: rules } = await supabaseAdmin
+      .from('automation_rules')
+      .select('id')
+      .eq('user_id', session.user.id);
+
+    if (!rules || rules.length === 0) return NextResponse.json({ data: [] });
+
+    const ruleIds = rules.map((r: any) => r.id);
+
+    let query = supabaseAdmin
+      .from('automation_logs')
+      .select('*')
+      .in('automation_id', ruleIds)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (automationId) {
+      query = query.eq('automation_id', automationId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    return NextResponse.json({ data });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
