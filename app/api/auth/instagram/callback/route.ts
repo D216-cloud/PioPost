@@ -48,7 +48,18 @@ export async function GET(req: Request) {
 
     // 2. Get Long-Lived Token (60 days)
     const longLivedRes = await fetch(
-      `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${process.env.INSTAGRAM_CLIENT_SECRET}&access_token=${accessToken}`
+      `https://graph.instagram.com/access_token`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          grant_type: "ig_exchange_token",
+          client_secret: process.env.INSTAGRAM_CLIENT_SECRET!,
+          access_token: accessToken,
+        }),
+      }
     );
     const longLivedData = await longLivedRes.json();
     const finalToken = longLivedData.access_token || accessToken;
@@ -58,7 +69,7 @@ export async function GET(req: Request) {
     }
 
     if (!finalToken) {
-      throw new Error(longLivedData.error_message || "Unable to obtain Instagram access token");
+      throw new Error(longLivedData.error?.message || longLivedData.error_message || "Unable to obtain Instagram access token");
     }
 
     // 3. Get Instagram Account Details directly
