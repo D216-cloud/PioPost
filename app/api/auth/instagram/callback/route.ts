@@ -35,9 +35,10 @@ export async function GET(req: Request) {
     );
     const tokenData = await tokenRes.json();
     
-    if (tokenData.error) {
+    if (tokenData.error || !tokenData.access_token) {
       console.error("[Instagram OAuth] Token Exchange Error:", {
         error: tokenData.error,
+        error_message: tokenData.error_message,
         sent_redirect_uri: REDIRECT_URI
       });
       throw new Error(tokenData.error_message || "Token exchange failed");
@@ -50,7 +51,15 @@ export async function GET(req: Request) {
       `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${process.env.INSTAGRAM_CLIENT_SECRET}&access_token=${accessToken}`
     );
     const longLivedData = await longLivedRes.json();
-    const finalToken = longLivedData.access_token;
+    const finalToken = longLivedData.access_token || accessToken;
+
+    if (longLivedData.error) {
+      console.warn("[Instagram OAuth] Long-lived token exchange failed, falling back to short-lived token:", longLivedData.error);
+    }
+
+    if (!finalToken) {
+      throw new Error(longLivedData.error_message || "Unable to obtain Instagram access token");
+    }
 
     // 3. Get Instagram Account Details directly
     const userRes = await fetch(`https://graph.instagram.com/me?fields=id,username,profile_picture_url&access_token=${finalToken}`);
