@@ -40,6 +40,7 @@ export default function SettingsPage() {
   const [postsByAccount, setPostsByAccount] = useState<Record<string, InstagramPost[]>>({});
   const [loadingPostsFor, setLoadingPostsFor] = useState<string | null>(null);
   const [postsVisibleFor, setPostsVisibleFor] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fetchPosts = async (accountId: string) => {
     if (postsVisibleFor === accountId) {
@@ -96,6 +97,24 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
+    // Parse query params for errors
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const errorParam = urlParams.get('error');
+      if (errorParam) {
+        const msg = decodeURIComponent(errorParam);
+        setErrorMessage(msg);
+        setIsConnecting(false);
+        toast.error(`Instagram connection failed: ${msg}`);
+        
+        // Clean URL
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     if (!session?.user?.id) return;
 
     loadInstagramAccounts(true);
@@ -124,6 +143,7 @@ export default function SettingsPage() {
   const connectInstagram = async () => {
     setIsConnecting(true);
     setConnectionStep("Redirecting to Instagram...");
+    setErrorMessage(null);
     window.location.href = "/api/auth/instagram/link";
   };
 
@@ -511,6 +531,90 @@ export default function SettingsPage() {
                   })}
                 </div>
               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ERROR MODAL POPUP */}
+        <AnimatePresence>
+          {errorMessage && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm"
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                transition={{ type: "spring", damping: 25, stiffness: 350 }}
+                className="bg-white w-full max-w-md rounded-[3rem] p-8 md:p-10 shadow-[0_30px_70px_rgba(0,0,0,0.25)] text-center border border-slate-100 relative overflow-hidden"
+              >
+                {/* Decorative background blur */}
+                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-400 via-pink-500 to-red-600" />
+                
+                {/* Close Button */}
+                <button 
+                  onClick={() => setErrorMessage(null)}
+                  className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-50 text-slate-400 hover:text-slate-600 transition-colors active:scale-95"
+                >
+                  <X size={18} strokeWidth={2.5} />
+                </button>
+
+                <div className="space-y-8 mt-4">
+                  {/* Danger/Warning Badge */}
+                  <div className="flex justify-center">
+                    <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center border-4 border-white shadow-lg shadow-red-100 ring-1 ring-red-100/50">
+                      <X size={32} className="text-red-500" strokeWidth={3} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h3 className="text-2xl font-black text-slate-900 tracking-tight">Connection Failed</h3>
+                    <p className="text-[13.5px] text-slate-500 font-semibold leading-relaxed">
+                      Something went wrong while connecting to Instagram.
+                    </p>
+                  </div>
+
+                  {/* Clean Error Message display */}
+                  <div className="bg-red-50/60 border border-red-100/70 p-4 rounded-3xl text-left">
+                    <span className="text-[10px] font-black text-red-500 uppercase tracking-widest block mb-1">Details</span>
+                    <p className="text-xs text-red-700 font-bold font-mono break-words leading-relaxed">
+                      {errorMessage}
+                    </p>
+                  </div>
+
+                  {/* Actionable Suggestions */}
+                  <div className="text-left text-xs text-slate-500 bg-slate-50 p-5 rounded-3xl border border-slate-100 space-y-2 font-semibold">
+                    <span className="font-bold text-slate-700 block mb-1">How to fix this:</span>
+                    <ul className="list-disc pl-4 space-y-1.5 text-slate-500 leading-relaxed font-semibold">
+                      <li>Your Instagram account must be a <strong>Professional (Business or Creator)</strong> account.</li>
+                      <li>In your Meta Developer Dashboard, ensure you have invited this Instagram account as an <strong>Instagram Tester</strong> and accepted the invitation.</li>
+                      <li>Ensure that <strong>Deauthorize callback URL</strong> and <strong>Data deletion request URL</strong> are filled out in your App dashboard under Instagram Business Login settings.</li>
+                    </ul>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <button
+                      onClick={() => {
+                        setErrorMessage(null);
+                        connectInstagram();
+                      }}
+                      className="w-full py-4.5 bg-linear-to-r from-red-500 to-pink-600 text-white rounded-full text-sm font-bold shadow-lg shadow-red-200 transition-all hover:scale-[1.01] active:scale-[0.99]"
+                    >
+                      Try Again
+                    </button>
+                    
+                    <button
+                      onClick={() => setErrorMessage(null)}
+                      className="w-full py-3.5 border border-slate-200 hover:bg-slate-50 rounded-full text-xs font-bold text-slate-600 transition-all active:scale-[0.98]"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
