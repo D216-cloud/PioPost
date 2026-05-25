@@ -6,11 +6,8 @@ import { useSession, signOut } from "next-auth/react";
 import { Logo } from "@/components/Logo";
 import {
   LayoutDashboard,
-  Zap,
   Film,
   CalendarDays,
-  MessageSquare,
-  GitBranch,
   BarChart2,
   User,
   Settings,
@@ -22,10 +19,8 @@ import {
 
 const navItems = [
   { label: "Dashboard",        icon: LayoutDashboard, href: "/dashboard" },
-  { label: "Automation",       icon: Zap,             href: "/dashboard/automation" },
   { label: "Reels",            icon: Film,            href: "/dashboard/reels" },
   { label: "Scheduler",        icon: CalendarDays,    href: "/dashboard/schedule" },
-  { label: "DM Automation",    icon: MessageSquare,   href: "/dashboard/autodm" },
   { label: "Analytics",        icon: BarChart2,       href: "/dashboard/analytics" },
   { label: "Profile",          icon: User,            href: "/dashboard/profile" },
   { label: "Settings",         icon: Settings,        href: "/dashboard/settings" },
@@ -57,8 +52,8 @@ export function Sidebar({
       )}
       
       <aside
-        className={`fixed md:relative z-50 h-[100dvh] bg-[#f8f8f8] flex flex-col flex-shrink-0 border-r border-slate-100/80 transition-all duration-300 ease-in-out ${
-          isOpen ? "translate-x-0 w-[240px]" : "-translate-x-full md:translate-x-0 md:w-[68px]"
+        className={`fixed md:relative z-50 h-dvh bg-[#f8f8f8] flex flex-col shrink-0 border-r border-slate-100/80 transition-all duration-300 ease-in-out ${
+          isOpen ? "translate-x-0 w-60" : "-translate-x-full md:translate-x-0 md:w-17"
         }`}
       >
       <div className="flex flex-col h-full py-6 overflow-hidden">
@@ -78,7 +73,7 @@ export function Sidebar({
           {isOpen && (
             <button
               onClick={onToggle}
-              className="w-7 h-7 rounded-lg hover:bg-slate-200/70 flex items-center justify-center text-slate-400 hover:text-slate-700 transition-all flex-shrink-0 ml-2"
+              className="w-7 h-7 rounded-lg hover:bg-slate-200/70 flex items-center justify-center text-slate-400 hover:text-slate-700 transition-all shrink-0 ml-2"
               title="Collapse sidebar"
             >
               <PanelLeftClose size={15} />
@@ -123,7 +118,7 @@ export function Sidebar({
                 <Icon
                   size={18}
                   strokeWidth={active ? 2.2 : 1.8}
-                  className={`flex-shrink-0 ${
+                  className={`shrink-0 ${
                     active
                       ? "text-slate-800"
                       : "text-slate-400 group-hover:text-slate-600"
@@ -157,10 +152,10 @@ export function Sidebar({
                     <img
                       src={avatarUrl}
                       alt="avatar"
-                      className="w-9 h-9 rounded-full object-cover flex-shrink-0 ring-2 ring-[#a855f7]/20"
+                      className="w-9 h-9 rounded-full object-cover shrink-0 ring-2 ring-[#a855f7]/20"
                     />
                   ) : (
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#7c3aed] to-[#d946ef] flex items-center justify-center text-white text-[13px] font-black flex-shrink-0">
+                    <div className="w-9 h-9 rounded-full bg-linear-to-br from-[#7c3aed] to-[#d946ef] flex items-center justify-center text-white text-[13px] font-black shrink-0">
                       {username.charAt(1)?.toUpperCase() ?? "D"}
                     </div>
                   )}
@@ -176,7 +171,7 @@ export function Sidebar({
                 </div>
                 <button
                   onClick={() => signOut({ callbackUrl: "/" })}
-                  className="w-8 h-8 rounded-full bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 flex items-center justify-center transition-colors shadow-sm border border-slate-100 flex-shrink-0"
+                  className="w-8 h-8 rounded-full bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 flex items-center justify-center transition-colors shadow-sm border border-slate-100 shrink-0"
                   title="Sign out"
                 >
                   <LogOut size={14} />
@@ -203,7 +198,7 @@ export function Sidebar({
               ) : (
                 <div
                   title={username}
-                  className="w-9 h-9 rounded-full bg-gradient-to-br from-[#7c3aed] to-[#d946ef] flex items-center justify-center text-white text-[13px] font-black"
+                  className="w-9 h-9 rounded-full bg-linear-to-br from-[#7c3aed] to-[#d946ef] flex items-center justify-center text-white text-[13px] font-black"
                 >
                   {username.charAt(1)?.toUpperCase() ?? "D"}
                 </div>

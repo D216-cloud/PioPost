@@ -11,19 +11,33 @@ import {
 import { InstagramIcon as Instagram } from "@/components/icons";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
+import { supabase } from "@/lib/supabase";
 
 type ViewState = "loading" | "not_connected" | "success" | "settings";
 
+type InstagramAccount = {
+  id: string;
+  username: string;
+  profile_picture_url?: string | null;
+};
+
+type InstagramPost = {
+  id: string;
+  permalink?: string;
+  media_type?: string;
+  thumbnail_url?: string | null;
+  media_url?: string | null;
+};
+
 export default function SettingsPage() {
   const { data: session } = useSession();
-  const [instagramAccounts, setInstagramAccounts] = useState<any[]>([]);
+  const [instagramAccounts, setInstagramAccounts] = useState<InstagramAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewState, setViewState] = useState<ViewState>("loading");
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStep, setConnectionStep] = useState("");
-  const [postsByAccount, setPostsByAccount] = useState<Record<string, any[]>>({});
+  const [postsByAccount, setPostsByAccount] = useState<Record<string, InstagramPost[]>>({});
   const [loadingPostsFor, setLoadingPostsFor] = useState<string | null>(null);
   const [postsVisibleFor, setPostsVisibleFor] = useState<string | null>(null);
 
@@ -64,7 +78,6 @@ export default function SettingsPage() {
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('success') === 'true') {
           setViewState("success");
-          window.history.replaceState({}, '', window.location.pathname);
           return;
         }
       }
@@ -117,18 +130,38 @@ export default function SettingsPage() {
   const disconnectInstagram = async (accountId: string) => {
     if (!session?.user?.id) return;
 
-    const { error } = await supabase
-      .from("instagram_accounts")
-      .delete()
-      .eq("id", accountId)
-      .eq("user_id", session.user.id);
+    try {
+      const response = await fetch(`/api/instagram-account?accountId=${encodeURIComponent(accountId)}`, {
+        method: "DELETE",
+      });
 
-    if (error) {
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Failed to disconnect account");
+      }
+
+      setInstagramAccounts((prev) => {
+        const nextAccounts = prev.filter((account) => account.id !== accountId);
+
+        if (nextAccounts.length === 0) {
+          setViewState("not_connected");
+        }
+
+        return nextAccounts;
+      });
+      setPostsByAccount((prev) => {
+        const next = { ...prev };
+        delete next[accountId];
+        return next;
+      });
+      setPostsVisibleFor((current) => (current === accountId ? null : current));
+
+      toast.success("Instagram account disconnected");
+    } catch (error) {
+      console.error("Failed to disconnect instagram account:", error);
       toast.error("Failed to disconnect account");
-      return;
     }
-
-    toast.success("Instagram account disconnected");
   };
 
   if (loading) {
@@ -146,8 +179,8 @@ export default function SettingsPage() {
     <div className="flex-1 min-h-screen overflow-y-auto bg-white pt-24 md:pt-20">
       <div className="relative w-[95%] md:max-w-6xl mx-auto px-4 md:px-8 pb-20">
         <div className="absolute inset-0 -z-10">
-          <div className="absolute -top-24 right-[-60px] h-72 w-72 rounded-full bg-sky-200/30 blur-[120px]" />
-          <div className="absolute -bottom-24 left-[-40px] h-72 w-72 rounded-full bg-amber-200/30 blur-[120px]" />
+          <div className="absolute -top-24 -right-15 h-72 w-72 rounded-full bg-sky-200/30 blur-[120px]" />
+          <div className="absolute -bottom-24 -left-10 h-72 w-72 rounded-full bg-amber-200/30 blur-[120px]" />
         </div>
         <AnimatePresence mode="wait">
           {/* STEP 1: NOT CONNECTED — Login-page style */}
@@ -176,7 +209,7 @@ export default function SettingsPage() {
 
                   {/* Pill logo badge */}
                   <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-200/80 bg-white shadow-sm">
-                    <div className="w-5 h-5 rounded-md bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] flex items-center justify-center">
+                    <div className="w-5 h-5 rounded-md bg-linear-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] flex items-center justify-center">
                       <Instagram size={11} className="text-white" />
                     </div>
                     <span className="text-[13px] font-bold text-slate-700">ReelFlow</span>
@@ -185,10 +218,10 @@ export default function SettingsPage() {
 
                 {/* Center card — exactly mirrors login card layout */}
                 <div className="flex-1 flex flex-col items-center justify-center py-12">
-                  <div className="w-full max-w-[400px] flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-700">
+                  <div className="w-full max-w-100 flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-700">
 
                     {/* Instagram gradient icon — mirrors login's logo */}
-                    <div className="w-[72px] h-[72px] rounded-[20px] bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] p-[2.5px] shadow-lg">
+                    <div className="w-18 h-18 rounded-[20px] bg-linear-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] p-0.5 shadow-lg">
                       <div className="w-full h-full rounded-[18px] bg-white flex items-center justify-center">
                         <Instagram size={34} className="text-[#ee2a7b]" />
                       </div>
@@ -198,7 +231,7 @@ export default function SettingsPage() {
                     <h2 className="text-[28px] font-black text-black tracking-tight mt-6">
                       Connect Instagram
                     </h2>
-                    <p className="text-[13.5px] text-slate-500 max-w-[340px] mx-auto mt-2.5 leading-relaxed font-semibold">
+                    <p className="text-[13.5px] text-slate-500 max-w-85 mx-auto mt-2.5 leading-relaxed font-semibold">
                       Link your professional Instagram account to unlock automation, scheduling, and DM tools.
                     </p>
 
@@ -209,7 +242,7 @@ export default function SettingsPage() {
                       <button
                         onClick={connectInstagram}
                         disabled={isConnecting}
-                        className="w-full py-3.5 bg-gradient-to-r from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white text-[14.5px] font-bold rounded-full shadow-[0_8px_24px_-4px_rgba(238,42,123,0.35)] transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2.5 disabled:opacity-70"
+                        className="w-full py-3.5 bg-linear-to-r from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white text-[14.5px] font-bold rounded-full shadow-[0_8px_24px_-4px_rgba(238,42,123,0.35)] transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2.5 disabled:opacity-70"
                       >
                         {isConnecting ? (
                           <>
@@ -275,10 +308,10 @@ export default function SettingsPage() {
               {(() => {
                 const latestAccount = instagramAccounts[0];
                 return (
-              <div className="bg-white w-full max-w-[420px] rounded-[3rem] p-10 shadow-[0_30px_70px_rgba(0,0,0,0.1)] text-center space-y-10 border border-slate-50 relative">
+              <div className="bg-white w-full max-w-105 rounded-[3rem] p-10 shadow-[0_30px_70px_rgba(0,0,0,0.1)] text-center space-y-10 border border-slate-50 relative">
                 {/* Checkmark Icon */}
                 <div className="flex justify-center">
-                  <div className="w-24 h-24 bg-[#4ADE80] rounded-full flex items-center justify-center shadow-2xl shadow-emerald-200 border-[8px] border-white ring-1 ring-slate-100">
+                  <div className="w-24 h-24 bg-[#4ADE80] rounded-full flex items-center justify-center shadow-2xl shadow-emerald-200 border-8 border-white ring-1 ring-slate-100">
                     <CheckCircle2 size={42} className="text-white" strokeWidth={3} />
                   </div>
                 </div>
@@ -315,7 +348,7 @@ export default function SettingsPage() {
 
                   <button 
                     onClick={() => setViewState("settings")}
-                    className="w-full py-5 border border-slate-200 rounded-[2rem] text-[16px] font-bold text-slate-800 hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-2"
+                    className="w-full py-5 border border-slate-200 rounded-4xl text-[16px] font-bold text-slate-800 hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-2"
                   >
                     Continue
                     <ChevronRight size={18} className="text-slate-400" />
@@ -365,10 +398,10 @@ export default function SettingsPage() {
                     const isLoading = loadingPostsFor === account.id;
 
                     return (
-                      <div key={account.id} className="p-4 sm:p-6 bg-white border border-slate-200/80 rounded-[2rem] shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-5 hover:border-slate-300 transition-all">
+                      <div key={account.id} className="p-4 sm:p-6 bg-white border border-slate-200/80 rounded-4xl shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-5 hover:border-slate-300 transition-all">
                         <div className="flex flex-row items-center gap-4 sm:gap-5 w-full md:w-auto">
                           <div className="relative shrink-0">
-                            <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7]">
+                            <div className="w-16 h-16 rounded-full p-0.5 bg-linear-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7]">
                               <div className="w-full h-full rounded-full border-2 border-white overflow-hidden bg-slate-50">
                                 <img 
                                   src={account.profile_picture_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${account.username}`} 
@@ -384,7 +417,7 @@ export default function SettingsPage() {
                           
                           <div className="flex flex-col min-w-0">
                             <div className="flex items-center gap-2.5 mb-1.5">
-                              <h3 className="text-lg font-semibold text-slate-800 truncate tracking-tight max-w-[150px] sm:max-w-[250px]">@{account.username}</h3>
+                              <h3 className="text-lg font-semibold text-slate-800 truncate tracking-tight max-w-37.5 sm:max-w-62.5">@{account.username}</h3>
                               <div className="px-2 py-0.5 bg-emerald-50/80 text-emerald-600 rounded-md flex items-center gap-1.5 shrink-0 border border-emerald-100/50">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                 <span className="text-[10px] font-bold tracking-wide uppercase">Active</span>
@@ -428,14 +461,24 @@ export default function SettingsPage() {
                                         <div className="w-6 h-6 border-2 border-slate-200 border-t-[#2563EB] rounded-full animate-spin" />
                                       </div>
                                     ) : posts.length > 0 ? (
-                                      posts.map((post: any) => (
+                                      posts.map((post) => (
                                         <a key={post.id} href={post.permalink} target="_blank" rel="noopener noreferrer" className="aspect-square bg-slate-100 rounded-xl overflow-hidden group/item block relative">
+                                          {(() => {
+                                            const mediaSrc = post.media_type === "VIDEO"
+                                              ? (post.thumbnail_url ?? post.media_url ?? "https://placehold.co/200x200?text=No+Media")
+                                              : (post.media_url ?? "https://placehold.co/200x200?text=No+Media");
+
+                                            return (
                                           <img 
-                                            src={post.media_type === 'VIDEO' ? (post.thumbnail_url || post.media_url) : post.media_url} 
+                                            src={mediaSrc}
                                             alt="Instagram post"
                                             className="w-full h-full object-cover group-hover/item:scale-110 transition-transform" 
-                                            onError={(e: any) => { e.target.src = 'https://placehold.co/200x200?text=No+Media' }}
+                                            onError={(event) => {
+                                              event.currentTarget.src = 'https://placehold.co/200x200?text=No+Media';
+                                            }}
                                           />
+                                            );
+                                          })()}
                                         </a>
                                       ))
                                     ) : (

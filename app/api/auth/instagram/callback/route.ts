@@ -13,7 +13,7 @@ export async function GET(req: Request) {
 
   if (!code || !userId) {
     console.error("[Instagram OAuth] Missing code or userId in callback:", { code, userId });
-    return NextResponse.redirect(`${origin}/dashboard?error=no_code`);
+    return NextResponse.redirect(`${origin}/dashboard/settings?error=no_code`);
   }
 
   try {
@@ -67,7 +67,7 @@ export async function GET(req: Request) {
     const pageId = null; // No Facebook Page ID needed for direct Instagram Login flows
 
     if (!igBusinessId) {
-      return NextResponse.redirect(`${origin}/dashboard?error=no_ig_business_account`);
+      return NextResponse.redirect(`${origin}/dashboard/settings?error=no_ig_business_account`);
     }
 
     // 4. Store in Supabase
@@ -85,9 +85,9 @@ export async function GET(req: Request) {
 
     if (error) throw error;
 
-    return NextResponse.redirect(`${origin}/dashboard/reels?connected=true`);
+    return NextResponse.redirect(`${origin}/dashboard/settings?success=true`);
   } catch (error: any) {
     console.error("Instagram Connection Error:", error);
-    return NextResponse.redirect(`${origin}/dashboard?error=${encodeURIComponent(error.message)}`);
+    return NextResponse.redirect(`${origin}/dashboard/settings?error=${encodeURIComponent(error.message)}`);
   }
 }

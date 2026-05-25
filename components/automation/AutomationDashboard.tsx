@@ -1,8 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useSession } from "next-auth/react";
-import Link from "next/link";
+import { useState, useEffect, useCallback, type SVGProps } from "react";
 import { Activity, AlertCircle, HelpCircle, MessageSquare, Plus, RefreshCw, TrendingUp, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { CreateAutomationModal } from "./CreateAutomationModal";
@@ -42,7 +40,11 @@ interface Rule {
   ask_email?: boolean;
 }
 
-const InstagramIcon = (props: any) => (
+interface RuleRecord extends Rule {
+  deleted?: boolean;
+}
+
+const InstagramIcon = (props: SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
     <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
     <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
@@ -50,8 +52,11 @@ const InstagramIcon = (props: any) => (
   </svg>
 );
 
+function getErrorMessage(error: unknown, fallbackMessage: string) {
+  return error instanceof Error ? error.message : fallbackMessage;
+}
+
 export function AutomationDashboard() {
-  const { data: session } = useSession();
   const [instagramAccounts, setInstagramAccounts] = useState<Account[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [rules, setRules] = useState<Rule[]>([]);
@@ -63,32 +68,34 @@ export function AutomationDashboard() {
 
   const selectedAccount = instagramAccounts.find((account) => account.id === selectedAccountId) || instagramAccounts[0] || null;
 
-  const fetchAccounts = async () => {
+  const fetchAccounts = useCallback(async (): Promise<Account[]> => {
     try {
       const res = await fetch("/api/instagram-account");
       const { data } = await res.json();
       const accounts = Array.isArray(data) ? data : [];
       setInstagramAccounts(accounts);
-      if (accounts.length > 0) setSelectedAccountId(accounts[0].id);
-    } catch (err) {
+      return accounts;
+    } catch (err: unknown) {
       console.error("Error fetching Instagram accounts:", err);
+      return [];
     }
-  };
+  }, []);
 
   const fetchRules = useCallback(
-    async (isSilent = false) => {
+    async (accountId: string | null = selectedAccountId, isSilent = false) => {
       if (!isSilent) setLoading(true);
       else setRefreshing(true);
 
       try {
-        const url = selectedAccountId
-          ? `/api/automation-rules?accountId=${encodeURIComponent(selectedAccountId)}`
+        const url = accountId
+          ? `/api/automation-rules?accountId=${encodeURIComponent(accountId)}`
           : "/api/automation-rules";
 
         const res = await fetch(url);
         const { data } = await res.json();
-        setRules((data || []).filter((rule: any) => !rule.deleted));
-      } catch (err) {
+        const automationRules = Array.isArray(data) ? (data as RuleRecord[]) : [];
+        setRules(automationRules.filter((rule) => !rule.deleted));
+      } catch (err: unknown) {
         console.error("Error fetching rules:", err);
         toast.error("Failed to load automation rules");
       } finally {
@@ -100,14 +107,24 @@ export function AutomationDashboard() {
   );
 
   useEffect(() => {
-    fetchAccounts();
-  }, []);
+    const loadDashboard = async () => {
+      setLoading(true);
 
-  useEffect(() => {
-    if (selectedAccountId !== null || instagramAccounts.length > 0) {
-      fetchRules();
-    }
-  }, [selectedAccountId, fetchRules]);
+      try {
+        const accounts = await fetchAccounts();
+        const initialAccountId = accounts[0]?.id ?? null;
+
+        setSelectedAccountId(initialAccountId);
+        await fetchRules(initialAccountId);
+      } catch (err: unknown) {
+        console.error("Error loading automation dashboard:", err);
+        toast.error("Failed to load automation dashboard");
+        setLoading(false);
+      }
+    };
+
+    void loadDashboard();
+  }, [fetchAccounts, fetchRules]);
 
   const handleToggleRule = async (id: string, active: boolean) => {
     try {
@@ -121,9 +138,9 @@ export function AutomationDashboard() {
 
       setRules((prev) => prev.map((rule) => (rule.id === id ? { ...rule, active } : rule)));
       toast.success(active ? "Automation activated!" : "Automation paused");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error toggling rule:", err);
-      toast.error(err.message || "Failed to update automation status");
+      toast.error(getErrorMessage(err, "Failed to update automation status"));
     }
   };
 
@@ -139,9 +156,9 @@ export function AutomationDashboard() {
       if (selectedRuleForLogs?.id === id) {
         setSelectedRuleForLogs(null);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error deleting rule:", err);
-      toast.error(err.message || "Failed to delete automation rule");
+      toast.error(getErrorMessage(err, "Failed to delete automation rule"));
     }
   };
 
@@ -181,7 +198,10 @@ export function AutomationDashboard() {
               value={selectedAccount?.id ?? ""}
               onChange={(e) => {
                 const account = instagramAccounts.find((item) => item.id === e.target.value);
-                if (account) setSelectedAccountId(account.id);
+                if (account) {
+                  setSelectedAccountId(account.id);
+                  void fetchRules(account.id);
+                }
               }}
               className="h-10 rounded-full border border-slate-200 bg-white px-4 text-[13px] font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#a855f7]/20"
             >
@@ -194,7 +214,7 @@ export function AutomationDashboard() {
           )}
 
           <button
-            onClick={() => selectedAccount && fetchRules(true)}
+            onClick={() => selectedAccount && void fetchRules(selectedAccount.id, true)}
             disabled={refreshing || loading}
             className="w-10 h-10 rounded-full border border-slate-200 bg-white flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-all disabled:opacity-50"
             title="Refresh"
@@ -360,7 +380,7 @@ export function AutomationDashboard() {
               <div className="flex items-center justify-between p-3.5 bg-indigo-50/50 border border-indigo-150/40 rounded-2xl">
                 <div className="flex items-center gap-2 text-[12.5px] font-semibold text-indigo-700">
                   <AlertCircle size={15} />
-                  Showing logs filtered to: <span className="underline font-black">"{selectedRuleForLogs.name}"</span>
+                  Showing logs filtered to: <span className="underline font-black">&quot;{selectedRuleForLogs.name}&quot;</span>
                 </div>
                 <button onClick={() => setSelectedRuleForLogs(null)} className="text-[11.5px] font-bold text-slate-400 hover:text-indigo-600 underline cursor-pointer">
                   Clear Filter
@@ -378,7 +398,7 @@ export function AutomationDashboard() {
         onClose={() => setIsCreateOpen(false)}
         account={selectedAccount}
         onCreated={() => {
-          fetchRules(true);
+          void fetchRules(selectedAccount?.id ?? null, true);
           setViewTab("rules");
         }}
       />

@@ -25,3 +25,33 @@ export async function GET() {
     return NextResponse.json({ error: error.message || 'Failed to fetch Instagram account' }, { status: 500 });
   }
 }
+
+export async function DELETE(req: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const accountId = searchParams.get('accountId');
+
+    if (!accountId) {
+      return NextResponse.json({ error: 'Missing accountId' }, { status: 400 });
+    }
+
+    const { error } = await supabaseAdmin
+      .from('instagram_accounts')
+      .delete()
+      .eq('id', accountId)
+      .eq('user_id', session.user.id);
+
+    if (error) throw error;
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('Instagram account delete error:', error);
+    return NextResponse.json({ error: error.message || 'Failed to delete Instagram account' }, { status: 500 });
+  }
+}
