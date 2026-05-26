@@ -217,28 +217,31 @@ export async function POST(req: Request) {
         const tokenToUse = igAccount.access_token;
 
         for (const rule of rules) {
-          // Scope check
-          if (
-            rule.comment_scope === "specific" &&
-            rule.instagram_media_id &&
-            rule.instagram_media_id !== mediaId
-          ) {
+          // ── Scope check ─────────────────────────────────────────────────
+          // Support both old schema (comment_scope + instagram_media_id)
+          // and new schema (post_id determines "specific")
+          const rulePostId = rule.post_id || rule.instagram_media_id || null;
+          const isSpecificRule = !!(rulePostId);
+
+          if (isSpecificRule && rulePostId && rulePostId !== mediaId) {
+            console.log(`[Webhook] Rule "${rule.rule_name || rule.name}" — media ID mismatch (rule:${rulePostId} vs comment:${mediaId}). Skipping.`);
             continue;
           }
 
-          // Keyword match
+          // ── Keyword match ────────────────────────────────────────────────
+          // Support both old schema (trigger_keyword) and new schema (keyword_mode + keywords[])
           const keywordMode = rule.keyword_mode ?? (rule.trigger_keyword === "Any comment" ? "any" : "specific");
           let matched = false;
 
           if (keywordMode === "any") {
             matched = true;
           } else {
-            // Use keywords array if available, fall back to trigger_keyword string
+            // New schema: keywords[] array; old schema: trigger_keyword CSV string
             const kwList: string[] = rule.keywords?.length
               ? rule.keywords
               : rule.trigger_keyword
                   ?.split(",")
-                  .map((k: string) => k.trim().toLowerCase())
+                  .map((k: string) => k.trim())
                   .filter(Boolean) ?? [];
 
             const textLower = commentText.toLowerCase();
@@ -246,73 +249,90 @@ export async function POST(req: Request) {
           }
 
           if (!matched) {
-            console.log(`[Webhook] Rule "${rule.name}" — no keyword match.`);
+            console.log(`[Webhook] Rule "${rule.rule_name || rule.name}" — no keyword match in "${commentText}".`);
             continue;
           }
 
-          // Deduplication
+          // ── Deduplication ────────────────────────────────────────────────
           if (await isDuplicate(rule.id, commenterId)) {
-            console.log(`[Webhook] ⏭️ Skipping duplicate for commenter ${commenterId} on rule ${rule.id}`);
+            console.log(`[Webhook] ⏭️ Duplicate — skipping commenter ${commenterId} on rule ${rule.id}`);
             continue;
           }
 
-          console.log(`[Webhook] ✅ Rule "${rule.name}" matched!`);
+          console.log(`[Webhook] ✅ Rule "${rule.rule_name || rule.name}" matched! Sending DM to ${commenterId}`);
 
-          // Optional: public comment reply
-          if (rule.auto_reply_enabled && rule.auto_reply_text) {
-            await postCommentReply(commentId, rule.auto_reply_text, tokenToUse);
+          // ── Public comment reply ─────────────────────────────────────────
+          // New schema: auto_reply_comment + comment_reply_text
+          // Old schema: auto_reply_enabled + auto_reply_text
+          const shouldAutoReply = rule.auto_reply_comment || rule.auto_reply_enabled;
+          const replyText = rule.comment_reply_text || rule.auto_reply_text;
+          if (shouldAutoReply && replyText) {
+            await postCommentReply(commentId, replyText, tokenToUse);
           }
 
-          // Build DM message
-          let dmText = rule.reply_message ?? "";
-          // Strip any old-format markers
+          // ── Build DM message ─────────────────────────────────────────────
+          // New schema uses dm_message; old schema uses reply_message
+          let dmText = (rule.dm_message || rule.reply_message || "").toString();
           dmText = dmText
             .replace(/\n\n\[Attached Image: .*?\]/g, "")
             .replace(/\[Button: (.*?)\]\((.*?)\)/g, "$1: $2")
             .replace(/\[Follow Request: (.*?)\]/g, "$1")
             .trim();
 
-          // Pre-DM: ask to follow
-          if (rule.ask_follow) {
-            dmText = `Please follow our account first! 🙏\n\n${dmText}`;
+          if (!dmText) {
+            console.warn(`[Webhook] ⚠️ Rule "${rule.rule_name || rule.name}" has no DM message — skipping.`);
+            continue;
           }
-          // Pre-DM: ask for email
+
+          // ── Follow gate ──────────────────────────────────────────────────
+          // New schema: require_follow + follow_gate_message
+          // Old schema: ask_follow
+          const shouldAskFollow = rule.require_follow || rule.ask_follow;
+          if (shouldAskFollow && rule.follow_gate_message) {
+            // Send the follow-gate message first, then the actual DM
+            await sendInstagramDM(commenterId, rule.follow_gate_message, tokenToUse);
+          }
+
+          // Ask for email (old schema only)
           if (rule.ask_email) {
             dmText = `${dmText}\n\nCould you also share your email so we can send you more details?`;
           }
 
-          // Send the DM
+          // ── Send the DM ──────────────────────────────────────────────────
+          // Resolve button fields (old schema: dm_button_label/dm_button_url; new: same names)
+          const hasButton = rule.dm_type === "message_button";
           const dmResult = await sendInstagramDM(
             commenterId,
             dmText,
             tokenToUse,
-            rule.dm_type === "message_button" ? rule.dm_button_label : null,
-            rule.dm_type === "message_button" ? rule.dm_button_url : null
+            hasButton ? rule.dm_button_label : null,
+            hasButton ? rule.dm_button_url : null
           );
 
-          // Log result
+          // ── Log result ───────────────────────────────────────────────────
           await supabaseAdmin.from("automation_logs").insert({
-            automation_id:           rule.id,
-            instagram_user_id:       commenterId,
-            comment_text:            commentText,
-            comment_id:              commentId,
-            dm_sent:                 dmResult.success,
-            dm_sent_at:              dmResult.success ? new Date().toISOString() : null,
-            error_message:           dmResult.error ?? null,
+            automation_id:     rule.id,
+            instagram_user_id: commenterId,
+            comment_text:      commentText,
+            comment_id:        commentId,
+            dm_sent:           dmResult.success,
+            dm_sent_at:        dmResult.success ? new Date().toISOString() : null,
+            error_message:     dmResult.error ?? null,
           });
 
           if (dmResult.success) {
-            console.log("[Webhook] ✅ DM sent to:", commenterId);
-            // Increment execution counter
+            console.log("[Webhook] ✅ DM sent successfully to:", commenterId);
+            // Update stats — support both executions (old) and total_dms_sent (new)
             await supabaseAdmin
               .from("automation_rules")
               .update({
+                total_dms_sent: (rule.total_dms_sent || 0) + 1,
                 executions:     (rule.executions || 0) + 1,
                 last_execution: new Date().toISOString(),
               })
               .eq("id", rule.id);
           } else {
-            console.error("[Webhook] ❌ DM failed:", dmResult.error);
+            console.error("[Webhook] ❌ DM failed for commenter", commenterId, ":", dmResult.error);
           }
         }
       }

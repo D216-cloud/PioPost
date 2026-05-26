@@ -39,6 +39,15 @@ interface Rule {
   dm_button_url?: string | null;
   ask_follow?: boolean;
   ask_email?: boolean;
+  
+  // Database schema additions
+  post_id?: string | null;
+  dm_message?: string | null;
+  rule_name?: string | null;
+  post_caption?: string | null;
+  require_follow?: boolean;
+  comment_reply_text?: string | null;
+  total_dms_sent?: number;
 }
 
 interface RuleRecord extends Rule {
@@ -58,13 +67,18 @@ function getErrorMessage(error: unknown, fallbackMessage: string) {
 }
 
 function getRulePreviewText(rule: Rule) {
-  if (rule.reply_message?.trim()) return rule.reply_message.trim();
-  if (rule.trigger_keyword?.trim()) return rule.trigger_keyword.trim();
+  const preview = rule.dm_message || rule.reply_message;
+  if (preview?.trim()) return preview.trim();
+  
+  const keyword = rule.trigger_keyword || (rule.keywords?.length ? rule.keywords.join(", ") : "");
+  if (keyword?.trim()) return keyword.trim();
+  
   return "No message configured";
 }
 
 function getRuleMediaLabel(rule: Rule) {
-  if (rule.comment_scope === "specific") {
+  const isSpecific = !!rule.post_id || rule.comment_scope === "specific";
+  if (isSpecific) {
     const isReel = rule.post_type === "REEL" || !!rule.instagram_media_id;
     return isReel ? "REEL" : "POST";
   }
@@ -185,9 +199,17 @@ export function AutomationDashboard() {
   };
 
   const activeAutomationsCount = rules.filter((rule) => rule.active).length;
-  const totalExecutionsCount = rules.reduce((acc, curr) => acc + (curr.executions || 0), 0);
+  const totalExecutionsCount = rules.reduce((acc, curr) => acc + (curr.total_dms_sent ?? curr.executions ?? 0), 0);
   const filteredRules = rules.filter((rule) => {
-    const haystack = [rule.name, rule.trigger_keyword, rule.reply_message, ...(rule.keywords || [])].join(" ").toLowerCase();
+    const haystack = [
+      rule.rule_name,
+      rule.name,
+      rule.trigger_keyword,
+      rule.dm_message,
+      rule.reply_message,
+      rule.post_caption,
+      ...(rule.keywords || [])
+    ].filter(Boolean).join(" ").toLowerCase();
     return haystack.includes(search.toLowerCase());
   });
 
@@ -364,7 +386,7 @@ export function AutomationDashboard() {
                 const isActive = rule.active;
                 const previewText = getRulePreviewText(rule);
                 const lastExecutedText = rule.last_execution ? new Date(rule.last_execution).toLocaleString() : null;
-                const isSpecific = rule.comment_scope === "specific";
+                const isSpecific = !!rule.post_id || rule.comment_scope === "specific";
 
                 return (
                   <div key={rule.id} className="bg-white rounded-3xl border border-slate-200 p-4 md:p-5 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
@@ -403,19 +425,27 @@ export function AutomationDashboard() {
                           </div>
 
                           <div>
-                            <h3 className="text-[15px] md:text-[16px] font-bold text-slate-900 truncate">{rule.name}</h3>
+                            <h3 className="text-[15px] md:text-[16px] font-bold text-slate-900 truncate font-sans">
+                              {rule.rule_name || rule.name || (rule.post_caption ? rule.post_caption.slice(0, 40) + "..." : "") || "AutoDM Rule"}
+                            </h3>
                             <p className="text-[13px] text-slate-500 mt-1 leading-relaxed line-clamp-2">
                               {previewText}
                             </p>
                           </div>
 
                           <div className="flex flex-wrap items-center gap-2 pt-1">
-                            {(rule.keywords?.length ? rule.keywords : rule.trigger_keyword ? rule.trigger_keyword.split(",").map((item) => item.trim()).filter(Boolean) : []).slice(0, 4).map((keyword) => (
-                              <span key={keyword} className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200 text-[11px] font-semibold text-slate-700">
-                                {keyword}
+                            {rule.keyword_mode === "any" || rule.trigger_keyword === "Any comment" ? (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200 text-[11px] font-semibold text-slate-500 italic">
+                                Any comment triggers DM
                               </span>
-                            ))}
-                            {rule.ask_follow && (
+                            ) : (
+                              (rule.keywords?.length ? rule.keywords : rule.trigger_keyword ? rule.trigger_keyword.split(",").map((item) => item.trim()).filter(Boolean) : []).slice(0, 4).map((keyword) => (
+                                <span key={keyword} className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200 text-[11px] font-semibold text-slate-700">
+                                  {keyword}
+                                </span>
+                              ))
+                            )}
+                            {(rule.require_follow || rule.ask_follow) && (
                               <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-amber-50 border border-amber-100 text-[11px] font-semibold text-amber-600">
                                 Ask to Follow
                               </span>
@@ -455,7 +485,7 @@ export function AutomationDashboard() {
                         </div>
 
                         <div className="text-right">
-                          <p className="text-[12px] font-semibold text-slate-700">{rule.executions || 0} executions</p>
+                          <p className="text-[12px] font-semibold text-slate-700">{rule.total_dms_sent ?? rule.executions ?? 0} executions</p>
                           <p className="text-[10px] text-slate-400 mt-0.5">{lastExecutedText ? `Last sent ${lastExecutedText}` : "No sends yet"}</p>
                         </div>
                       </div>
