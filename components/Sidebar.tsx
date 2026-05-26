@@ -16,11 +16,13 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   LogOut,
+  MessageSquareText,
 } from "lucide-react";
 
 const navItems = [
   { label: "Dashboard",        icon: LayoutDashboard, href: "/dashboard" },
   { label: "Reels",            icon: Film,            href: "/dashboard/reels" },
+  { label: "Quick Replies",    icon: MessageSquareText, href: "/dashboard/quick-replies" },
   { label: "Scheduler",        icon: CalendarDays,    href: "/dashboard/schedule" },
   { label: "Automation",       icon: Zap,             href: "/dashboard/automation" },
   { label: "Analytics",        icon: BarChart2,       href: "/dashboard/analytics" },
