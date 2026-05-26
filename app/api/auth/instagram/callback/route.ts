@@ -2,6 +2,27 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getInstagramRedirectUri } from "@/lib/instagram-config";
 
+type InstagramProfileResponse = {
+  id?: string;
+  username?: string;
+  profile_picture_url?: string;
+  error?: { message?: string };
+};
+
+type FacebookPageResponse = {
+  data?: Array<{
+    id: string;
+    access_token?: string;
+    instagram_business_account?: { id?: string };
+  }>;
+  error?: { message?: string };
+};
+
+type LongLivedTokenResponse = {
+  access_token?: string;
+  error?: { message?: string };
+};
+
 export async function GET(req: Request) {
   const origin = new URL(req.url).origin;
   const { searchParams } = new URL(req.url);
@@ -58,7 +79,7 @@ export async function GET(req: Request) {
     console.log("[Instagram OAuth] Successfully retrieved short-lived token.");
 
     // 2. Get Long-Lived Token (60 days) - Try POST first, fallback to GET if it fails
-    let longLivedData: any = {};
+    let longLivedData: LongLivedTokenResponse = {};
     let finalToken = accessToken;
 
     try {
@@ -84,8 +105,11 @@ export async function GET(req: Request) {
       } else {
         console.warn("[Instagram OAuth] Long-lived token exchange via POST returned no token:", longLivedData);
       }
-    } catch (e: any) {
-      console.warn("[Instagram OAuth] POST to graph.instagram.com/access_token threw error:", e.message || e);
+    } catch (error: unknown) {
+      console.warn(
+        "[Instagram OAuth] POST to graph.instagram.com/access_token threw error:",
+        error instanceof Error ? error.message : error
+      );
     }
 
     // Fallback to GET method if POST did not succeed
@@ -112,50 +136,86 @@ export async function GET(req: Request) {
             console.warn("[Instagram OAuth] Fallback GET error details:", getData.error);
           }
         }
-      } catch (e: any) {
-        console.error("[Instagram OAuth] GET fallback request threw error:", e.message || e);
+      } catch (error: unknown) {
+        console.error(
+          "[Instagram OAuth] GET fallback request threw error:",
+          error instanceof Error ? error.message : error
+        );
       }
     }
 
-    // 3. Get Instagram Account Details directly - Query with profile_picture_url, fallback to basic if profile_picture_url is unsupported
-    console.log("[Instagram OAuth] Fetching user account profile details...");
-    let userData: any = {};
+    // 3. Resolve the linked Instagram business account ID and profile details.
+    console.log("[Instagram OAuth] Fetching business account details...");
+    let igBusinessId: string | null = null;
+    let username: string | null = null;
+    let profilePictureUrl: string | null = null;
+
     try {
       const userRes = await fetch(`https://graph.instagram.com/me?fields=id,username,profile_picture_url&access_token=${finalToken}`);
-      userData = await userRes.json();
-      if (userData.error) {
-        console.warn("[Instagram OAuth] Failed to fetch profile details with profile_picture_url:", userData.error);
-      }
-    } catch (e: any) {
-      console.warn("[Instagram OAuth] Fetch with profile_picture_url threw error:", e.message || e);
-    }
+      const userData = (await userRes.json()) as InstagramProfileResponse;
 
-    // Fallback to query without profile_picture_url
-    if (userData.error || !userData.id) {
+      if (userData.error || !userData.id) {
+        throw new Error(userData.error?.message || "Failed to get Instagram user details");
+      }
+
+      username = userData.username ?? null;
+      profilePictureUrl = userData.profile_picture_url ?? null;
+
       try {
-        console.log("[Instagram OAuth] Fetching user details with fallback fields (id,username)...");
-        const userResFallback = await fetch(`https://graph.instagram.com/me?fields=id,username&access_token=${finalToken}`);
-        const fallbackData = await userResFallback.json();
-        if (fallbackData.id) {
-          userData = fallbackData;
-        } else {
-          console.error("[Instagram OAuth] Fallback user fetch failed:", fallbackData.error || fallbackData);
-          throw new Error(fallbackData.error?.message || userData.error?.message || "Failed to retrieve user details from Instagram.");
+        const businessRes = await fetch(`https://graph.facebook.com/v21.0/me/accounts?access_token=${finalToken}`);
+        const businessData = (await businessRes.json()) as FacebookPageResponse;
+
+        const firstPage = businessData.data?.[0];
+        const pageAccessToken = firstPage?.access_token;
+        const pageId = firstPage?.id;
+
+        if (pageId && pageAccessToken) {
+          const igBizRes = await fetch(
+            `https://graph.facebook.com/v21.0/${pageId}?fields=instagram_business_account&access_token=${pageAccessToken}`
+          );
+          const igBizData = (await igBizRes.json()) as { instagram_business_account?: { id?: string }; error?: { message?: string } };
+
+          if (igBizData.instagram_business_account?.id) {
+            igBusinessId = igBizData.instagram_business_account.id;
+            console.log("[Instagram OAuth] Got real Business ID:", igBusinessId);
+          } else if (igBizData.error) {
+            console.warn("[Instagram OAuth] Could not resolve business ID:", igBizData.error.message);
+          }
         }
-      } catch (e: any) {
-        throw new Error(e.message || "Failed to retrieve user details from Instagram.");
+      } catch (error: unknown) {
+        console.warn(
+          "[Instagram OAuth] Could not fetch business ID, using user ID as fallback:",
+          error instanceof Error ? error.message : error
+        );
       }
+    } catch (error: unknown) {
+      console.warn(
+        "[Instagram OAuth] Fetching user details failed:",
+        error instanceof Error ? error.message : error
+      );
     }
 
-    const igBusinessId = userData.id;
-    const username = userData.username;
-    const profilePictureUrl = userData.profile_picture_url || null;
-    const pageId = null; // No Facebook Page ID needed for direct Instagram Login flows
+    // Fallback to user ID if business ID discovery failed.
+    if (!igBusinessId) {
+      const fallbackRes = await fetch(`https://graph.instagram.com/me?fields=id,username,profile_picture_url&access_token=${finalToken}`);
+      const fallbackData = (await fallbackRes.json()) as InstagramProfileResponse;
+      if (!fallbackData.id) {
+        throw new Error(fallbackData.error?.message || "Failed to retrieve user details from Instagram.");
+      }
+      igBusinessId = fallbackData.id;
+      username = username ?? fallbackData.username ?? null;
+      profilePictureUrl = profilePictureUrl ?? fallbackData.profile_picture_url ?? null;
+    }
 
     if (!igBusinessId) {
-      console.error("[Instagram OAuth] Missing instagram business ID in user data:", userData);
-      return NextResponse.redirect(`${origin}/dashboard/settings?error=${encodeURIComponent("No Instagram Professional/Business account was found associated with your credentials.")}`);
+      try {
+        console.error("[Instagram OAuth] No business ID could be resolved.");
+        throw new Error("No Instagram Professional/Business account was found associated with your credentials.");
+      } catch (error: unknown) {
+        throw new Error(error instanceof Error ? error.message : "Failed to retrieve user details from Instagram.");
+      }
     }
+    const pageId = null; // No Facebook Page ID needed for direct Instagram Login flows
 
     console.log("[Instagram OAuth] Saving account details to database for user:", userId);
     // 4. Store in Supabase
@@ -178,8 +238,10 @@ export async function GET(req: Request) {
 
     console.log("[Instagram OAuth] Successfully connected Instagram account @", username);
     return NextResponse.redirect(`${origin}/dashboard/settings?success=true`);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Instagram Connection Error:", error);
-    return NextResponse.redirect(`${origin}/dashboard/settings?error=${encodeURIComponent(error.message || "An unknown authentication error occurred.")}`);
+    return NextResponse.redirect(
+      `${origin}/dashboard/settings?error=${encodeURIComponent(error instanceof Error ? error.message : "An unknown authentication error occurred.")}`
+    );
   }
 }
