@@ -196,9 +196,14 @@ export async function POST(req: Request) {
           .eq("user_id", igAccount.user_id)
           .eq("instagram_account_id", igAccount.id)
           .eq("active", true)
-          .or("deleted.is.null,deleted.eq.false");
+          .eq("deleted", false);
 
-        if (rulesError || !rules?.length) {
+        if (rulesError) {
+          console.error("[Webhook] ❌ Failed to fetch active rules:", rulesError.message);
+          continue;
+        }
+
+        if (!rules?.length) {
           console.log("[Webhook] ℹ️ No active rules found.");
           continue;
         }
