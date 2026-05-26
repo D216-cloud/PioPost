@@ -20,7 +20,7 @@ export async function GET(req: Request) {
 
     if (!rules || rules.length === 0) return NextResponse.json({ data: [] });
 
-    const ruleIds = rules.map((r: any) => r.id);
+    const ruleIds = rules.map((rule) => rule.id);
 
     let query = supabaseAdmin
       .from('automation_logs')
@@ -37,7 +37,7 @@ export async function GET(req: Request) {
     if (error) throw error;
 
     return NextResponse.json({ data });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Internal Server Error' }, { status: 500 });
   }
 }

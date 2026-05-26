@@ -44,7 +44,7 @@ async function isRateLimited(igAccountDbId: string): Promise<boolean> {
     .eq("instagram_account_id", igAccountDbId);
 
   if (!ruleIds || ruleIds.length === 0) return false;
-  const ids = ruleIds.map((r: any) => r.id);
+  const ids = ruleIds.map((rule) => rule.id);
 
   const { count } = await supabaseAdmin
     .from("automation_logs")
@@ -58,21 +58,26 @@ async function isRateLimited(igAccountDbId: string): Promise<boolean> {
 
 /** Send a DM via Instagram Graph API */
 async function sendInstagramDM(
-  igBusinessId: string,
-  commentId: string,
+  commenterId: string,
   message: string,
   accessToken: string,
   buttonLabel?: string | null,
   buttonUrl?: string | null
 ): Promise<{ success: boolean; error?: string; messageId?: string }> {
-  const url = `https://graph.facebook.com/v21.0/${igBusinessId}/messages`;
+  const url = `https://graph.facebook.com/v21.0/me/messages`;
 
-  let body: any;
+  let body:
+    | {
+        recipient: { id: string };
+        message: { text: string } | { attachment: { type: string; payload: { template_type: string; text: string; buttons: Array<{ type: string; url: string; title: string }> } } };
+        access_token: string;
+      }
+    | null = null;
 
   if (buttonLabel && buttonUrl) {
     // Button template message
     body = {
-      recipient: { comment_id: commentId },
+      recipient: { id: commenterId },
       message: {
         attachment: {
           type: "template",
@@ -83,12 +88,14 @@ async function sendInstagramDM(
           },
         },
       },
+      access_token: accessToken,
     };
   } else {
     // Plain text message
     body = {
-      recipient: { comment_id: commentId },
+      recipient: { id: commenterId },
       message: { text: message },
+      access_token: accessToken,
     };
   }
 
@@ -97,15 +104,14 @@ async function sendInstagramDM(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify(body),
     });
     const data = await res.json();
     if (data.error) return { success: false, error: JSON.stringify(data.error) };
     return { success: true, messageId: data.message_id };
-  } catch (err: any) {
-    return { success: false, error: err.message };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
   }
 }
 
@@ -208,7 +214,7 @@ export async function POST(req: Request) {
           continue;
         }
 
-        const tokenToUse = process.env.MESSENGER_ACCESS_TOKEN || igAccount.access_token;
+        const tokenToUse = igAccount.access_token;
 
         for (const rule of rules) {
           // Scope check
@@ -277,8 +283,7 @@ export async function POST(req: Request) {
 
           // Send the DM
           const dmResult = await sendInstagramDM(
-            igBusinessId,
-            commentId,
+            commenterId,
             dmText,
             tokenToUse,
             rule.dm_type === "message_button" ? rule.dm_button_label : null,
