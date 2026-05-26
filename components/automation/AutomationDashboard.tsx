@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback, type SVGProps } from "react";
-import { Activity, AlertCircle, HelpCircle, MessageSquare, Plus, RefreshCw, TrendingUp, Zap } from "lucide-react";
+import { Activity, AlertCircle, HelpCircle, Image as ImageIcon, MessageSquare, Plus, RefreshCw, Search, TrendingUp, Zap, ExternalLink, CheckCircle2, XCircle, Filter, Play, Film } from "lucide-react";
 import { toast } from "sonner";
 import { CreateAutomationModal } from "./CreateAutomationModal";
-import { AutomationCard } from "./AutomationCard";
 import { AutomationLogs } from "./AutomationLogs";
 
 interface Account {
@@ -56,6 +55,18 @@ function getErrorMessage(error: unknown, fallbackMessage: string) {
   return error instanceof Error ? error.message : fallbackMessage;
 }
 
+function getRulePreviewText(rule: Rule) {
+  if (rule.reply_message?.trim()) return rule.reply_message.trim();
+  if (rule.trigger_keyword?.trim()) return rule.trigger_keyword.trim();
+  return "No message configured";
+}
+
+function getRuleMediaLabel(rule: Rule) {
+  if (rule.comment_scope === "specific") return rule.instagram_media_id ? "REEL" : "POST";
+  if (rule.comment_scope === "next") return "NEXT";
+  return "ANY";
+}
+
 export function AutomationDashboard() {
   const [instagramAccounts, setInstagramAccounts] = useState<Account[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
@@ -65,6 +76,7 @@ export function AutomationDashboard() {
   const [viewTab, setViewTab] = useState<"rules" | "logs">("rules");
   const [selectedRuleForLogs, setSelectedRuleForLogs] = useState<Rule | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [search, setSearch] = useState("");
 
   const selectedAccount = instagramAccounts.find((account) => account.id === selectedAccountId) || instagramAccounts[0] || null;
 
@@ -169,6 +181,10 @@ export function AutomationDashboard() {
 
   const activeAutomationsCount = rules.filter((rule) => rule.active).length;
   const totalExecutionsCount = rules.reduce((acc, curr) => acc + (curr.executions || 0), 0);
+  const filteredRules = rules.filter((rule) => {
+    const haystack = [rule.name, rule.trigger_keyword, rule.reply_message, ...(rule.keywords || [])].join(" ").toLowerCase();
+    return haystack.includes(search.toLowerCase());
+  });
 
   const metricCards = [
     { label: "Active Automations", value: activeAutomationsCount, icon: Zap, iconClass: "text-indigo-500" },
@@ -192,7 +208,7 @@ export function AutomationDashboard() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-3 shrink-0">
           {instagramAccounts.length > 1 && (
             <select
               value={selectedAccount?.id ?? ""}
@@ -225,7 +241,7 @@ export function AutomationDashboard() {
           <button
             onClick={() => setIsCreateOpen(true)}
             disabled={!selectedAccount}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#e84c9f] via-[#b656e3] to-[#5a60f6] text-white text-[13.5px] font-bold rounded-full shadow-[0_8px_20px_-4px_rgba(182,86,227,0.25)] transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-linear-to-r from-[#e84c9f] via-[#b656e3] to-[#5a60f6] text-white text-[13.5px] font-bold rounded-full shadow-[0_8px_20px_-4px_rgba(182,86,227,0.25)] transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus size={14} />
             New Automation
@@ -234,110 +250,79 @@ export function AutomationDashboard() {
       </div>
 
       {selectedAccount && (
-        <div className="bg-white rounded-[24px] border border-[#e4e4e7] p-5 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex items-center gap-4 mb-8">
-          {selectedAccount.profile_picture_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={selectedAccount.profile_picture_url} alt="avatar" className="w-11 h-11 rounded-full object-cover ring-2 ring-[#a855f7]/20 flex-shrink-0" />
-          ) : (
-            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#7c3aed] to-[#d946ef] flex items-center justify-center text-white text-[14px] font-black flex-shrink-0">
-              {selectedAccount.username.charAt(0).toUpperCase()}
-            </div>
-          )}
-
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="max-w-60 truncate text-[15px] font-bold text-slate-900">@{selectedAccount.username}</span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 rounded-full border border-emerald-100">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[9px] font-black text-emerald-600 uppercase tracking-wider">Live</span>
-              </span>
-            </div>
-            <p className="text-[12px] text-slate-400 mt-0.5">Showing real-time automations from your Instagram account.</p>
-          </div>
-        </div>
-      )}
-
-      {selectedAccount && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-[20px] border border-[#e4e4e7] p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)] transition-all hover:shadow-[0_8px_32px_rgba(0,0,0,0.04)] flex flex-col justify-between min-h-44">
-            <div className="flex items-center justify-between text-slate-400">
-              <div className="flex items-center gap-2.5">
-                <InstagramIcon className="w-4 h-4 text-slate-400 stroke-[1.8]" />
-                <span className="text-[11px] font-bold tracking-[0.08em] text-slate-500 uppercase">CONNECTED ACCOUNT</span>
-                <button className="focus:outline-none hover:text-slate-600 transition-colors">
-                  <HelpCircle className="w-3.5 h-3.5" />
-                </button>
+        <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col md:flex-row md:items-center gap-4 mb-8">
+          <div className="flex items-center gap-4 flex-1 min-w-0">
+            {selectedAccount.profile_picture_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={selectedAccount.profile_picture_url} alt="avatar" className="w-11 h-11 rounded-full object-cover ring-2 ring-[#a855f7]/20 shrink-0" />
+            ) : (
+              <div className="w-11 h-11 rounded-full bg-linear-to-br from-[#7c3aed] to-[#d946ef] flex items-center justify-center text-white text-[14px] font-black shrink-0">
+                {selectedAccount.username.charAt(0).toUpperCase()}
               </div>
-            </div>
+            )}
 
-            <div className="mt-5 flex items-center gap-3.5 min-w-0">
-              <div className="w-11 h-11 rounded-full overflow-hidden ring-2 ring-[#ee2a7b]/10 bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] p-0.5 shrink-0">
-                <div className="w-full h-full rounded-full bg-white p-0.5">
-                  {selectedAccount.profile_picture_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={selectedAccount.profile_picture_url} alt="" className="w-full h-full rounded-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full rounded-full bg-slate-100 flex items-center justify-center text-[12px] font-bold">
-                      {selectedAccount.username?.[0]?.toUpperCase() || "IG"}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <p className="max-w-full truncate text-[18px] md:text-[22px] font-semibold tracking-tight text-slate-900 leading-tight">
-                  @{selectedAccount.username}
-                </p>
-                <div className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100 w-fit mt-1.5">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="max-w-60 truncate text-[15px] font-bold text-slate-900">@{selectedAccount.username}</span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 rounded-full border border-emerald-100">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Live Trigger Synced
-                </div>
+                  <span className="text-[9px] font-black text-emerald-600 uppercase tracking-wider">Live</span>
+                </span>
               </div>
+              <p className="text-[12px] text-slate-400 mt-0.5">Showing real-time automations from your Instagram account.</p>
             </div>
           </div>
 
-          {metricCards.map((card) => {
-            const Icon = card.icon;
-            return (
-              <div key={card.label} className="bg-white rounded-[20px] border border-[#e4e4e7] p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)] transition-all hover:shadow-[0_8px_32px_rgba(0,0,0,0.04)] flex flex-col justify-between min-h-44">
-                <div className="flex items-center justify-between text-slate-400">
-                  <div className="flex items-center gap-2.5">
-                    <Icon className={`w-4 h-4 ${card.iconClass} stroke-[1.8]`} />
-                    <span className="text-[11px] font-bold tracking-[0.08em] text-slate-500 uppercase">{card.label}</span>
-                    <button className="focus:outline-none hover:text-slate-600 transition-colors">
-                      <HelpCircle className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mt-5 flex items-baseline gap-1">
-                  <span className="text-[36px] font-bold tracking-tight text-slate-900 leading-none">{card.value}</span>
-                </div>
-              </div>
-            );
-          })}
+          <div className="grid grid-cols-3 gap-3 md:gap-4">
+            <div className="text-center px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 min-w-16">
+              <p className="text-[20px] font-bold text-slate-900 leading-none">{activeAutomationsCount}</p>
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mt-0.5">Active</p>
+            </div>
+            <div className="text-center px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 min-w-16">
+              <p className="text-[20px] font-bold text-slate-900 leading-none">{totalExecutionsCount}</p>
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mt-0.5">Sent</p>
+            </div>
+            <div className="text-center px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 min-w-16">
+              <p className="text-[20px] font-bold text-slate-900 leading-none">{filteredRules.length}</p>
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mt-0.5">Shown</p>
+            </div>
+          </div>
         </div>
       )}
 
-      <div className="flex border-b border-slate-200 gap-6 mb-6">
-        <button
-          onClick={() => setViewTab("rules")}
-          className={`pb-4 text-[13.5px] font-bold uppercase tracking-wider border-b-2 transition-colors cursor-pointer ${
-            viewTab === "rules" ? "border-slate-900 text-slate-950" : "border-transparent text-slate-400 hover:text-slate-700"
-          }`}
-        >
-          Active Rules
-        </button>
-        <button
-          onClick={() => setViewTab("logs")}
-          className={`pb-4 text-[13.5px] font-bold uppercase tracking-wider border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
-            viewTab === "logs" ? "border-slate-900 text-slate-950" : "border-transparent text-slate-400 hover:text-slate-700"
-          }`}
-        >
-          <Activity size={14} />
-          Activity Logs
-          {selectedRuleForLogs && <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded-full text-slate-500">Filtered</span>}
-        </button>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+        <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-full w-fit">
+          <button
+            onClick={() => setViewTab("rules")}
+            className={`px-4 py-2 rounded-full text-[13px] font-bold transition-all ${
+              viewTab === "rules" ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            Active Rules
+          </button>
+          <button
+            onClick={() => setViewTab("logs")}
+            className={`px-4 py-2 rounded-full text-[13px] font-bold transition-all flex items-center gap-2 ${
+              viewTab === "logs" ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <Activity size={14} />
+            Activity Logs
+            {selectedRuleForLogs && <span className={`text-[10px] px-2 py-0.5 rounded-full ${viewTab === "logs" ? "bg-white/15 text-white" : "bg-slate-200 text-slate-500"}`}>Filtered</span>}
+          </button>
+        </div>
+
+        {viewTab === "rules" && (
+          <div className="relative w-full md:w-[320px]">
+            <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search rules..."
+              className="w-full h-11 pl-10 pr-4 rounded-full border border-slate-200 bg-white text-[13px] font-medium text-slate-700 focus:outline-none focus:border-slate-400 transition-colors"
+            />
+          </div>
+        )}
       </div>
 
       <div className="min-h-100">
@@ -347,8 +332,8 @@ export function AutomationDashboard() {
               <div className="w-7 h-7 rounded-full border-2 border-[#ee2a7b] border-t-transparent animate-spin" />
               <p className="text-[13px] text-slate-400 font-semibold">Syncing Studio rules...</p>
             </div>
-          ) : rules.length === 0 ? (
-            <div className="bg-white border border-slate-200 rounded-4xl p-8 md:p-12 text-center max-w-xl mx-auto shadow-[0_8px_30px_rgb(0,0,0,0.01)] mt-4">
+          ) : filteredRules.length === 0 ? (
+            <div className="bg-white border border-slate-200 rounded-[28px] p-8 md:p-12 text-center max-w-xl mx-auto shadow-[0_8px_30px_rgb(0,0,0,0.01)] mt-4">
               <div className="w-16 h-16 bg-slate-50 rounded-[22px] flex items-center justify-center mx-auto mb-6 text-slate-400">
                 <MessageSquare size={28} />
               </div>
@@ -368,10 +353,111 @@ export function AutomationDashboard() {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {rules.map((rule) => (
-                <AutomationCard key={rule.id} rule={rule} onToggle={handleToggleRule} onDelete={handleDeleteRule} onViewLogs={handleViewLogs} />
-              ))}
+            <div className="space-y-4">
+              {filteredRules.map((rule) => {
+                const mediaLabel = getRuleMediaLabel(rule);
+                const isActive = rule.active;
+                const previewText = getRulePreviewText(rule);
+                const lastExecutedText = rule.last_execution ? new Date(rule.last_execution).toLocaleString() : null;
+                const isSpecific = rule.comment_scope === "specific";
+
+                return (
+                  <div key={rule.id} className="bg-white rounded-3xl border border-slate-200 p-4 md:p-5 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                      <div className="flex items-start gap-4 min-w-0 flex-1">
+                        <div className="relative w-16 h-16 rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 shrink-0">
+                          {isSpecific && rule.post_thumbnail ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={rule.post_thumbnail} alt="automation thumbnail" className="w-full h-full object-cover" />
+                          ) : isSpecific ? (
+                            <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-slate-100 to-slate-200 text-slate-400">
+                              <Play size={18} fill="currentColor" />
+                            </div>
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-[#ee2a7b]/10 to-[#6228d7]/10 text-[#ee2a7b]">
+                              <Zap size={18} />
+                            </div>
+                          )}
+                          <span className="absolute left-2 top-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/90 backdrop-blur text-[9px] font-black uppercase tracking-wider text-slate-700">
+                            {mediaLabel}
+                          </span>
+                        </div>
+
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#f5f3ff] text-[#8b5cf6] text-[10px] font-black uppercase tracking-wider">
+                              {isSpecific ? (rule.instagram_media_id ? "REEL" : "POST") : "ANY COMMENT"}
+                            </span>
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${isActive ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-500"}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-500" : "bg-slate-400"}`} />
+                              {isActive ? "Active" : "Paused"}
+                            </span>
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-wider border border-slate-200">
+                              {new Date(rule.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+
+                          <div>
+                            <h3 className="text-[15px] md:text-[16px] font-bold text-slate-900 truncate">{rule.name}</h3>
+                            <p className="text-[13px] text-slate-500 mt-1 leading-relaxed line-clamp-2">
+                              {previewText}
+                            </p>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2 pt-1">
+                            {(rule.keywords?.length ? rule.keywords : rule.trigger_keyword ? rule.trigger_keyword.split(",").map((item) => item.trim()).filter(Boolean) : []).slice(0, 4).map((keyword) => (
+                              <span key={keyword} className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200 text-[11px] font-semibold text-slate-700">
+                                {keyword}
+                              </span>
+                            ))}
+                            {rule.ask_follow && (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-amber-50 border border-amber-100 text-[11px] font-semibold text-amber-600">
+                                Ask to Follow
+                              </span>
+                            )}
+                            {rule.ask_email && (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-purple-50 border border-purple-100 text-[11px] font-semibold text-purple-600">
+                                Ask Email
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col md:items-end gap-3 md:min-w-50">
+                        <div className="flex items-center gap-2 justify-end">
+                          <button
+                            onClick={() => handleViewLogs(rule)}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-slate-50 border border-slate-200 text-[12px] font-bold text-slate-700 hover:bg-slate-100 transition-colors"
+                          >
+                            <Activity size={13} />
+                            Logs
+                          </button>
+                          <button
+                            onClick={() => void handleToggleRule(rule.id, !rule.active)}
+                            className={`w-12 h-6 rounded-full relative transition-all shrink-0 ${rule.active ? "bg-linear-to-r from-[#ee2a7b] to-[#6228d7]" : "bg-slate-200"}`}
+                            title={rule.active ? "Pause automation" : "Activate automation"}
+                          >
+                            <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${rule.active ? "right-0.5" : "left-0.5"}`} />
+                          </button>
+                          <button
+                            onClick={() => void handleDeleteRule(rule.id)}
+                            className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
+                            title="Delete automation"
+                          >
+                            <XCircle size={14} />
+                          </button>
+                        </div>
+
+                        <div className="text-right">
+                          <p className="text-[12px] font-semibold text-slate-700">{rule.executions || 0} executions</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">{lastExecutedText ? `Last sent ${lastExecutedText}` : "No sends yet"}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )
         ) : (
