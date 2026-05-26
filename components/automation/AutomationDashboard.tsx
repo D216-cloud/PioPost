@@ -28,6 +28,8 @@ interface Rule {
   executions?: number;
   last_execution?: string;
   post_thumbnail?: string | null;
+  post_thumbnail_url?: string | null;
+  post_type?: string | null;
   keyword_mode?: "specific" | "any";
   keywords?: string[];
   auto_reply_enabled?: boolean;
@@ -62,7 +64,10 @@ function getRulePreviewText(rule: Rule) {
 }
 
 function getRuleMediaLabel(rule: Rule) {
-  if (rule.comment_scope === "specific") return rule.instagram_media_id ? "REEL" : "POST";
+  if (rule.comment_scope === "specific") {
+    const isReel = rule.post_type === "REEL" || !!rule.instagram_media_id;
+    return isReel ? "REEL" : "POST";
+  }
   if (rule.comment_scope === "next") return "NEXT";
   return "ANY";
 }
@@ -366,9 +371,9 @@ export function AutomationDashboard() {
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                       <div className="flex items-start gap-4 min-w-0 flex-1">
                         <div className="relative w-16 h-16 rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 shrink-0">
-                          {isSpecific && rule.post_thumbnail ? (
+                          {isSpecific && (rule.post_thumbnail_url || rule.post_thumbnail) ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={rule.post_thumbnail} alt="automation thumbnail" className="w-full h-full object-cover" />
+                            <img src={(rule.post_thumbnail_url || rule.post_thumbnail) ?? undefined} alt="automation thumbnail" className="w-full h-full object-cover" />
                           ) : isSpecific ? (
                             <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-slate-100 to-slate-200 text-slate-400">
                               <Play size={18} fill="currentColor" />
@@ -386,7 +391,7 @@ export function AutomationDashboard() {
                         <div className="min-w-0 flex-1 space-y-2">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#f5f3ff] text-[#8b5cf6] text-[10px] font-black uppercase tracking-wider">
-                              {isSpecific ? (rule.instagram_media_id ? "REEL" : "POST") : "ANY COMMENT"}
+                              {isSpecific ? ((rule.post_type === "REEL" || !!rule.instagram_media_id) ? "REEL" : "POST") : "ANY COMMENT"}
                             </span>
                             <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${isActive ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-500"}`}>
                               <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-500" : "bg-slate-400"}`} />

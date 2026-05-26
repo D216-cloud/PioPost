@@ -33,6 +33,7 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [creating, setCreating] = useState(false);
   const [igAccountId, setIgAccountId] = useState<string | null>(null);
+  const [mediaTab, setMediaTab] = useState<"all" | "posts" | "reels">("all");
 
   // Form state
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
@@ -205,9 +206,27 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
               <h3 className="text-lg font-semibold mb-1">Select a post or reel</h3>
               <p className="text-gray-400 text-sm mb-4">Choose which post will trigger the AutoDM</p>
 
+              {/* Media Type Filter Tabs */}
+              <div className="flex p-1 bg-gray-800 rounded-full gap-1 mb-4 max-w-xs border border-gray-700">
+                {(["all", "posts", "reels"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setMediaTab(tab)}
+                    className={`flex-1 py-1.5 rounded-full text-[12px] font-bold capitalize transition-all ${
+                      mediaTab === tab
+                        ? "bg-purple-600 text-white shadow-sm"
+                        : "text-gray-400 hover:text-white"
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+
               {loadingPosts ? (
                 <div className="grid grid-cols-3 gap-3">
-                  {[1,2,3,4,5,6].map((i) => (
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
                     <div key={i} className="aspect-square bg-gray-800 rounded-lg animate-pulse" />
                   ))}
                 </div>
@@ -216,39 +235,73 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
                   <p>No posts found. Connect your Instagram account first.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-3 gap-3">
-                  {posts.map((post) => (
-                    <button
-                      key={post.id}
-                      onClick={() => setSelectedPost(post)}
-                      className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${
-                        selectedPost?.id === post.id
-                          ? "border-purple-500 ring-2 ring-purple-500/30"
-                          : "border-transparent hover:border-gray-600"
-                      }`}
-                    >
-                      <img src={post.thumbnail} alt="" className="w-full h-full object-cover" />
-                      {selectedPost?.id === post.id && (
-                        <div className="absolute inset-0 bg-purple-600/20 flex items-center justify-center">
-                          <Check size={24} className="text-white drop-shadow" />
-                        </div>
-                      )}
-                      {post.type === "VIDEO" && (
-                        <span className="absolute top-1.5 right-1.5 text-xs bg-black/60 text-white px-1.5 py-0.5 rounded">
-                          Reel
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                </div>
+                (() => {
+                  const filteredPosts = posts.filter((post) => {
+                    if (mediaTab === "posts") return post.type !== "VIDEO";
+                    if (mediaTab === "reels") return post.type === "VIDEO";
+                    return true;
+                  });
+
+                  if (filteredPosts.length === 0) {
+                    return (
+                      <div className="text-center py-12 text-gray-450 bg-gray-850 rounded-xl border border-gray-800">
+                        <p className="text-sm">No {mediaTab === "reels" ? "reels" : "posts"} found.</p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="grid grid-cols-3 gap-3 max-h-[360px] overflow-y-auto pr-1">
+                      {filteredPosts.map((post) => (
+                        <button
+                          key={post.id}
+                          type="button"
+                          onClick={() => setSelectedPost(post)}
+                          className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${
+                            selectedPost?.id === post.id
+                              ? "border-purple-500 ring-2 ring-purple-500/30"
+                              : "border-transparent hover:border-gray-600"
+                          }`}
+                        >
+                          <img src={post.thumbnail} alt="" className="w-full h-full object-cover" />
+                          {selectedPost?.id === post.id && (
+                            <div className="absolute inset-0 bg-purple-600/20 flex items-center justify-center">
+                              <Check size={24} className="text-white drop-shadow" />
+                            </div>
+                          )}
+                          {post.type === "VIDEO" ? (
+                            <span className="absolute top-1.5 right-1.5 text-[9px] font-black bg-black/60 text-purple-300 px-1.5 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
+                              🎬 Reel
+                            </span>
+                          ) : (
+                            <span className="absolute top-1.5 right-1.5 text-[9px] font-black bg-black/60 text-sky-300 px-1.5 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
+                              📸 Post
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()
               )}
 
               {selectedPost && (
-                <div className="mt-4 p-3 bg-gray-800 rounded-lg border border-gray-700">
-                  <p className="text-sm text-gray-300 line-clamp-2">{selectedPost.caption || "No caption"}</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {selectedPost.likes} likes · {selectedPost.comments} comments
-                  </p>
+                <div className="mt-4 p-3 bg-gray-800 rounded-lg border border-gray-700 flex gap-3 items-start">
+                  <div className="w-12 h-12 rounded overflow-hidden flex-shrink-0 relative border border-gray-700 bg-gray-900">
+                    <img src={selectedPost.thumbnail} alt="" className="w-full h-full object-cover" />
+                    <span className="absolute bottom-0 inset-x-0 text-[8px] font-bold bg-black/75 text-white text-center py-0.5 uppercase">
+                      {selectedPost.type === "VIDEO" ? "REEL" : "POST"}
+                    </span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-purple-400 mb-0.5 uppercase tracking-wider">
+                      Selected {selectedPost.type === "VIDEO" ? "Reel" : "Post"}
+                    </p>
+                    <p className="text-sm text-gray-300 line-clamp-2 leading-relaxed">{selectedPost.caption || "No caption"}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {selectedPost.likes} likes · {selectedPost.comments} comments
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
@@ -448,10 +501,17 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
                 {/* Post */}
                 <div className="flex gap-3 bg-gray-800 rounded-xl p-4 border border-gray-700">
                   {selectedPost?.thumbnail && (
-                    <img src={selectedPost.thumbnail} alt="" className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />
+                    <div className="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 border border-gray-700 bg-gray-900">
+                      <img src={selectedPost.thumbnail} alt="" className="w-full h-full object-cover" />
+                      <span className="absolute bottom-0 inset-x-0 text-[8px] font-bold bg-black/75 text-white py-0.5 text-center uppercase">
+                        {selectedPost.type === "VIDEO" ? "REEL" : "POST"}
+                      </span>
+                    </div>
                   )}
                   <div>
-                    <p className="text-xs text-gray-400 mb-1">Post</p>
+                    <p className="text-xs font-bold text-purple-400 mb-0.5 uppercase tracking-wider">
+                      Target {selectedPost?.type === "VIDEO" ? "Reel" : "Post"}
+                    </p>
                     <p className="text-sm text-white line-clamp-2">{selectedPost?.caption || "No caption"}</p>
                   </div>
                 </div>

@@ -36,6 +36,8 @@ interface Rule {
   executions?: number;
   last_execution?: string;
   post_thumbnail?: string | null;
+  post_thumbnail_url?: string | null;
+  post_type?: string | null;
   keyword_mode?: "specific" | "any";
   keywords?: string[];
   auto_reply_enabled?: boolean;
@@ -173,8 +175,8 @@ export function AutomationCard({ rule, onToggle, onDelete, onViewLogs }: Props) 
           {/* Post/Reel thumbnail container */}
           {currentScope === "specific" ? (
             <div className="w-14 h-14 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 flex-shrink-0 relative group-hover:scale-105 transition-transform duration-300">
-              {rule.post_thumbnail ? (
-                <img src={rule.post_thumbnail} alt="" className="w-full h-full object-cover" />
+              {(rule.post_thumbnail_url || rule.post_thumbnail) ? (
+                <img src={(rule.post_thumbnail_url || rule.post_thumbnail) ?? undefined} alt="" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 flex items-center justify-center text-slate-400">
                   <Play size={16} fill="currentColor" />
