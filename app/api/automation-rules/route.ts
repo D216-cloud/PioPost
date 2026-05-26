@@ -16,29 +16,18 @@ function getUnsupportedFieldFromSchemaError(message?: string) {
 }
 
 async function insertAutomationRule(payload: Record<string, unknown>) {
-  let currentPayload = payload;
+  const { data, error } = await supabaseAdmin
+    .from('automation_rules')
+    .insert(payload)
+    .select()
+    .single();
 
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const { data, error } = await supabaseAdmin
-      .from('automation_rules')
-      .insert(currentPayload)
-      .select()
-      .single();
-
-    if (!error) return { data, error: null };
-
-    const unsupportedField = getUnsupportedFieldFromSchemaError(error.message);
-    if (!unsupportedField || !(unsupportedField in currentPayload)) {
-      return { data: null, error };
-    }
-
-    currentPayload = stripUnsupportedField(currentPayload, unsupportedField);
+  if (error) {
+    console.error("Supabase insert error details:", error);
+    return { data: null, error: new Error(error instanceof Error ? error.message : String(error) || JSON.stringify(error)) };
   }
 
-  return {
-    data: null,
-    error: new Error('Failed to insert automation rule after removing unsupported schema fields'),
-  };
+  return { data, error: null };
 }
 
 async function updateAutomationRule(id: string, userId: string, payload: Record<string, unknown>) {
@@ -55,7 +44,7 @@ async function updateAutomationRule(id: string, userId: string, payload: Record<
 
     if (!error) return { data, error: null };
 
-    const unsupportedField = getUnsupportedFieldFromSchemaError(error.message);
+    const unsupportedField = getUnsupportedFieldFromSchemaError(error instanceof Error ? error.message : String(error));
     if (!unsupportedField || !(unsupportedField in currentPayload)) {
       return { data: null, error };
     }
@@ -91,8 +80,8 @@ export async function GET(req: Request) {
 
     if (error) throw error;
     return NextResponse.json({ data });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -108,8 +97,8 @@ export async function POST(req: Request) {
 
     if (error) throw error;
     return NextResponse.json({ data });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -128,8 +117,8 @@ export async function PATCH(req: Request) {
 
     if (error) throw error;
     return NextResponse.json({ data });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -151,7 +140,7 @@ export async function DELETE(req: Request) {
 
     if (error) throw error;
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

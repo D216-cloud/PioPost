@@ -27,8 +27,8 @@ export default function CreatePage() {
   const [ytUrl, setYtUrl] = useState("");
   const [status, setStatus] = useState<"idle" | "processing" | "ready">("idle");
   const [processingStep, setProcessingStep] = useState("");
-  const [data, setData] = useState<any>(null);
-  const [discoveredClips, setDiscoveredClips] = useState<any[]>([]);
+  const [data, setData] = useState<Record<string, unknown> | null>(null);
+  const [discoveredClips, setDiscoveredClips] = useState<Record<string, unknown>[]>([]);
   
   // Configuration State
   const [numReels, setNumReels] = useState(3);
@@ -40,7 +40,7 @@ export default function CreatePage() {
   const [startTime, setStartTime] = useState("12:00");
   const [postsPerDay, setPostsPerDay] = useState(1);
   const [isScheduling, setIsScheduling] = useState(false);
-  const [playingClip, setPlayingClip] = useState<any>(null);
+  const [playingClip, setPlayingClip] = useState<Record<string, unknown> | null>(null);
 
   const handleProcess = async () => {
     if (!ytUrl.trim()) return;
@@ -82,8 +82,8 @@ export default function CreatePage() {
       setStatus("ready");
       setProcessingStep("");
       toast.success(`AI discovered ${json.clips.length} potential reels!`);
-    } catch (e: any) {
-      toast.error(e.message || "Failed to process video");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed to process video");
       setStatus("idle");
       setProcessingStep("");
     }
@@ -98,7 +98,7 @@ export default function CreatePage() {
     setIsScheduling(true);
     try {
       const selectedClips = discoveredClips.slice(0, numReels);
-      const rows = selectedClips.map((clip: any, index: number) => {
+      const rows = selectedClips.map((clip: Record<string, unknown>, index: number) => {
         const dayOffset = Math.floor(index / postsPerDay);
         const hourOffset = (index % postsPerDay) * (24 / postsPerDay);
         
@@ -109,13 +109,13 @@ export default function CreatePage() {
 
         return {
           user_id: session.user.id,
-          title: `${data.title} — Clip ${index + 1}`,
-          source_url: data.youtubeUrl,
-          youtube_url: data.youtubeUrl,
-          thumbnail_url: data.thumbnail,
+          title: `${data?.title || 'Unknown Title'} — Clip ${index + 1}`,
+          source_url: data?.youtubeUrl as string || '',
+          youtube_url: data?.youtubeUrl as string || '',
+          thumbnail_url: data?.thumbnail as string || '',
           transcript: clip.text,
           clip_text: clip.text,
-          caption: captionTemplate.replace("{keyword}", data.title),
+          caption: captionTemplate.replace("{keyword}", (data?.title as string) || ''),
           start_seconds: clip.start_seconds,
           end_seconds: clip.end_seconds,
           status: "scheduled",
@@ -138,9 +138,9 @@ export default function CreatePage() {
       
       toast.success(`Successfully scheduled ${numReels} reels!`);
       router.push("/dashboard/videos");
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e);
-      toast.error("Failed to schedule: " + (e.message || "Unknown error"));
+      toast.error("Failed to schedule: " + (e instanceof Error ? e.message : "Unknown error"));
     } finally {
       setIsScheduling(false);
     }
@@ -168,7 +168,7 @@ export default function CreatePage() {
 
       {/* High-Fidelity Input Pill */}
       <section className="relative max-w-3xl group">
-        <div className="absolute -inset-1 bg-gradient-to-r from-[#a855f7]/20 to-[#e84c9f]/20 rounded-2xl md:rounded-[2.5rem] blur opacity-0 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
+        <div className="absolute -inset-1 bg-linear-to-r from-[#a855f7]/20 to-[#e84c9f]/20 rounded-2xl md:rounded-[2.5rem] blur opacity-0 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
         <div className="relative bg-white rounded-2xl md:rounded-[2rem] p-2 md:p-3 border border-[#e4e4e7] shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col md:flex-row items-center gap-2 md:gap-4">
           <div className="hidden md:flex pl-6 text-slate-400">
             <Youtube size={24} />
@@ -197,15 +197,15 @@ export default function CreatePage() {
           {data ? (
             <div className="bg-white rounded-[24px] p-6 md:p-8 border border-[#e4e4e7] shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-8 group animate-in zoom-in-95 duration-500 text-center md:text-left">
                <div className="w-full md:w-40 aspect-video rounded-2xl overflow-hidden shadow-sm shrink-0 border border-slate-100">
-                 <img src={data.thumbnail} className="w-full h-full object-cover" />
+                 <img src={data.thumbnail as string} className="w-full h-full object-cover" />
                </div>
                <div className="flex-1 min-w-0 space-y-2">
                   <div className="flex items-center justify-center md:justify-start gap-2">
                      <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                     <span className="text-[11px] font-black text-slate-300 uppercase tracking-widest">Found {data.clips.length} Clips</span>
+                     <span className="text-[11px] font-black text-slate-300 uppercase tracking-widest">Found {(data.clips as unknown[])?.length || 0} Clips</span>
                   </div>
-                  <h3 className="text-[20px] md:text-[22px] font-bold text-slate-900 leading-tight truncate w-full">{data.title}</h3>
-                  <p className="text-[14px] text-slate-400 font-medium">{data.author}</p>
+                  <h3 className="text-[20px] md:text-[22px] font-bold text-slate-900 leading-tight truncate w-full">{data.title as string}</h3>
+                  <p className="text-[14px] text-slate-400 font-medium">{data.author as string}</p>
                </div>
             </div>
           ) : (
@@ -236,7 +236,7 @@ export default function CreatePage() {
                       <span className="text-[14px] font-black text-[#a855f7]">{numReels} Reels</span>
                     </div>
                     <input 
-                      type="range" min="1" max={data?.clips?.length || 5} 
+                      type="range" min="1" max={(data?.clips as unknown[])?.length || 5} 
                       value={numReels}
                       onChange={(e) => setNumReels(parseInt(e.target.value))}
                       className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-[#a855f7]"
@@ -338,10 +338,10 @@ export default function CreatePage() {
             </div>
             
             <div className="flex flex-wrap justify-center gap-8 md:gap-12 pb-10">
-              {discoveredClips.slice(0, numReels).map((clip: any, i: number) => (
+              {discoveredClips.slice(0, numReels).map((clip: Record<string, unknown>, i: number) => (
                 <div key={i} className="w-full sm:w-[280px] aspect-[9/16] bg-slate-900 rounded-[2.5rem] relative overflow-hidden shadow-2xl border-[6px] border-white shrink-0 group transition-all duration-700 animate-in fade-in slide-in-from-bottom-10 hover:scale-[1.03] hover:shadow-purple-500/10">
-                  <img src={clip.thumb} className="absolute inset-0 w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity duration-700" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/10" />
+                  <img src={clip.thumb as string} className="absolute inset-0 w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity duration-700" />
+                  <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-black/10" />
                   
                   <div className="absolute top-6 left-6">
                     <div className="px-4 py-2 bg-white/10 backdrop-blur-md rounded-full text-[10px] font-black text-white uppercase tracking-widest border border-white/20 shadow-xl">
@@ -364,12 +364,12 @@ export default function CreatePage() {
                     </div>
                     <div className="space-y-2">
                        <p className="text-white text-[14px] font-bold leading-relaxed line-clamp-3 italic opacity-95">
-                         "{clip.text}"
+                         &quot;{clip.text as string}&quot;
                        </p>
                        <div className="flex items-center gap-3 pt-2">
                           <Clock size={12} className="text-white/40" />
                           <p className="text-white/40 text-[11px] font-mono tracking-tighter">
-                            {clip.start} — {clip.end}
+                            {clip.start as string} — {clip.end as string}
                           </p>
                        </div>
                     </div>

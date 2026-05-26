@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, type SVGProps } from "react";
 import { Activity, AlertCircle, HelpCircle, Image as ImageIcon, MessageSquare, Plus, RefreshCw, Search, TrendingUp, Zap, ExternalLink, CheckCircle2, XCircle, Filter, Play, Film } from "lucide-react";
 import { toast } from "sonner";
-import { CreateAutomationModal } from "./CreateAutomationModal";
+import CreateAutoDMModal from "./CreateAutoDMModal";
 import { AutomationLogs } from "./AutomationLogs";
 
 interface Account {
@@ -479,15 +479,15 @@ export function AutomationDashboard() {
         )}
       </div>
 
-      <CreateAutomationModal
-        isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        account={selectedAccount}
-        onCreated={() => {
-          void fetchRules(selectedAccount?.id ?? null, true);
-          setViewTab("rules");
-        }}
-      />
+      {isCreateOpen && (
+        <CreateAutoDMModal
+          onClose={() => setIsCreateOpen(false)}
+          onCreated={() => {
+            void fetchRules(selectedAccount?.id ?? null, true);
+            setViewTab("rules");
+          }}
+        />
+      )}
     </div>
   );
 }

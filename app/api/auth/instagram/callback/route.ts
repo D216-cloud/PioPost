@@ -107,7 +107,8 @@ export async function GET(req: Request) {
 
     return NextResponse.redirect(`${origin}/dashboard/automation?connected=true`);
 
-  } catch (err: any) {
-    return NextResponse.redirect(`${origin}/instagram/connect?error=${encodeURIComponent(err.message)}`);
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error occurred";
+    return NextResponse.redirect(`${origin}/instagram/connect?error=${encodeURIComponent(errorMessage)}`);
   }
 }
