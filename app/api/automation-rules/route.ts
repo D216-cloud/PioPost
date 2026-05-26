@@ -3,13 +3,70 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 
-function stripUnsupportedFields(body: Record<string, unknown>) {
-  const { ask_email, ...rest } = body;
-  return rest;
+const SCHEMA_FIELD_PATTERN = /Could not find the '([^']+)' column of 'automation_rules' in the schema cache/;
+
+function stripUnsupportedField(body: Record<string, unknown>, field: string) {
+  const nextBody = { ...body };
+  delete nextBody[field];
+  return nextBody;
 }
 
-function isAskEmailSchemaError(message?: string) {
-  return Boolean(message && message.includes('ask_email'));
+function getUnsupportedFieldFromSchemaError(message?: string) {
+  return message?.match(SCHEMA_FIELD_PATTERN)?.[1];
+}
+
+async function insertAutomationRule(payload: Record<string, unknown>) {
+  let currentPayload = payload;
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const { data, error } = await supabaseAdmin
+      .from('automation_rules')
+      .insert(currentPayload)
+      .select()
+      .single();
+
+    if (!error) return { data, error: null };
+
+    const unsupportedField = getUnsupportedFieldFromSchemaError(error.message);
+    if (!unsupportedField || !(unsupportedField in currentPayload)) {
+      return { data: null, error };
+    }
+
+    currentPayload = stripUnsupportedField(currentPayload, unsupportedField);
+  }
+
+  return {
+    data: null,
+    error: new Error('Failed to insert automation rule after removing unsupported schema fields'),
+  };
+}
+
+async function updateAutomationRule(id: string, userId: string, payload: Record<string, unknown>) {
+  let currentPayload = payload;
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const { data, error } = await supabaseAdmin
+      .from('automation_rules')
+      .update(currentPayload)
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (!error) return { data, error: null };
+
+    const unsupportedField = getUnsupportedFieldFromSchemaError(error.message);
+    if (!unsupportedField || !(unsupportedField in currentPayload)) {
+      return { data: null, error };
+    }
+
+    currentPayload = stripUnsupportedField(currentPayload, unsupportedField);
+  }
+
+  return {
+    data: null,
+    error: new Error('Failed to update automation rule after removing unsupported schema fields'),
+  };
 }
 
 export async function GET(req: Request) {
@@ -47,20 +104,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const insertPayload = { ...body, user_id: session.user.id };
 
-    let { data, error } = await supabaseAdmin
-      .from('automation_rules')
-      .insert(insertPayload)
-      .select()
-      .single();
-
-    if (error && isAskEmailSchemaError(error.message)) {
-      const fallbackPayload = stripUnsupportedFields(insertPayload);
-      ({ data, error } = await supabaseAdmin
-        .from('automation_rules')
-        .insert(fallbackPayload)
-        .select()
-        .single());
-    }
+    const { data, error } = await insertAutomationRule(insertPayload);
 
     if (error) throw error;
     return NextResponse.json({ data });
@@ -80,24 +124,7 @@ export async function PATCH(req: Request) {
 
     if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
-    let { data, error } = await supabaseAdmin
-      .from('automation_rules')
-      .update(body)
-      .eq('id', id)
-      .eq('user_id', session.user.id)
-      .select()
-      .single();
-
-    if (error && isAskEmailSchemaError(error.message)) {
-      const fallbackBody = stripUnsupportedFields(body as Record<string, unknown>);
-      ({ data, error } = await supabaseAdmin
-        .from('automation_rules')
-        .update(fallbackBody)
-        .eq('id', id)
-        .eq('user_id', session.user.id)
-        .select()
-        .single());
-    }
+    const { data, error } = await updateAutomationRule(id, session.user.id, body as Record<string, unknown>);
 
     if (error) throw error;
     return NextResponse.json({ data });
