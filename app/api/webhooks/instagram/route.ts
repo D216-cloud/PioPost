@@ -6,8 +6,8 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 // ─────────────────────────────────────────────────────────────────────────────
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const mode      = searchParams.get("hub.mode");
-  const token     = searchParams.get("hub.verify_token");
+  const mode = searchParams.get("hub.mode");
+  const token = searchParams.get("hub.verify_token");
   const challenge = searchParams.get("hub.challenge");
 
   if (mode === "subscribe" && token === process.env.INSTAGRAM_VERIFY_TOKEN) {
@@ -68,10 +68,10 @@ async function sendInstagramDM(
 
   let body:
     | {
-        recipient: { id: string };
-        message: { text: string } | { attachment: { type: string; payload: { template_type: string; text: string; buttons: Array<{ type: string; url: string; title: string }> } } };
-        access_token: string;
-      }
+      recipient: { id: string };
+      message: { text: string } | { attachment: { type: string; payload: { template_type: string; text: string; buttons: Array<{ type: string; url: string; title: string }> } } };
+      access_token: string;
+    }
     | null = null;
 
   if (buttonLabel && buttonUrl) {
@@ -163,11 +163,11 @@ export async function POST(req: Request) {
       for (const change of entry.changes ?? []) {
         if (change.field !== "comments") continue;
 
-        const commentValue  = change.value;
-        const commentId     = commentValue.id;
-        const commentText   = commentValue.text ?? "";
-        const commenterId   = commentValue.from?.id;
-        const mediaId       = commentValue.media?.id;
+        const commentValue = change.value;
+        const commentId = commentValue.id;
+        const commentText = commentValue.text ?? "";
+        const commenterId = commentValue.from?.id;
+        const mediaId = commentValue.media?.id;
 
         console.log(`[Webhook] 💬 Comment: "${commentText}" from ${commenterId} on media ${mediaId}`);
 
@@ -175,9 +175,9 @@ export async function POST(req: Request) {
         const { data: igAccount, error: accError } = await supabaseAdmin
           .from("instagram_accounts")
           .select("id, user_id, access_token, username")
-          .eq("instagram_business_id", igBusinessId)
+          .eq("instagram_business_id", igBusinessId.toString())  // Convert to string
           .maybeSingle();
-
+          
         if (accError || !igAccount) {
           console.error("[Webhook] ❌ No IG account in DB for business ID:", igBusinessId);
           continue;
@@ -240,9 +240,9 @@ export async function POST(req: Request) {
             const kwList: string[] = rule.keywords?.length
               ? rule.keywords
               : rule.trigger_keyword
-                  ?.split(",")
-                  .map((k: string) => k.trim())
-                  .filter(Boolean) ?? [];
+                ?.split(",")
+                .map((k: string) => k.trim())
+                .filter(Boolean) ?? [];
 
             const textLower = commentText.toLowerCase();
             matched = kwList.some((k: string) => textLower.includes(k.toLowerCase()));
@@ -311,13 +311,13 @@ export async function POST(req: Request) {
 
           // ── Log result ───────────────────────────────────────────────────
           await supabaseAdmin.from("automation_logs").insert({
-            automation_id:     rule.id,
+            automation_id: rule.id,
             instagram_user_id: commenterId,
-            comment_text:      commentText,
-            comment_id:        commentId,
-            dm_sent:           dmResult.success,
-            dm_sent_at:        dmResult.success ? new Date().toISOString() : null,
-            error_message:     dmResult.error ?? null,
+            comment_text: commentText,
+            comment_id: commentId,
+            dm_sent: dmResult.success,
+            dm_sent_at: dmResult.success ? new Date().toISOString() : null,
+            error_message: dmResult.error ?? null,
           });
 
           if (dmResult.success) {
@@ -327,7 +327,7 @@ export async function POST(req: Request) {
               .from("automation_rules")
               .update({
                 total_dms_sent: (rule.total_dms_sent || 0) + 1,
-                executions:     (rule.executions || 0) + 1,
+                executions: (rule.executions || 0) + 1,
                 last_execution: new Date().toISOString(),
               })
               .eq("id", rule.id);
@@ -339,7 +339,7 @@ export async function POST(req: Request) {
 
       // ── DM / messaging events ────────────────────────────────────────────
       for (const messaging of entry.messaging ?? []) {
-        const senderId    = messaging.sender?.id;
+        const senderId = messaging.sender?.id;
         const messageText = messaging.message?.text;
         if (!senderId || !messageText) continue;
         console.log(`[Webhook] 📩 DM received from ${senderId}: "${messageText}"`);
