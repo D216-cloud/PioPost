@@ -64,7 +64,7 @@ async function sendInstagramDM(
   buttonLabel?: string | null,
   buttonUrl?: string | null
 ): Promise<{ success: boolean; error?: string; messageId?: string }> {
-  const url = `https://graph.facebook.com/v21.0/me/messages`;
+  const url = `https://graph.instagram.com/v21.0/me/messages`;
 
   let body:
     | {
@@ -122,7 +122,7 @@ async function postCommentReply(
   accessToken: string
 ): Promise<void> {
   try {
-    await fetch(`https://graph.facebook.com/v21.0/${commentId}/replies`, {
+    await fetch(`https://graph.instagram.com/v21.0/${commentId}/replies`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
