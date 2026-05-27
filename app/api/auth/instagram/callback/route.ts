@@ -47,41 +47,56 @@ export async function GET(req: Request) {
     const longToken = await longTokenRes.json();
     const finalToken = longToken.access_token || tokenData.access_token;
 
-    // Step 3 - Get Instagram user info
+    // Fetch user details
     const userRes = await fetch(
       `https://graph.instagram.com/me?fields=id,username,profile_picture_url&access_token=${finalToken}`
     );
     const userData = await userRes.json();
+
     if (!userData.id) throw new Error("Failed to get Instagram user info");
 
-    // Step 4 - Get REAL Business/Creator Account ID
+    // Also fetch the Business Account ID (different from user ID)
     let igBusinessId = userData.id; // fallback
     let pageId: string | null = null;
     let pageAccessToken: string | null = null;
 
     try {
-      const pagesRes = await fetch(
-        `https://graph.facebook.com/v21.0/me/accounts?access_token=${finalToken}`
+      const bizRes = await fetch(
+        `https://graph.instagram.com/me?fields=id,instagram_business_account&access_token=${finalToken}`
       );
-      const pagesData = await pagesRes.json();
+      const bizData = await bizRes.json();
 
-      if (pagesData.data && pagesData.data.length > 0) {
-        const page = pagesData.data[0];
-        pageId = page.id;
-        pageAccessToken = page.access_token;
-
-        const igBizRes = await fetch(
-          `https://graph.facebook.com/v21.0/${pageId}?fields=instagram_business_account&access_token=${pageAccessToken}`
+      if (bizData.instagram_business_account?.id) {
+        igBusinessId = bizData.instagram_business_account.id;
+        console.log("[OAuth] ✅ Got real business ID:", igBusinessId);
+      } else {
+        // Try Facebook Graph API
+        const fbRes = await fetch(
+          `https://graph.facebook.com/v21.0/me/accounts?access_token=${finalToken}`
         );
-        const igBizData = await igBizRes.json();
+        const fbData = await fbRes.json();
 
-        if (igBizData.instagram_business_account?.id) {
-          igBusinessId = igBizData.instagram_business_account.id;
+        if (fbData.data?.[0]?.id) {
+          pageId = fbData.data[0].id;
+          pageAccessToken = fbData.data[0].access_token;
+
+          const igBizRes = await fetch(
+            `https://graph.facebook.com/v21.0/${pageId}?fields=instagram_business_account&access_token=${pageAccessToken}`
+          );
+          const igBizData = await igBizRes.json();
+
+          if (igBizData.instagram_business_account?.id) {
+            igBusinessId = igBizData.instagram_business_account.id;
+            console.log("[OAuth] ✅ Got business ID via FB page:", igBusinessId);
+          }
         }
       }
-    } catch (e) {
-      console.warn("Could not fetch business ID, using fallback:", userData.id);
+    } catch {
+      console.warn("[OAuth] Could not fetch business ID, using user ID");
     }
+
+    console.log("[DEBUG] Instagram returned ID:", userData.id);
+    console.log("[DEBUG] Saving as instagram_business_id:", igBusinessId);
 
     // Step 5 - Save/update to DB
     const { error: upsertError } = await supabaseAdmin
