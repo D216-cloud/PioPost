@@ -26,6 +26,39 @@ interface Props {
 
 const STEPS = ["Trigger", "Select Post", "Keywords", "Message", "Launch"];
 
+function ToggleSwitch({
+  on,
+  onClick,
+  label,
+}: {
+  on: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={on}
+      className={`inline-flex items-center gap-2 rounded-full border px-2 py-1.5 transition-all ${
+        on
+          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+          : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700"
+      }`}
+    >
+      <span className={`relative h-5 w-9 rounded-full transition-colors ${on ? "bg-emerald-500" : "bg-slate-300"}`}>
+        <span
+          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+            on ? "translate-x-4" : "translate-x-0.5"
+          }`}
+        />
+      </span>
+      <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">{on ? "On" : "Off"}</span>
+      <span className="text-[11px] font-medium normal-case tracking-normal">{label}</span>
+    </button>
+  );
+}
+
 export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
   const [step, setStep] = useState(0);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -133,69 +166,69 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-slate-950/35 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col rounded-3xl border border-slate-200 bg-white shadow-[0_30px_100px_-30px_rgba(15,23,42,0.35)]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
+        <div className="flex items-center justify-between border-b border-slate-100 bg-white px-6 py-4">
           <div>
-            <h2 className="font-semibold text-white">Create AutoDM</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Step {step + 1} of {STEPS.length}</p>
+            <h2 className="font-semibold text-slate-900">Create AutoDM</h2>
+            <p className="mt-0.5 text-xs text-slate-500">Step {step + 1} of {STEPS.length}</p>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-colors">
+          <button onClick={onClose} className="rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
             <X size={18} />
           </button>
         </div>
 
         {/* Progress */}
-        <div className="px-6 py-3 border-b border-gray-800">
+        <div className="border-b border-slate-100 px-6 py-3">
           <div className="flex items-center gap-2">
             {STEPS.map((s, i) => (
               <div key={s} className="flex items-center gap-2">
                 <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium transition-colors ${
-                  i < step ? "bg-purple-600 text-white" :
-                  i === step ? "bg-purple-600 text-white ring-2 ring-purple-400/40" :
-                  "bg-gray-800 text-gray-500"
+                  i < step ? "bg-slate-900 text-white" :
+                  i === step ? "bg-slate-900 text-white ring-2 ring-slate-200" :
+                  "bg-slate-100 text-slate-400"
                 }`}>
                   {i < step ? <Check size={12} /> : i + 1}
                 </div>
-                <span className={`text-xs hidden sm:block ${i === step ? "text-white font-medium" : "text-gray-500"}`}>{s}</span>
-                {i < STEPS.length - 1 && <div className={`h-px w-4 ${i < step ? "bg-purple-600" : "bg-gray-800"}`} />}
+                <span className={`hidden text-xs sm:block ${i === step ? "font-medium text-slate-900" : "text-slate-400"}`}>{s}</span>
+                {i < STEPS.length - 1 && <div className={`h-px w-4 ${i < step ? "bg-slate-900" : "bg-slate-200"}`} />}
               </div>
             ))}
           </div>
         </div>
 
         {/* Step content */}
-        <div className="flex-1 overflow-y-auto px-6 py-6">
+        <div className="flex-1 overflow-y-auto bg-slate-50 px-6 py-6">
 
           {/* Step 0 — Trigger Type */}
           {step === 0 && (
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Choose your trigger</h3>
-              <p className="text-gray-400 text-sm">When should the AutoDM be sent?</p>
+              <h3 className="text-lg font-semibold text-slate-900">Choose your trigger</h3>
+              <p className="text-sm text-slate-500">When should the AutoDM be sent?</p>
               <button
                 onClick={() => setStep(1)}
-                className="w-full flex items-center gap-4 p-4 bg-gray-800 border-2 border-purple-600 rounded-xl hover:bg-gray-750 transition-colors text-left"
+                className="w-full flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left transition-all hover:border-slate-300 hover:shadow-sm"
               >
-                <div className="w-10 h-10 bg-purple-600/30 rounded-lg flex items-center justify-center">
-                  <MessageSquare size={20} className="text-purple-400" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white">
+                  <MessageSquare size={20} />
                 </div>
                 <div>
-                  <p className="font-medium px-0">Someone comments on a post/reel</p>
-                  <p className="text-sm text-gray-400">Trigger DM when a specific keyword is commented</p>
+                  <p className="font-medium text-slate-900 px-0">Someone comments on a post or reel</p>
+                  <p className="text-sm text-slate-500">Trigger a DM when a keyword is commented</p>
                 </div>
-                <ChevronRight size={18} className="ml-auto text-gray-500" />
+                <ChevronRight size={18} className="ml-auto text-slate-400" />
               </button>
-              <button disabled className="w-full flex items-center gap-4 p-4 bg-gray-800/50 border border-gray-800 rounded-xl opacity-50 cursor-not-allowed text-left">
-                <div className="w-10 h-10 bg-gray-700 rounded-lg flex items-center justify-center">
-                  <Zap size={20} className="text-gray-500" />
+              <button disabled className="w-full flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left opacity-60">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
+                  <Zap size={20} className="text-slate-400" />
                 </div>
                 <div>
-                  <p className="font-medium text-gray-400">Someone replies to my story</p>
-                  <p className="text-sm text-gray-500">Coming soon</p>
+                  <p className="font-medium text-slate-500">Someone replies to my story</p>
+                  <p className="text-sm text-slate-400">Coming soon</p>
                 </div>
-                <span className="ml-auto text-xs bg-gray-700 text-gray-400 px-2 py-0.5 rounded-full">Soon</span>
+                <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">Soon</span>
               </button>
             </div>
           )}
@@ -203,11 +236,11 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
           {/* Step 1 — Select Post */}
           {step === 1 && (
             <div>
-              <h3 className="text-lg font-semibold mb-1">Select a post or reel</h3>
-              <p className="text-gray-400 text-sm mb-4">Choose which post will trigger the AutoDM</p>
+              <h3 className="mb-1 text-lg font-semibold text-slate-900">Select a post or reel</h3>
+              <p className="mb-4 text-sm text-slate-500">Choose which post will trigger the AutoDM</p>
 
               {/* Media Type Filter Tabs */}
-              <div className="flex p-1 bg-gray-800 rounded-full gap-1 mb-4 max-w-xs border border-gray-700">
+              <div className="mb-4 flex max-w-xs gap-1 rounded-full border border-slate-200 bg-white p-1">
                 {(["all", "posts", "reels"] as const).map((tab) => (
                   <button
                     key={tab}
@@ -215,8 +248,8 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
                     onClick={() => setMediaTab(tab)}
                     className={`flex-1 py-1.5 rounded-full text-[12px] font-bold capitalize transition-all ${
                       mediaTab === tab
-                        ? "bg-purple-600 text-white shadow-sm"
-                        : "text-gray-400 hover:text-white"
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "text-slate-500 hover:text-slate-800"
                     }`}
                   >
                     {tab}
@@ -227,11 +260,11 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
               {loadingPosts ? (
                 <div className="grid grid-cols-3 gap-3">
                   {[1, 2, 3, 4, 5, 6].map((i) => (
-                    <div key={i} className="aspect-square bg-gray-800 rounded-lg animate-pulse" />
+                    <div key={i} className="aspect-square animate-pulse rounded-xl bg-slate-200" />
                   ))}
                 </div>
               ) : posts.length === 0 ? (
-                <div className="text-center py-12 text-gray-400">
+                <div className="py-12 text-center text-slate-500">
                   <p>No posts found. Connect your Instagram account first.</p>
                 </div>
               ) : (
@@ -244,14 +277,14 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
 
                   if (filteredPosts.length === 0) {
                     return (
-                      <div className="text-center py-12 text-gray-450 bg-gray-850 rounded-xl border border-gray-800">
+                      <div className="rounded-2xl border border-slate-200 bg-white py-12 text-center text-slate-500">
                         <p className="text-sm">No {mediaTab === "reels" ? "reels" : "posts"} found.</p>
                       </div>
                     );
                   }
 
                   return (
-                    <div className="grid grid-cols-3 gap-3 max-h-[360px] overflow-y-auto pr-1">
+                    <div className="grid max-h-90 grid-cols-3 gap-3 overflow-y-auto pr-1">
                       {filteredPosts.map((post) => (
                         <button
                           key={post.id}
@@ -259,22 +292,22 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
                           onClick={() => setSelectedPost(post)}
                           className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${
                             selectedPost?.id === post.id
-                              ? "border-purple-500 ring-2 ring-purple-500/30"
-                              : "border-transparent hover:border-gray-600"
+                              ? "border-slate-900 ring-2 ring-slate-200"
+                              : "border-transparent hover:border-slate-300"
                           }`}
                         >
                           <img src={post.thumbnail} alt="" className="w-full h-full object-cover" />
                           {selectedPost?.id === post.id && (
-                            <div className="absolute inset-0 bg-purple-600/20 flex items-center justify-center">
+                            <div className="absolute inset-0 flex items-center justify-center bg-slate-900/20">
                               <Check size={24} className="text-white drop-shadow" />
                             </div>
                           )}
                           {post.type === "VIDEO" ? (
-                            <span className="absolute top-1.5 right-1.5 text-[9px] font-black bg-black/60 text-purple-300 px-1.5 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
+                            <span className="absolute top-1.5 right-1.5 flex items-center gap-1 rounded-full bg-white/90 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-slate-800 shadow-sm">
                               🎬 Reel
                             </span>
                           ) : (
-                            <span className="absolute top-1.5 right-1.5 text-[9px] font-black bg-black/60 text-sky-300 px-1.5 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
+                            <span className="absolute top-1.5 right-1.5 flex items-center gap-1 rounded-full bg-white/90 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-slate-800 shadow-sm">
                               📸 Post
                             </span>
                           )}
@@ -286,19 +319,19 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
               )}
 
               {selectedPost && (
-                <div className="mt-4 p-3 bg-gray-800 rounded-lg border border-gray-700 flex gap-3 items-start">
-                  <div className="w-12 h-12 rounded overflow-hidden flex-shrink-0 relative border border-gray-700 bg-gray-900">
+                <div className="mt-4 flex gap-3 items-start rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
                     <img src={selectedPost.thumbnail} alt="" className="w-full h-full object-cover" />
-                    <span className="absolute bottom-0 inset-x-0 text-[8px] font-bold bg-black/75 text-white text-center py-0.5 uppercase">
+                    <span className="absolute bottom-0 inset-x-0 bg-slate-950/70 py-0.5 text-center text-[8px] font-bold uppercase text-white">
                       {selectedPost.type === "VIDEO" ? "REEL" : "POST"}
                     </span>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-purple-400 mb-0.5 uppercase tracking-wider">
+                    <p className="mb-0.5 text-xs font-bold uppercase tracking-wider text-slate-500">
                       Selected {selectedPost.type === "VIDEO" ? "Reel" : "Post"}
                     </p>
-                    <p className="text-sm text-gray-300 line-clamp-2 leading-relaxed">{selectedPost.caption || "No caption"}</p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="line-clamp-2 text-sm leading-relaxed text-slate-700">{selectedPost.caption || "No caption"}</p>
+                    <p className="mt-1 text-xs text-slate-500">
                       {selectedPost.likes} likes · {selectedPost.comments} comments
                     </p>
                   </div>
@@ -311,45 +344,45 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
           {step === 2 && (
             <div className="space-y-5">
               <div>
-                <h3 className="text-lg font-semibold mb-1">Set trigger keywords</h3>
-                <p className="text-gray-400 text-sm">When should the AutoDM send?</p>
+                <h3 className="mb-1 text-lg font-semibold text-slate-900">Set trigger keywords</h3>
+                <p className="text-sm text-slate-500">When should the AutoDM send?</p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setKeywordMode("specific")}
                   className={`p-4 rounded-xl border-2 text-left transition-colors ${
-                    keywordMode === "specific" ? "border-purple-600 bg-purple-600/10" : "border-gray-800 hover:border-gray-700"
+                    keywordMode === "specific" ? "border-slate-900 bg-slate-50" : "border-slate-200 bg-white hover:border-slate-300"
                   }`}
                 >
-                  <p className="font-medium text-sm">Specific keywords</p>
-                  <p className="text-xs text-gray-400 mt-1">Only trigger for defined keywords</p>
+                  <p className="text-sm font-medium text-slate-900">Specific keywords</p>
+                  <p className="mt-1 text-xs text-slate-500">Only trigger for defined keywords</p>
                 </button>
                 <button
                   onClick={() => setKeywordMode("any")}
                   className={`p-4 rounded-xl border-2 text-left transition-colors ${
-                    keywordMode === "any" ? "border-purple-600 bg-purple-600/10" : "border-gray-800 hover:border-gray-700"
+                    keywordMode === "any" ? "border-slate-900 bg-slate-50" : "border-slate-200 bg-white hover:border-slate-300"
                   }`}
                 >
-                  <p className="font-medium text-sm">Any comment</p>
-                  <p className="text-xs text-gray-400 mt-1">Trigger on every comment</p>
+                  <p className="text-sm font-medium text-slate-900">Any comment</p>
+                  <p className="mt-1 text-xs text-slate-500">Trigger on every comment</p>
                 </button>
               </div>
 
               {keywordMode === "specific" && (
                 <div>
-                  <label className="text-sm text-gray-300 mb-2 block">Add keywords</label>
+                  <label className="mb-2 block text-sm text-slate-600">Add keywords</label>
                   <div className="flex gap-2">
                     <input
                       value={keywordInput}
                       onChange={(e) => setKeywordInput(e.target.value.toUpperCase())}
                       onKeyDown={(e) => e.key === "Enter" && addKeyword()}
                       placeholder='e.g. FREE, LINK, "SEND IT"'
-                      className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                      className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-slate-400 focus:outline-none"
                     />
                     <button
                       onClick={addKeyword}
-                      className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
+                      className="rounded-xl bg-slate-900 px-4 py-2 text-white transition-colors hover:bg-slate-800"
                     >
                       <Plus size={16} />
                     </button>
@@ -360,10 +393,10 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
                       {keywords.map((kw) => (
                         <span
                           key={kw}
-                          className="flex items-center gap-1.5 bg-purple-900/40 text-purple-300 border border-purple-800/50 px-3 py-1 rounded-full text-sm"
+                          className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-sm text-slate-700 shadow-sm"
                         >
                           {kw}
-                          <button onClick={() => removeKeyword(kw)} className="hover:text-white">
+                          <button onClick={() => removeKeyword(kw)} className="text-slate-400 transition-colors hover:text-slate-900">
                             <X size={12} />
                           </button>
                         </span>
@@ -374,8 +407,8 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
               )}
 
               {keywordMode === "any" && (
-                <div className="bg-yellow-900/20 border border-yellow-800/40 rounded-lg p-3">
-                  <p className="text-yellow-400 text-sm">
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-sm text-amber-700">
                     ⚠️ &quot;Any comment&quot; mode will DM every single person who comments. Use wisely to avoid spam flags.
                   </p>
                 </div>
@@ -387,39 +420,38 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
           {step === 3 && (
             <div className="space-y-5">
               <div>
-                <h3 className="text-lg font-semibold mb-1">Craft your DM</h3>
-                <p className="text-gray-400 text-sm">This message will be sent automatically</p>
+                <h3 className="mb-1 text-lg font-semibold text-slate-900">Craft your DM</h3>
+                <p className="text-sm text-slate-500">This message will be sent automatically</p>
               </div>
 
               {/* Main message */}
               <div>
-                <label className="text-sm text-gray-300 mb-2 block">
-                  DM Message <span className="text-gray-500 text-xs">({"{first_name}"} for personalization)</span>
+                <label className="mb-2 block text-sm text-slate-600">
+                  DM Message <span className="text-xs text-slate-400">({"{first_name}"} for personalization)</span>
                 </label>
                 <textarea
                   value={dmMessage}
                   onChange={(e) => setDmMessage(e.target.value)}
                   placeholder='Hey {first_name}! Here is the link you asked for 👇'
                   rows={4}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 resize-none"
+                  className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-slate-400 focus:outline-none"
                 />
               </div>
 
               {/* Button toggle */}
-              <div>
-                <div className="flex items-center justify-between">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-sm font-medium flex items-center gap-2">
-                      <Link size={14} className="text-purple-400" /> Add a CTA button
+                    <p className="flex items-center gap-2 text-sm font-medium text-slate-900">
+                      <Link size={14} className="text-slate-500" /> Add a CTA button
                     </p>
-                    <p className="text-xs text-gray-500">Add a clickable button to your DM</p>
+                    <p className="text-xs text-slate-500">Add a clickable button to your DM</p>
                   </div>
-                  <button
+                  <ToggleSwitch
                     onClick={() => setAddButton(!addButton)}
-                    className={`relative w-10 h-5 rounded-full transition-colors ${addButton ? "bg-purple-600" : "bg-gray-700"}`}
-                  >
-                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform shadow ${addButton ? "translate-x-5" : "translate-x-0.5"}`} />
-                  </button>
+                    on={addButton}
+                    label="CTA button"
+                  />
                 </div>
 
                 {addButton && (
@@ -428,55 +460,53 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
                       value={buttonLabel}
                       onChange={(e) => setButtonLabel(e.target.value)}
                       placeholder="Button label (e.g. Get the Free Guide)"
-                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-slate-400 focus:outline-none"
                     />
                     <input
                       value={buttonUrl}
                       onChange={(e) => setButtonUrl(e.target.value)}
                       placeholder="Button URL (https://...)"
-                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-slate-400 focus:outline-none"
                     />
                   </div>
                 )}
               </div>
 
               {/* Auto-reply toggle */}
-              <div>
-                <div className="flex items-center justify-between">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-sm font-medium">Auto-reply to comment</p>
-                    <p className="text-xs text-gray-500">Publicly reply to let them know</p>
+                    <p className="text-sm font-medium text-slate-900">Auto-reply to comment</p>
+                    <p className="text-xs text-slate-500">Publicly reply to let them know</p>
                   </div>
-                  <button
+                  <ToggleSwitch
                     onClick={() => setAutoReply(!autoReply)}
-                    className={`relative w-10 h-5 rounded-full transition-colors ${autoReply ? "bg-purple-600" : "bg-gray-700"}`}
-                  >
-                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform shadow ${autoReply ? "translate-x-5" : "translate-x-0.5"}`} />
-                  </button>
+                    on={autoReply}
+                    label="Reply"
+                  />
                 </div>
                 {autoReply && (
                   <input
                     value={commentReplyText}
                     onChange={(e) => setCommentReplyText(e.target.value)}
                     placeholder="Check your DMs! 📩"
-                    className="mt-2 w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                    className="mt-3 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-slate-400 focus:outline-none"
                   />
                 )}
               </div>
 
               {/* Follow gate toggle */}
-              <div>
-                <div className="flex items-center justify-between">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-sm font-medium">Ask to follow first</p>
-                    <p className="text-xs text-gray-500">Reward followers with the DM link</p>
+                    <p className="text-sm font-medium text-slate-900">Ask to follow first</p>
+                    <p className="text-xs text-slate-500">Reward followers with the DM link</p>
                   </div>
-                  <button
+                  <ToggleSwitch
                     onClick={() => setRequireFollow(!requireFollow)}
-                    className={`relative w-10 h-5 rounded-full transition-colors ${requireFollow ? "bg-purple-600" : "bg-gray-700"}`}
-                  >
-                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform shadow ${requireFollow ? "translate-x-5" : "translate-x-0.5"}`} />
-                  </button>
+                    on={requireFollow}
+                    label="Gate"
+                  />
                 </div>
                 {requireFollow && (
                   <textarea
@@ -484,7 +514,7 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
                     onChange={(e) => setFollowGateMessage(e.target.value)}
                     placeholder="Hey! Follow me first and I'll send you the link 🙌"
                     rows={2}
-                    className="mt-2 w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 resize-none"
+                    className="mt-3 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-slate-400 focus:outline-none"
                   />
                 )}
               </div>
@@ -494,48 +524,48 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
           {/* Step 4 — Review & Launch */}
           {step === 4 && (
             <div className="space-y-5">
-              <h3 className="text-lg font-semibold mb-1">Review & Launch</h3>
-              <p className="text-gray-400 text-sm">Confirm your AutoDM setup before going live</p>
+              <h3 className="mb-1 text-lg font-semibold text-slate-900">Review & Launch</h3>
+              <p className="text-sm text-slate-500">Confirm your AutoDM setup before going live</p>
 
               <div className="space-y-3">
                 {/* Post */}
-                <div className="flex gap-3 bg-gray-800 rounded-xl p-4 border border-gray-700">
+                <div className="flex gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                   {selectedPost?.thumbnail && (
-                    <div className="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 border border-gray-700 bg-gray-900">
+                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
                       <img src={selectedPost.thumbnail} alt="" className="w-full h-full object-cover" />
-                      <span className="absolute bottom-0 inset-x-0 text-[8px] font-bold bg-black/75 text-white py-0.5 text-center uppercase">
+                      <span className="absolute bottom-0 inset-x-0 bg-slate-950/70 py-0.5 text-center text-[8px] font-bold uppercase text-white">
                         {selectedPost.type === "VIDEO" ? "REEL" : "POST"}
                       </span>
                     </div>
                   )}
                   <div>
-                    <p className="text-xs font-bold text-purple-400 mb-0.5 uppercase tracking-wider">
+                    <p className="mb-0.5 text-xs font-bold uppercase tracking-wider text-slate-500">
                       Target {selectedPost?.type === "VIDEO" ? "Reel" : "Post"}
                     </p>
-                    <p className="text-sm text-white line-clamp-2">{selectedPost?.caption || "No caption"}</p>
+                    <p className="line-clamp-2 text-sm text-slate-800">{selectedPost?.caption || "No caption"}</p>
                   </div>
                 </div>
 
                 {/* Keywords */}
-                <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-                  <p className="text-xs text-gray-400 mb-2">Trigger Keywords</p>
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="mb-2 text-xs text-slate-500">Trigger Keywords</p>
                   {keywordMode === "any" ? (
-                    <span className="text-sm text-purple-300">Any comment</span>
+                    <span className="text-sm text-slate-700">Any comment</span>
                   ) : (
                     <div className="flex flex-wrap gap-1">
                       {keywords.map((kw) => (
-                        <span key={kw} className="text-xs bg-purple-900/40 text-purple-300 border border-purple-800/50 px-2 py-0.5 rounded-full font-mono">{kw}</span>
+                        <span key={kw} className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 font-mono text-xs text-slate-700">{kw}</span>
                       ))}
                     </div>
                   )}
                 </div>
 
                 {/* DM Message */}
-                <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-                  <p className="text-xs text-gray-400 mb-2">DM Message</p>
-                  <p className="text-sm text-white">{dmMessage}</p>
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="mb-2 text-xs text-slate-500">DM Message</p>
+                  <p className="text-sm text-slate-800">{dmMessage}</p>
                   {addButton && buttonLabel && (
-                    <div className="mt-2 inline-flex items-center gap-1.5 text-xs bg-blue-900/40 text-blue-300 border border-blue-800/40 px-3 py-1.5 rounded-lg">
+                    <div className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-700">
                       <Link size={11} />
                       {buttonLabel}
                     </div>
@@ -543,20 +573,20 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
                 </div>
 
                 {/* Options */}
-                <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-                  <p className="text-xs text-gray-400 mb-2">Options</p>
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="mb-2 text-xs text-slate-500">Options</p>
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 text-sm">
-                      <span className={autoReply ? "text-green-400" : "text-gray-600"}>
+                      <span className={autoReply ? "text-emerald-500" : "text-slate-300"}>
                         {autoReply ? "✓" : "✗"}
                       </span>
-                      <span className={autoReply ? "text-white" : "text-gray-500"}>Auto-reply to comment</span>
+                      <span className={autoReply ? "text-slate-800" : "text-slate-400"}>Auto-reply to comment</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
-                      <span className={requireFollow ? "text-green-400" : "text-gray-600"}>
+                      <span className={requireFollow ? "text-emerald-500" : "text-slate-300"}>
                         {requireFollow ? "✓" : "✗"}
                       </span>
-                      <span className={requireFollow ? "text-white" : "text-gray-500"}>Follow gate enabled</span>
+                      <span className={requireFollow ? "text-slate-800" : "text-slate-400"}>Follow gate enabled</span>
                     </div>
                   </div>
                 </div>
@@ -566,11 +596,11 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-800 bg-gray-900">
+        <div className="flex items-center justify-between border-t border-slate-100 bg-white px-6 py-4">
           <button
             onClick={() => setStep(Math.max(0, step - 1))}
             disabled={step === 0}
-            className="flex items-center gap-2 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-2 text-slate-500 transition-colors hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-30"
           >
             <ChevronLeft size={16} />
             Back
@@ -580,7 +610,7 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
             <button
               onClick={() => setStep(step + 1)}
               disabled={!canProceed() && step !== 0}
-              className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed text-white px-5 py-2 rounded-lg font-medium transition-colors"
+              className="flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2 font-medium text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Next
               <ChevronRight size={16} />
@@ -589,7 +619,7 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
             <button
               onClick={handleCreate}
               disabled={creating}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+              className="flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-2 font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
             >
               {creating ? "Launching..." : "🚀 Launch AutoDM"}
             </button>
