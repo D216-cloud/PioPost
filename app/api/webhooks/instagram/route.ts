@@ -58,7 +58,7 @@ async function isRateLimited(igAccountDbId: string): Promise<boolean> {
 
 /** Send a DM via Instagram Graph API */
 async function sendInstagramDM(
-  commenterId: string,
+  recipient: { id: string } | { comment_id: string },
   message: string,
   accessToken: string,
   buttonLabel?: string | null,
@@ -68,7 +68,7 @@ async function sendInstagramDM(
 
   let body:
     | {
-      recipient: { id: string };
+      recipient: { id: string } | { comment_id: string };
       message: { text: string } | { attachment: { type: string; payload: { template_type: string; text: string; buttons: Array<{ type: string; url: string; title: string }> } } };
       access_token: string;
     }
@@ -77,7 +77,7 @@ async function sendInstagramDM(
   if (buttonLabel && buttonUrl) {
     // Button template message
     body = {
-      recipient: { id: commenterId },
+      recipient,
       message: {
         attachment: {
           type: "template",
@@ -93,7 +93,7 @@ async function sendInstagramDM(
   } else {
     // Plain text message
     body = {
-      recipient: { id: commenterId },
+      recipient,
       message: { text: message },
       access_token: accessToken,
     };
@@ -290,7 +290,7 @@ export async function POST(req: Request) {
           const shouldAskFollow = rule.require_follow || rule.ask_follow;
           if (shouldAskFollow && rule.follow_gate_message) {
             // Send the follow-gate message first, then the actual DM
-            await sendInstagramDM(commenterId, rule.follow_gate_message, tokenToUse);
+            await sendInstagramDM({ comment_id: commentId }, rule.follow_gate_message, tokenToUse);
           }
 
           // Ask for email (old schema only)
@@ -302,7 +302,7 @@ export async function POST(req: Request) {
           // Resolve button fields (old schema: dm_button_label/dm_button_url; new: same names)
           const hasButton = rule.dm_type === "message_button";
           const dmResult = await sendInstagramDM(
-            commenterId,
+            { comment_id: commentId },
             dmText,
             tokenToUse,
             hasButton ? rule.dm_button_label : null,
