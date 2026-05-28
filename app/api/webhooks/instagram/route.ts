@@ -213,6 +213,11 @@ export async function POST(req: Request) {
         }
 
         if (!rules?.length) {
+          console.log("[Webhook] ℹ️ No active rules found. Sending default DM.");
+          // Send a fallback DM to the commenter
+          await sendDm(commenterId, "Thanks for your comment! We'll get back to you soon.");
+          continue;
+        }
           console.log("[Webhook] ℹ️ No active rules found.");
           continue;
         }

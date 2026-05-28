@@ -114,7 +114,7 @@ export default function ReelsPage() {
 
   // Detect just-connected redirect
   useEffect(() => {
-    if (searchParams && searchParams.get("connected") === "true") {
+    if (searchParams?.get("connected") === "true") {
       setJustConnected(true);
       // Remove param from URL without reload
       window.history.replaceState({}, "", window.location.pathname);
