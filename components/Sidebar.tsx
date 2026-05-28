@@ -102,9 +102,10 @@ export function Sidebar({
         <nav className="flex-1 space-y-0.5 px-3">
           {navItems.map((item) => {
             const Icon = item.icon;
+            const currentPath = pathname ?? "";
             const active =
-              pathname === item.href ||
-              (item.href !== "/dashboard" && pathname.startsWith(item.href));
+              currentPath === item.href ||
+              (item.href !== "/dashboard" && currentPath.startsWith(item.href));
 
             return (
               <Link

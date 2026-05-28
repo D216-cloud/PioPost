@@ -279,7 +279,7 @@ export function PostEditor() {
   const { data: session } = useSession();
   const user = session?.user;
   const searchParams = useSearchParams();
-  const draftId = searchParams.get("draft");
+  const draftId = searchParams?.get("draft") ?? null;
 
   const [state, setState] = useState({
     profile: { name: '', handle: '', bio: '', avatar: '' },
