@@ -1,7 +1,7 @@
 // components/automation/CreateAutoDMModal.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { X, ChevronRight, ChevronLeft, Check, Plus, MessageSquare, Zap, Link } from "lucide-react";
 import { toast } from "sonner";
 
@@ -25,6 +25,10 @@ interface Props {
 }
 
 const STEPS = ["Trigger", "Select Post", "Keywords", "Message", "Launch"];
+
+function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : "Unknown error";
+}
 
 function ToggleSwitch({
   on,
@@ -84,11 +88,7 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
     "Hey! Follow me first and I'll send you the link 🙌"
   );
 
-  useEffect(() => {
-    fetchPosts();
-  }, []);
-
-  async function fetchPosts() {
+  const fetchPosts = useCallback(async () => {
     setLoadingPosts(true);
     try {
       const res = await fetch("/api/instagram/posts");
@@ -101,12 +101,18 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
       const acctRes = await fetch("/api/instagram/account");
       const acctData = await acctRes.json();
       if (acctData.id) setIgAccountId(acctData.id);
-    } catch (err: any) {
-      toast.error("Could not load posts: " + err.message);
+    } catch (err: unknown) {
+      toast.error("Could not load posts: " + getErrorMessage(err));
     } finally {
       setLoadingPosts(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      void fetchPosts();
+    });
+  }, [fetchPosts]);
 
   function addKeyword() {
     const kw = keywordInput.trim().toUpperCase();
@@ -157,8 +163,8 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
       if (error) throw new Error(error);
 
       onCreated();
-    } catch (err: any) {
-      toast.error("Failed to create automation: " + err.message);
+    } catch (err: unknown) {
+      toast.error("Failed to create automation: " + getErrorMessage(err));
     } finally {
       setCreating(false);
     }

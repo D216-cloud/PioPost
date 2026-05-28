@@ -15,7 +15,22 @@ import {
   Grid3x3,
   List,
   Search,
+  Plus,
+  X,
+  Sparkles,
+  MessageSquare,
+  Check,
+  Zap,
+  UserCheck,
+  Smile,
+  Trash2,
+  Settings,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
+import { InstagramIcon as Instagram } from "@/components/icons";
+import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface InstagramMedia {
   id: string;
@@ -36,12 +51,57 @@ interface InstagramAccount {
 type ViewMode = "grid" | "list";
 type FilterType = "ALL" | "VIDEO" | "IMAGE" | "CAROUSEL_ALBUM";
 
+const AUTOMATION_PRESETS = [
+  {
+    name: "Custom (Empty)",
+    message: "",
+    icon: "✍️",
+    desc: "Write your own response from scratch"
+  },
+  {
+    name: "Send Link Preset",
+    message: "Hey! Thanks for commenting. Here is the link you requested: {link} 🚀 Let me know if you need anything else!",
+    icon: "🔗",
+    desc: "Send a resource, product, or signup link"
+  },
+  {
+    name: "Discount Code",
+    message: "Hey there! Thanks for your comment! Here is your exclusive 10% discount code: PIO10 🎉 Use it at checkout!",
+    icon: "🏷️",
+    desc: "Share coupon codes or sales links"
+  },
+  {
+    name: "Free Guide PDF",
+    message: "Awesome! I've sent the complete PDF guide straight to your DMs. Check it out and let me know your thoughts! 📩",
+    icon: "📚",
+    desc: "Deliver lead magnets or files"
+  },
+  {
+    name: "Chat Invite",
+    message: "Hey! Thanks for showing interest in our project. Let's chat here in the DMs about how we can help you grow! 💬",
+    icon: "💬",
+    desc: "Start a sales conversation or consultation"
+  }
+];
+
 export default function ReelsPage() {
   const { data: session } = useSession();
 
   const [accounts, setAccounts] = useState<InstagramAccount[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<InstagramAccount | null>(null);
   const [media, setMedia] = useState<InstagramMedia[]>([]);
+
+  // Automation state
+  const [rules, setRules] = useState<any[]>([]);
+  const [selectedItemForAutomation, setSelectedItemForAutomation] = useState<InstagramMedia | null>(null);
+  const [isAutomationModalOpen, setIsAutomationModalOpen] = useState(false);
+  const [automationMessage, setAutomationMessage] = useState("");
+  const [automationActive, setAutomationActive] = useState(true);
+  const [automationKeywordMode, setAutomationKeywordMode] = useState<"specific" | "any">("any");
+  const [automationKeywords, setAutomationKeywords] = useState<string[]>([]);
+  const [keywordInput, setKeywordInput] = useState("");
+  const [activePresetIndex, setActivePresetIndex] = useState(0);
+  const [savingAutomation, setSavingAutomation] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +114,7 @@ export default function ReelsPage() {
 
   // Detect just-connected redirect
   useEffect(() => {
-    if (searchParams.get("connected") === "true") {
+    if (searchParams && searchParams.get("connected") === "true") {
       setJustConnected(true);
       // Remove param from URL without reload
       window.history.replaceState({}, "", window.location.pathname);
@@ -77,14 +137,29 @@ export default function ReelsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Fetch media when account changes
+  const fetchRules = async () => {
+    try {
+      const res = await fetch("/api/automations");
+      const { data, error } = await res.json();
+      if (error) throw new Error(error);
+      setRules(data || []);
+    } catch (e) {
+      console.error("Failed to fetch automation rules:", e);
+    }
+  };
+
+  // Fetch media and rules when account changes
   useEffect(() => {
     if (!selectedAccount) return;
     fetchMedia(selectedAccount.id);
+    fetchRules();
   }, [selectedAccount]);
 
   const fetchMedia = async (accountId: string, isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
+    if (isRefresh) {
+      setRefreshing(true);
+      fetchRules();
+    }
     else setLoading(true);
     setError(null);
 
@@ -99,6 +174,116 @@ export default function ReelsPage() {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  const openAutomationModal = (item: InstagramMedia) => {
+    const existingRule = rules.find((r) => r.post_id === item.id);
+    setSelectedItemForAutomation(item);
+    if (existingRule) {
+      setAutomationMessage(existingRule.dm_message || "");
+      setAutomationActive(existingRule.active);
+      setAutomationKeywordMode(existingRule.keyword_mode || "any");
+      setAutomationKeywords(existingRule.keywords || []);
+      
+      const matchedPreset = AUTOMATION_PRESETS.findIndex(p => p.message === existingRule.dm_message);
+      setActivePresetIndex(matchedPreset !== -1 ? matchedPreset : 0);
+    } else {
+      setAutomationMessage("");
+      setAutomationActive(true);
+      setAutomationKeywordMode("any");
+      setAutomationKeywords([]);
+      setActivePresetIndex(1); // Default to the first preset (Send Link) for ease of use
+      setAutomationMessage(AUTOMATION_PRESETS[1].message);
+    }
+    setKeywordInput("");
+    setIsAutomationModalOpen(true);
+  };
+
+  const handleSaveAutomation = async () => {
+    if (!selectedAccount || !selectedItemForAutomation) return;
+    setSavingAutomation(true);
+
+    const existingRule = rules.find((r) => r.post_id === selectedItemForAutomation.id);
+
+    try {
+      if (existingRule) {
+        const res = await fetch("/api/automations", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: existingRule.id,
+            dm_message: automationMessage,
+            active: automationActive,
+            keyword_mode: automationKeywordMode,
+            keywords: automationKeywordMode === "specific" ? automationKeywords : [],
+          }),
+        });
+
+        const { error } = await res.json();
+        if (error) throw new Error(error);
+        toast.success("Automation updated successfully!");
+      } else {
+        const res = await fetch("/api/automations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            instagram_account_id: selectedAccount.id,
+            post_id: selectedItemForAutomation.id,
+            post_type: "REEL",
+            post_thumbnail_url: getThumb(selectedItemForAutomation),
+            post_caption: selectedItemForAutomation.caption || "",
+            post_permalink: selectedItemForAutomation.permalink,
+            keyword_mode: automationKeywordMode,
+            keywords: automationKeywordMode === "specific" ? automationKeywords : [],
+            dm_message: automationMessage,
+            active: automationActive,
+            rule_name: `Auto-DM: ${selectedItemForAutomation.caption ? selectedItemForAutomation.caption.substring(0, 20) : selectedItemForAutomation.id}`,
+          }),
+        });
+
+        const { error } = await res.json();
+        if (error) throw new Error(error);
+        toast.success("Automation created successfully!");
+      }
+
+      await fetchRules();
+      setIsAutomationModalOpen(false);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to save automation.");
+    } finally {
+      setSavingAutomation(false);
+    }
+  };
+
+  const handleDeleteAutomation = async (ruleId: string) => {
+    if (!confirm("Are you sure you want to delete this automation?")) return;
+    setSavingAutomation(true);
+    try {
+      const res = await fetch(`/api/automations?id=${ruleId}`, {
+        method: "DELETE",
+      });
+      const { error } = await res.json();
+      if (error) throw new Error(error);
+      toast.success("Automation deleted successfully!");
+      await fetchRules();
+      setIsAutomationModalOpen(false);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to delete automation.");
+    } finally {
+      setSavingAutomation(false);
+    }
+  };
+
+  const addKeyword = () => {
+    const kw = keywordInput.trim().toUpperCase();
+    if (kw && !automationKeywords.includes(kw)) {
+      setAutomationKeywords([...automationKeywords, kw]);
+      setKeywordInput("");
+    }
+  };
+
+  const removeKeyword = (kw: string) => {
+    setAutomationKeywords(automationKeywords.filter((k) => k !== kw));
   };
 
   const filtered = media.filter((m) => {
@@ -362,6 +547,43 @@ export default function ReelsPage() {
                       </span>
                     </div>
 
+                    {/* Top Right: Automation button / status */}
+                    <div className="absolute top-3 right-3 z-10">
+                      {(() => {
+                        const rule = rules.find((r) => r.post_id === item.id);
+                        if (rule) {
+                          return (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openAutomationModal(item);
+                              }}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider shadow-sm transition-all hover:scale-105 ${
+                                rule.active 
+                                  ? "bg-emerald-500 text-white" 
+                                  : "bg-slate-700/80 backdrop-blur-sm text-slate-350"
+                              }`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${rule.active ? "bg-white animate-pulse" : "bg-slate-400"}`} />
+                              Auto-DM
+                            </button>
+                          );
+                        } else {
+                          return (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openAutomationModal(item);
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white/95 text-slate-800 shadow-sm transition-all hover:scale-105 hover:bg-white"
+                            >
+                              <Plus size={9} strokeWidth={3} /> Add DM
+                            </button>
+                          );
+                        }
+                      })()}
+                    </div>
+
                     {/* Play button overlay for videos */}
                     {isVideo && (
                       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -445,6 +667,35 @@ export default function ReelsPage() {
                       </p>
                     </div>
 
+                    {/* Automation action */}
+                    {(() => {
+                      const rule = rules.find((r) => r.post_id === item.id);
+                      if (rule) {
+                        return (
+                          <button
+                            onClick={() => openAutomationModal(item)}
+                            className={`flex-shrink-0 px-3 py-1.5 rounded-full border text-[11px] font-bold transition-all flex items-center gap-1.5 shadow-sm hover:scale-[1.02] ${
+                              rule.active 
+                                ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100/50" 
+                                : "bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100"
+                            }`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${rule.active ? "bg-emerald-500 animate-pulse" : "bg-slate-400"}`} />
+                            {rule.active ? "Active" : "Paused"} Auto-DM
+                          </button>
+                        );
+                      } else {
+                        return (
+                          <button
+                            onClick={() => openAutomationModal(item)}
+                            className="flex-shrink-0 px-3 py-1.5 rounded-full border border-[#a855f7]/30 bg-[#faf5ff] text-[#a855f7] text-[11px] font-bold hover:bg-[#f3e8ff] transition-all flex items-center gap-1 hover:scale-[1.02]"
+                          >
+                            <Plus size={11} strokeWidth={2.5} /> Setup Auto-DM
+                          </button>
+                        );
+                      }
+                    })()}
+
                     {/* Actions */}
                     <a
                       href={item.permalink}
@@ -476,6 +727,282 @@ export default function ReelsPage() {
           )}
         </>
       )}
+
+      {/* Auto-DM Automation Modal */}
+      <AnimatePresence>
+        {isAutomationModalOpen && selectedItemForAutomation && selectedAccount && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsAutomationModalOpen(false)}
+              className="absolute inset-0 bg-slate-950/40 backdrop-blur-xs"
+            />
+
+            {/* Modal Body */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ type: "spring", duration: 0.4 }}
+              className="relative w-full max-w-xl max-h-[85vh] overflow-hidden flex flex-col rounded-[2.5rem] border border-slate-200 bg-white shadow-2xl z-10"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-slate-100 bg-white px-6 py-4">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={18} className="text-[#a855f7]" />
+                  <h3 className="font-semibold text-slate-900 text-[16px]">Setup Auto-DM Automation</h3>
+                </div>
+                <button
+                  onClick={() => setIsAutomationModalOpen(false)}
+                  className="rounded-full p-2 text-slate-400 hover:bg-slate-50 hover:text-slate-700 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Scrollable Container */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50 no-scrollbar">
+                
+                {/* 1. Account Header Card (cloned style from settings page) */}
+                <div className="p-4 bg-white border border-slate-200/80 rounded-3xl shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="relative shrink-0">
+                      <div className="w-14 h-14 rounded-full p-0.5 bg-linear-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7]">
+                        <div className="w-full h-full rounded-full border-2 border-white overflow-hidden bg-slate-50">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img 
+                            src={selectedAccount.profile_picture_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedAccount.username}`} 
+                            alt="IG Avatar" 
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      </div>
+                      <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md border border-slate-50">
+                        <Instagram size={11} className="text-[#ee2a7b]" />
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-col min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <h4 className="text-[14px] font-bold text-slate-800 truncate">@{selectedAccount.username}</h4>
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-50 rounded-md border border-emerald-100/50 shrink-0">
+                          <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                          <span className="text-[8px] font-extrabold text-emerald-600 uppercase tracking-wider">Live</span>
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 font-semibold">Instagram Business Account</p>
+                    </div>
+                  </div>
+                  
+                  {/* Status toggle inside card */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+                      {automationActive ? "Active" : "Paused"}
+                    </span>
+                    <button
+                      onClick={() => setAutomationActive(!automationActive)}
+                      className={`w-10 h-5.5 rounded-full relative transition-all flex-shrink-0 cursor-pointer ${
+                        automationActive 
+                          ? "bg-gradient-to-r from-[#ee2a7b] to-[#6228d7]" 
+                          : "bg-slate-200"
+                      }`}
+                    >
+                      <div className={`absolute top-0.5 w-4.5 h-4.5 rounded-full bg-white shadow transition-all ${
+                        automationActive ? "right-0.5" : "left-0.5"
+                      }`} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* 2. Selected Reel Preview Card */}
+                <div className="p-3 bg-white border border-slate-250/70 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.01)] flex gap-3 items-start">
+                  <div className="relative w-12 h-16 shrink-0 overflow-hidden rounded-xl bg-slate-100 border border-slate-200/50">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={getThumb(selectedItemForAutomation)} alt="" className="w-full h-full object-cover" />
+                    <span className="absolute bottom-0 inset-x-0 bg-slate-950/70 py-0.5 text-center text-[7px] font-black uppercase text-white tracking-wider">
+                      {selectedItemForAutomation.media_type === "VIDEO" ? "REEL" : "POST"}
+                    </span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="text-[8px] font-extrabold uppercase tracking-widest text-[#a855f7]">Target Post</span>
+                    <p className="line-clamp-2 text-[12px] leading-relaxed text-slate-650 font-semibold mt-0.5">
+                      {selectedItemForAutomation.caption || <span className="italic text-slate-400">No caption</span>}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 3. Choose Template Preset */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[12px] font-black uppercase tracking-wider text-slate-400">Choose Template Preset</label>
+                    {activePresetIndex > 0 && (
+                      <span className="text-[10px] text-[#a855f7] font-bold">Preset loaded</span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {AUTOMATION_PRESETS.map((preset, idx) => (
+                      <button
+                        key={preset.name}
+                        type="button"
+                        onClick={() => {
+                          setActivePresetIndex(idx);
+                          if (idx > 0) {
+                            setAutomationMessage(preset.message);
+                          }
+                        }}
+                        className={`p-2.5 rounded-xl border text-left transition-all hover:scale-[1.01] ${
+                          activePresetIndex === idx
+                            ? "border-[#a855f7] bg-violet-50/50 text-[#a855f7]"
+                            : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm">{preset.icon}</span>
+                          <span className="text-[11.5px] font-bold truncate leading-none">{preset.name.replace(" Preset", "")}</span>
+                        </div>
+                        <p className="text-[9.5px] text-slate-400 mt-1 line-clamp-1 leading-tight font-medium">{preset.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 4. Trigger Setting */}
+                <div className="space-y-2.5 p-4.5 bg-white border border-slate-200 rounded-3xl">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[12.5px] font-bold text-slate-800">Trigger on Any Comment</p>
+                      <p className="text-[10.5px] text-slate-400 font-semibold mt-0.5">Send Auto-DM to any message or comment</p>
+                    </div>
+                    <button
+                      onClick={() => setAutomationKeywordMode(automationKeywordMode === "any" ? "specific" : "any")}
+                      className={`w-10 h-5.5 rounded-full relative transition-all flex-shrink-0 cursor-pointer ${
+                        automationKeywordMode === "any" 
+                          ? "bg-slate-900" 
+                          : "bg-slate-200"
+                      }`}
+                    >
+                      <div className={`absolute top-0.5 w-4.5 h-4.5 rounded-full bg-white shadow transition-all ${
+                        automationKeywordMode === "any" ? "right-0.5" : "left-0.5"
+                      }`} />
+                    </button>
+                  </div>
+
+                  {automationKeywordMode === "specific" && (
+                    <div className="pt-3 border-t border-slate-100 space-y-2 animate-in fade-in slide-in-from-top-1 duration-300">
+                      <label className="text-[10.5px] font-black uppercase tracking-wider text-slate-450 block">Keywords to Watch</label>
+                      <div className="flex gap-2">
+                        <input
+                          value={keywordInput}
+                          onChange={(e) => setKeywordInput(e.target.value.toUpperCase())}
+                          onKeyDown={(e) => e.key === "Enter" && addKeyword()}
+                          placeholder="e.g. YES, LINK, GETIT"
+                          className="flex-1 h-9 rounded-xl border border-slate-250 bg-white px-3 py-1.5 text-[12px] font-medium text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#a855f7]/20"
+                        />
+                        <button
+                          type="button"
+                          onClick={addKeyword}
+                          className="h-9 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-[12px] flex items-center justify-center transition-colors"
+                        >
+                          <Plus size={14} />
+                        </button>
+                      </div>
+
+                      {automationKeywords.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5 pt-1.5">
+                          {automationKeywords.map((kw) => (
+                            <span
+                              key={kw}
+                              className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-50 border border-slate-200 text-slate-650 font-bold text-[11px]"
+                            >
+                              {kw}
+                              <button
+                                type="button"
+                                onClick={() => removeKeyword(kw)}
+                                className="text-slate-400 hover:text-slate-650 transition-colors"
+                              >
+                                <X size={10} />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-amber-505 font-semibold italic">Please add at least one keyword to trigger the DM.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* 5. Custom Message Input */}
+                <div className="space-y-1.5">
+                  <label className="text-[12px] font-black uppercase tracking-wider text-slate-400 block">Custom DM Message</label>
+                  <textarea
+                    value={automationMessage}
+                    onChange={(e) => {
+                      setAutomationMessage(e.target.value);
+                      setActivePresetIndex(0);
+                    }}
+                    placeholder="Hey! Thanks for commenting. Here is the link you requested... 🚀"
+                    rows={4}
+                    className="w-full resize-none rounded-2xl border border-slate-250 bg-white p-3.5 text-[13px] font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#a855f7]/20 leading-relaxed shadow-sm"
+                  />
+                  <p className="text-[9.5px] text-slate-400 leading-tight">
+                    💡 Tip: Keep it short, conversational, and direct. You can use <code>{`{first_name}`}</code> for personalization.
+                  </p>
+                </div>
+
+              </div>
+
+              {/* Footer */}
+              <div className="border-t border-slate-100 bg-white px-6 py-4.5 flex items-center justify-between">
+                {(() => {
+                  const existingRule = rules.find((r) => r.post_id === selectedItemForAutomation.id);
+                  if (existingRule) {
+                    return (
+                      <button
+                        onClick={() => handleDeleteAutomation(existingRule.id)}
+                        disabled={savingAutomation}
+                        className="h-10 px-4 rounded-xl border border-red-100 bg-red-50 hover:bg-red-100 text-red-600 text-[12.5px] font-bold transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 shrink-0"
+                        title="Delete Automation"
+                      >
+                        <Trash2 size={14} />
+                        Delete
+                      </button>
+                    );
+                  }
+                  return <div />;
+                })()}
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setIsAutomationModalOpen(false)}
+                    className="h-10 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 text-[12.5px] font-bold transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveAutomation}
+                    disabled={savingAutomation || (automationKeywordMode === "specific" && automationKeywords.length === 0) || !automationMessage.trim()}
+                    className="h-10 px-5 rounded-xl bg-[#a855f7] hover:bg-[#9333ea] text-white text-[12.5px] font-bold shadow-md shadow-purple-100 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {savingAutomation ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <span>Save Automation</span>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -172,11 +172,14 @@ export async function POST(req: Request) {
         console.log(`[Webhook] 💬 Comment: "${commentText}" from ${commenterId} on media ${mediaId}`);
 
         // Find the IG account in our DB
-        const { data: igAccount, error: accError } = await supabaseAdmin
+        const { data: igAccounts, error: accError } = await supabaseAdmin
           .from("instagram_accounts")
           .select("id, user_id, access_token, username")
           .eq("instagram_business_id", igBusinessId.toString())  // Convert to string
-          .maybeSingle();
+          .order("updated_at", { ascending: false })
+          .limit(1);
+
+        const igAccount = igAccounts?.[0] ?? null;
           
         if (accError || !igAccount) {
           console.error("[Webhook] ❌ No IG account in DB for business ID:", igBusinessId);
