@@ -212,17 +212,18 @@ export async function POST(req: Request) {
           continue;
         }
 
+        const tokenToUse = igAccount.access_token;
+
         if (!rules?.length) {
           console.log("[Webhook] ℹ️ No active rules found. Sending default DM.");
           // Send a fallback DM to the commenter
-          await sendDm(commenterId, "Thanks for your comment! We'll get back to you soon.");
+          await sendInstagramDM(
+            { comment_id: commentId },
+            "Thanks for your comment! We'll get back to you soon.",
+            tokenToUse
+          );
           continue;
         }
-          console.log("[Webhook] ℹ️ No active rules found.");
-          continue;
-        }
-
-        const tokenToUse = igAccount.access_token;
 
         for (const rule of rules) {
           // ── Scope check ─────────────────────────────────────────────────
