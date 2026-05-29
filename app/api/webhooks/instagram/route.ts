@@ -340,9 +340,6 @@ export async function POST(req: Request) {
                 last_execution: new Date().toISOString(),
               })
               .eq("id", rule.id);
-            // Stop processing additional rules for this comment after a successful DM
-            console.log("[Webhook] Stopping further rule processing for this comment — DM delivered.");
-            break;
           } else {
             console.error("[Webhook] ❌ DM failed for commenter", commenterId, ":", dmResult.error);
           }
