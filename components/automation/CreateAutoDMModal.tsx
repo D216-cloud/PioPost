@@ -89,26 +89,41 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
   );
 
   const fetchPosts = useCallback(async () => {
+    console.log("[AutoDM] CreateAutoDMModal opened: loading Instagram posts");
     setLoadingPosts(true);
     try {
       const res = await fetch("/api/instagram/posts");
+      console.log("[AutoDM] Fetching /api/instagram/posts", { status: res.status });
       const { data, account, error } = await res.json();
       if (error) throw new Error(error);
       setPosts(data || []);
       setIgAccount(account);
+      console.log("[AutoDM] Instagram posts loaded", {
+        postCount: Array.isArray(data) ? data.length : 0,
+        accountUsername: account?.username ?? null,
+      });
 
       // Get the account ID
       const acctRes = await fetch("/api/instagram/account");
+      console.log("[AutoDM] Fetching /api/instagram/account", { status: acctRes.status });
       const acctData = await acctRes.json();
-      if (acctData.id) setIgAccountId(acctData.id);
+      if (acctData.id) {
+        setIgAccountId(acctData.id);
+        console.log("[AutoDM] Instagram account ID loaded", { accountId: acctData.id });
+      } else {
+        console.log("[AutoDM] Instagram account ID not found in response", acctData);
+      }
     } catch (err: unknown) {
+      console.error("[AutoDM] Could not load posts", err);
       toast.error("Could not load posts: " + getErrorMessage(err));
     } finally {
+      console.log("[AutoDM] Loading posts finished");
       setLoadingPosts(false);
     }
   }, []);
 
   useEffect(() => {
+    console.log("[AutoDM] CreateAutoDMModal mounted");
     queueMicrotask(() => {
       void fetchPosts();
     });
@@ -117,12 +132,14 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
   function addKeyword() {
     const kw = keywordInput.trim().toUpperCase();
     if (kw && !keywords.includes(kw)) {
+      console.log("[AutoDM] Keyword added", { keyword: kw });
       setKeywords([...keywords, kw]);
       setKeywordInput("");
     }
   }
 
   function removeKeyword(kw: string) {
+    console.log("[AutoDM] Keyword removed", { keyword: kw });
     setKeywords(keywords.filter((k) => k !== kw));
   }
 
@@ -135,6 +152,17 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
 
   async function handleCreate() {
     if (!selectedPost || !igAccountId) return;
+    console.log("[AutoDM] Creating automation", {
+      step,
+      selectedPostId: selectedPost.id,
+      selectedPostType: selectedPost.type,
+      keywordMode,
+      keywords,
+      autoReply,
+      requireFollow,
+      addButton,
+      igAccountId,
+    });
     setCreating(true);
     try {
       const res = await fetch("/api/automations", {
@@ -162,10 +190,13 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
       const { data, error } = await res.json();
       if (error) throw new Error(error);
 
+      console.log("[AutoDM] Automation created successfully", { automation: data ?? null });
       onCreated();
     } catch (err: unknown) {
+      console.error("[AutoDM] Failed to create automation", err);
       toast.error("Failed to create automation: " + getErrorMessage(err));
     } finally {
+      console.log("[AutoDM] Create automation request finished");
       setCreating(false);
     }
   }
@@ -214,7 +245,10 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
               <h3 className="text-lg font-semibold text-slate-900">Choose your trigger</h3>
               <p className="text-sm text-slate-500">When should the AutoDM be sent?</p>
               <button
-                onClick={() => setStep(1)}
+                onClick={() => {
+                  console.log("[AutoDM] Trigger selected: comment on post or reel");
+                  setStep(1);
+                }}
                 className="w-full flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left transition-all hover:border-slate-300 hover:shadow-sm"
               >
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white">
@@ -251,7 +285,10 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
                   <button
                     key={tab}
                     type="button"
-                    onClick={() => setMediaTab(tab)}
+                    onClick={() => {
+                      console.log("[AutoDM] Media tab changed", { tab });
+                      setMediaTab(tab);
+                    }}
                     className={`flex-1 py-1.5 rounded-full text-[12px] font-bold capitalize transition-all ${
                       mediaTab === tab
                         ? "bg-slate-900 text-white shadow-sm"
@@ -295,7 +332,14 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
                         <button
                           key={post.id}
                           type="button"
-                          onClick={() => setSelectedPost(post)}
+                          onClick={() => {
+                            console.log("[AutoDM] Post selected", {
+                              postId: post.id,
+                              postType: post.type,
+                              permalink: post.permalink,
+                            });
+                            setSelectedPost(post);
+                          }}
                           className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${
                             selectedPost?.id === post.id
                               ? "border-slate-900 ring-2 ring-slate-200"
@@ -356,7 +400,10 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
 
               <div className="grid grid-cols-2 gap-3">
                 <button
-                  onClick={() => setKeywordMode("specific")}
+                  onClick={() => {
+                    console.log("[AutoDM] Keyword mode changed", { keywordMode: "specific" });
+                    setKeywordMode("specific");
+                  }}
                   className={`p-4 rounded-xl border-2 text-left transition-colors ${
                     keywordMode === "specific" ? "border-slate-900 bg-slate-50" : "border-slate-200 bg-white hover:border-slate-300"
                   }`}
@@ -365,7 +412,10 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
                   <p className="mt-1 text-xs text-slate-500">Only trigger for defined keywords</p>
                 </button>
                 <button
-                  onClick={() => setKeywordMode("any")}
+                  onClick={() => {
+                    console.log("[AutoDM] Keyword mode changed", { keywordMode: "any" });
+                    setKeywordMode("any");
+                  }}
                   className={`p-4 rounded-xl border-2 text-left transition-colors ${
                     keywordMode === "any" ? "border-slate-900 bg-slate-50" : "border-slate-200 bg-white hover:border-slate-300"
                   }`}
@@ -387,7 +437,10 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
                       className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-slate-400 focus:outline-none"
                     />
                     <button
-                      onClick={addKeyword}
+                      onClick={() => {
+                        console.log("[AutoDM] Keyword add button clicked", { keywordInput });
+                        addKeyword();
+                      }}
                       className="rounded-xl bg-slate-900 px-4 py-2 text-white transition-colors hover:bg-slate-800"
                     >
                       <Plus size={16} />
@@ -454,7 +507,10 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
                     <p className="text-xs text-slate-500">Add a clickable button to your DM</p>
                   </div>
                   <ToggleSwitch
-                    onClick={() => setAddButton(!addButton)}
+                    onClick={() => {
+                      console.log("[AutoDM] CTA button toggle changed", { enabled: !addButton });
+                      setAddButton(!addButton);
+                    }}
                     on={addButton}
                     label="CTA button"
                   />
@@ -486,7 +542,10 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
                     <p className="text-xs text-slate-500">Publicly reply to let them know</p>
                   </div>
                   <ToggleSwitch
-                    onClick={() => setAutoReply(!autoReply)}
+                    onClick={() => {
+                      console.log("[AutoDM] Auto-reply toggle changed", { enabled: !autoReply });
+                      setAutoReply(!autoReply);
+                    }}
                     on={autoReply}
                     label="Reply"
                   />
@@ -509,7 +568,10 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
                     <p className="text-xs text-slate-500">Reward followers with the DM link</p>
                   </div>
                   <ToggleSwitch
-                    onClick={() => setRequireFollow(!requireFollow)}
+                    onClick={() => {
+                      console.log("[AutoDM] Follow gate toggle changed", { enabled: !requireFollow });
+                      setRequireFollow(!requireFollow);
+                    }}
                     on={requireFollow}
                     label="Gate"
                   />
@@ -604,7 +666,11 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-slate-100 bg-white px-6 py-4">
           <button
-            onClick={() => setStep(Math.max(0, step - 1))}
+            onClick={() => {
+              const nextStep = Math.max(0, step - 1);
+              console.log("[AutoDM] Back clicked", { fromStep: step, toStep: nextStep });
+              setStep(nextStep);
+            }}
             disabled={step === 0}
             className="flex items-center gap-2 text-slate-500 transition-colors hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-30"
           >
@@ -614,7 +680,11 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
 
           {step < 4 ? (
             <button
-              onClick={() => setStep(step + 1)}
+              onClick={() => {
+                const nextStep = step + 1;
+                console.log("[AutoDM] Next clicked", { fromStep: step, toStep: nextStep });
+                setStep(nextStep);
+              }}
               disabled={!canProceed() && step !== 0}
               className="flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2 font-medium text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
             >
