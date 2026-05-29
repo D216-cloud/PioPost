@@ -125,7 +125,34 @@ export function AutomationDashboard() {
         const res = await fetch(url);
         const { data } = await res.json();
         const automationRules = Array.isArray(data) ? (data as RuleRecord[]) : [];
-        setRules(automationRules.filter((rule) => !rule.deleted));
+
+        const visibleRules = automationRules.filter((rule) => !rule.deleted);
+        const ruleIds = visibleRules.map((rule) => rule.id);
+
+        let executionCounts: Record<string, number> = {};
+        if (ruleIds.length > 0) {
+          const logsRes = await fetch("/api/automation-logs?limit=1000");
+          const { data: logsData } = await logsRes.json();
+          const logs = Array.isArray(logsData) ? logsData : [];
+
+          executionCounts = logs.reduce<Record<string, number>>((counts, log: { automation_id?: string; dm_sent?: boolean }) => {
+            if (log?.automation_id && log.dm_sent) {
+              counts[log.automation_id] = (counts[log.automation_id] ?? 0) + 1;
+            }
+            return counts;
+          }, {});
+        }
+
+        setRules(
+          visibleRules.map((rule) => {
+            const liveExecutionCount = executionCounts[rule.id] ?? rule.total_dms_sent ?? rule.executions ?? 0;
+            return {
+              ...rule,
+              executions: liveExecutionCount,
+              total_dms_sent: liveExecutionCount,
+            };
+          })
+        );
       } catch (err: unknown) {
         console.error("Error fetching rules:", err);
         toast.error("Failed to load automation rules");
@@ -156,6 +183,29 @@ export function AutomationDashboard() {
 
     void loadDashboard();
   }, [fetchAccounts, fetchRules]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      if (selectedAccountId) {
+        void fetchRules(selectedAccountId, true);
+      }
+    }, 10000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && selectedAccountId) {
+        void fetchRules(selectedAccountId, true);
+      }
+    };
+
+    window.addEventListener("focus", handleVisibilityChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleVisibilityChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [fetchRules, selectedAccountId]);
 
   const handleToggleRule = async (id: string, active: boolean) => {
     try {
