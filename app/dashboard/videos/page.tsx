@@ -32,6 +32,34 @@ interface DraftVideo {
   title: string;
 }
 
+const formatTimeLeft = (scheduledAt: string, now: Date) => {
+  const due = new Date(scheduledAt).getTime();
+  const diff = due - now.getTime();
+
+  if (Number.isNaN(due)) {
+    return "Time unavailable";
+  }
+
+  if (diff <= 0) {
+    return "Ready to post";
+  }
+
+  const totalMinutes = Math.ceil(diff / 60000);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (days > 0) {
+    return `${days}d ${hours}h left`;
+  }
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m left`;
+  }
+
+  return `${minutes}m left`;
+};
+
 export default function VideosPage() {
   const { data: session } = useSession();
   const [videos, setVideos] = useState<VideoRow[]>([]);
@@ -39,8 +67,11 @@ export default function VideosPage() {
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState<DraftVideo | null>(null);
   const [processingDue, setProcessingDue] = useState(false);
+  const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 30000);
+
     // Check for localStorage draft
     const savedDraft = localStorage.getItem('pinpost_latest_draft');
     if (savedDraft) {
@@ -92,6 +123,7 @@ export default function VideosPage() {
 
     return () => {
       supabase.removeChannel(channel);
+      window.clearInterval(timer);
     };
   }, [session?.user?.id]);
 
@@ -145,6 +177,21 @@ export default function VideosPage() {
     v.title.toLowerCase().includes(search.toLowerCase()) ||
     v.caption?.toLowerCase().includes(search.toLowerCase())
   );
+
+  const getStatusStyles = (status: string) => {
+    switch (status) {
+      case "posted":
+        return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+      case "scheduled":
+        return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+      case "processing":
+        return "bg-amber-500/20 text-amber-400 border-amber-500/30";
+      case "failed":
+        return "bg-rose-500/20 text-rose-400 border-rose-500/30";
+      default:
+        return "bg-sky-500/20 text-sky-400 border-sky-500/30";
+    }
+  };
 
   return (
     <div className="w-[95%] max-w-6xl mx-auto px-4 md:px-8 pt-28 pb-16 md:pb-20 space-y-10 animate-in fade-in duration-700">
@@ -216,10 +263,7 @@ export default function VideosPage() {
               {/* Status Badge */}
               <div className="absolute top-6 left-6">
                 <div className={`px-4 py-2 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest border shadow-xl flex items-center gap-2 ${
-                  video.status === 'posted' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 
-                  video.status === 'failed' ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' :
-                  video.status === 'processing' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
-                  'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                  getStatusStyles(video.status)
                 }`}>
                     {getStatusIcon(video.status)}
                     {video.status}
@@ -239,10 +283,22 @@ export default function VideosPage() {
                    <h3 className="text-white text-[16px] font-bold leading-tight line-clamp-2 drop-shadow-xl">{video.title}</h3>
                    <div className="flex items-center gap-3 pt-2">
                       <Clock size={12} className="text-white/40" />
-                      <p className="text-white/40 text-[11px] font-mono tracking-tighter">
+                      <p className={`text-[11px] font-mono tracking-tighter ${video.status === "scheduled" ? "text-emerald-300" : "text-white/40"}`}>
                         {new Date(video.scheduled_at).toLocaleDateString()} — {new Date(video.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </p>
                    </div>
+                   {video.status === "scheduled" && (
+                     <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/20 px-3 py-1 text-[11px] font-bold text-emerald-300 border border-emerald-500/30">
+                       <Clock size={12} />
+                       {formatTimeLeft(video.scheduled_at, now)}
+                     </div>
+                   )}
+                   {video.status !== "scheduled" && video.status !== "posted" && (
+                     <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-bold text-white/70 border border-white/10">
+                       <Clock size={12} />
+                       {formatTimeLeft(video.scheduled_at, now)}
+                     </div>
+                   )}
                 </div>
 
                 <div className="flex items-center gap-3 pt-2">
