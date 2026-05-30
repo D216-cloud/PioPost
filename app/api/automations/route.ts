@@ -63,6 +63,7 @@ export async function POST(req: Request) {
       require_follow,
       follow_gate_message,
       rule_name,
+      activation_delay_days,
     } = body;
 
     // Validate required fields
@@ -105,6 +106,9 @@ export async function POST(req: Request) {
         require_follow: require_follow || false,
         follow_gate_message,
         rule_name,
+        activation_delay_days: Number.isFinite(Number(activation_delay_days))
+          ? Math.max(0, Math.floor(Number(activation_delay_days)))
+          : 0,
         active: true,
         deleted: false,
       })

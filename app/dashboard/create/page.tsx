@@ -1,23 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { 
   Sparkles, 
-  ArrowRight, 
   Play, 
   Activity, 
   CheckCircle2,
   Calendar as CalendarIcon,
   Clock,
   Settings as SettingsIcon,
-  Plus,
   Loader2,
-  BadgeInfo,
   X
 } from "lucide-react";
 import { YoutubeIcon as Youtube } from "@/components/icons";
 import { toast } from "sonner";
-import { supabase } from "@/lib/supabase";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
@@ -133,6 +130,19 @@ export default function CreatePage() {
 
       if (!res.ok) throw new Error("Scheduling failed");
 
+      const processRes = await fetch("/api/videos/process", {
+        method: "POST",
+      });
+
+      const processJson = await processRes.json().catch(() => null);
+      if (!processRes.ok) {
+        toast.warning(processJson?.error || "Reels were scheduled, but automatic publishing has not run yet.");
+      } else if ((processJson?.processed ?? 0) > 0) {
+        toast.success(`Published ${processJson.processed} due reel${processJson.processed === 1 ? "" : "s"} to Instagram.`);
+      } else {
+        toast.info("Reels were scheduled and will publish when they become due.");
+      }
+
       // Clear draft after scheduling
       localStorage.removeItem('pinpost_latest_draft');
       
@@ -169,7 +179,7 @@ export default function CreatePage() {
       {/* High-Fidelity Input Pill */}
       <section className="relative max-w-3xl group">
         <div className="absolute -inset-1 bg-linear-to-r from-[#a855f7]/20 to-[#e84c9f]/20 rounded-2xl md:rounded-[2.5rem] blur opacity-0 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
-        <div className="relative bg-white rounded-2xl md:rounded-[2rem] p-2 md:p-3 border border-[#e4e4e7] shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col md:flex-row items-center gap-2 md:gap-4">
+        <div className="relative bg-white rounded-2xl md:rounded-4xl p-2 md:p-3 border border-[#e4e4e7] shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col md:flex-row items-center gap-2 md:gap-4">
           <div className="hidden md:flex pl-6 text-slate-400">
             <Youtube size={24} />
           </div>
@@ -195,9 +205,9 @@ export default function CreatePage() {
         <section className="animate-in fade-in slide-in-from-bottom-8 duration-700 space-y-12">
           {/* Metadata Card - ChatGPT Style */}
           {data ? (
-            <div className="bg-white rounded-[24px] p-6 md:p-8 border border-[#e4e4e7] shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-8 group animate-in zoom-in-95 duration-500 text-center md:text-left">
-               <div className="w-full md:w-40 aspect-video rounded-2xl overflow-hidden shadow-sm shrink-0 border border-slate-100">
-                 <img src={data.thumbnail as string} className="w-full h-full object-cover" />
+            <div className="bg-white rounded-3xl p-6 md:p-8 border border-[#e4e4e7] shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-8 group animate-in zoom-in-95 duration-500 text-center md:text-left">
+               <div className="relative w-full md:w-40 aspect-video rounded-2xl overflow-hidden shadow-sm shrink-0 border border-slate-100">
+                 <Image src={data.thumbnail as string} alt="YouTube video thumbnail" fill sizes="(max-width: 768px) 100vw, 160px" className="object-cover" />
                </div>
                <div className="flex-1 min-w-0 space-y-2">
                   <div className="flex items-center justify-center md:justify-start gap-2">
@@ -209,7 +219,7 @@ export default function CreatePage() {
                </div>
             </div>
           ) : (
-            <div className="bg-white rounded-[24px] p-8 border border-[#e4e4e7] shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex items-center gap-8 animate-pulse">
+            <div className="bg-white rounded-3xl p-8 border border-[#e4e4e7] shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex items-center gap-8 animate-pulse">
                <div className="w-40 aspect-video rounded-2xl bg-slate-100 shrink-0" />
                <div className="flex-1 space-y-3">
                   <div className="h-2 w-24 bg-slate-100 rounded-full" />
@@ -221,7 +231,7 @@ export default function CreatePage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
              {/* Configuration */}
-             <div className="bg-white rounded-[24px] p-6 md:p-8 border border-[#e4e4e7] shadow-[0_4px_24px_rgba(0,0,0,0.02)] space-y-6 md:space-y-8 flex flex-col">
+             <div className="bg-white rounded-3xl p-6 md:p-8 border border-[#e4e4e7] shadow-[0_4px_24px_rgba(0,0,0,0.02)] space-y-6 md:space-y-8 flex flex-col">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
                     <SettingsIcon size={20} />
@@ -266,7 +276,7 @@ export default function CreatePage() {
              </div>
 
              {/* Scheduling */}
-             <div className="bg-white rounded-[24px] p-6 md:p-8 border border-[#e4e4e7] shadow-[0_4px_24px_rgba(0,0,0,0.02)] space-y-6 md:space-y-8 flex flex-col">
+             <div className="bg-white rounded-3xl p-6 md:p-8 border border-[#e4e4e7] shadow-[0_4px_24px_rgba(0,0,0,0.02)] space-y-6 md:space-y-8 flex flex-col">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
                     <CalendarIcon size={20} />
@@ -339,8 +349,8 @@ export default function CreatePage() {
             
             <div className="flex flex-wrap justify-center gap-8 md:gap-12 pb-10">
               {discoveredClips.slice(0, numReels).map((clip: Record<string, unknown>, i: number) => (
-                <div key={i} className="w-full sm:w-[280px] aspect-[9/16] bg-slate-900 rounded-[2.5rem] relative overflow-hidden shadow-2xl border-[6px] border-white shrink-0 group transition-all duration-700 animate-in fade-in slide-in-from-bottom-10 hover:scale-[1.03] hover:shadow-purple-500/10">
-                  <img src={clip.thumb as string} className="absolute inset-0 w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity duration-700" />
+                <div key={i} className="w-full sm:w-70 aspect-9/16 bg-slate-900 rounded-[2.5rem] relative overflow-hidden shadow-2xl border-[6px] border-white shrink-0 group transition-all duration-700 animate-in fade-in slide-in-from-bottom-10 hover:scale-[1.03] hover:shadow-purple-500/10">
+                  <Image src={clip.thumb as string} alt="Clip preview thumbnail" fill sizes="(max-width: 640px) 100vw, 280px" className="object-cover opacity-70 group-hover:opacity-90 transition-opacity duration-700" />
                   <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-black/10" />
                   
                   <div className="absolute top-6 left-6">
@@ -383,8 +393,8 @@ export default function CreatePage() {
 
       {/* Video Playback Modal */}
       {playingClip && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="relative w-full max-w-lg aspect-[9/16] bg-black rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/10">
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-6 bg-slate-900/90 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="relative w-full max-w-lg aspect-9/16 bg-black rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/10">
             <button 
               onClick={() => setPlayingClip(null)}
               className="absolute top-6 right-6 w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white z-50 transition-all"

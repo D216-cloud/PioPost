@@ -1,33 +1,52 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { 
   Search, 
   Filter, 
   MoreVertical, 
-  ExternalLink, 
   Trash2, 
   CheckCircle2, 
   Clock,
-  AlertCircle
+  AlertCircle,
+  RefreshCw
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 
+interface VideoRow {
+  id: string;
+  title: string;
+  caption?: string | null;
+  thumbnail_url?: string | null;
+  status: string;
+  scheduled_at: string;
+  source_url?: string | null;
+}
+
+interface DraftVideo {
+  thumbnail: string;
+  title: string;
+}
+
 export default function VideosPage() {
   const { data: session } = useSession();
-  const [videos, setVideos] = useState<any[]>([]);
+  const [videos, setVideos] = useState<VideoRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [draft, setDraft] = useState<any>(null);
+  const [draft, setDraft] = useState<DraftVideo | null>(null);
+  const [processingDue, setProcessingDue] = useState(false);
 
   useEffect(() => {
     // Check for localStorage draft
     const savedDraft = localStorage.getItem('pinpost_latest_draft');
     if (savedDraft) {
-      setDraft(JSON.parse(savedDraft));
+      queueMicrotask(() => {
+        setDraft(JSON.parse(savedDraft) as DraftVideo);
+      });
     }
 
     if (!session?.user?.id) return;
@@ -61,11 +80,11 @@ export default function VideosPage() {
         },
         (payload) => {
           if (payload.eventType === 'INSERT') {
-            setVideos(prev => [payload.new, ...prev]);
+            setVideos(prev => [payload.new as VideoRow, ...prev]);
           } else if (payload.eventType === 'UPDATE') {
-            setVideos(prev => prev.map(v => v.id === payload.new.id ? payload.new : v));
+            setVideos(prev => prev.map(v => v.id === (payload.new as VideoRow).id ? (payload.new as VideoRow) : v));
           } else if (payload.eventType === 'DELETE') {
-            setVideos(prev => prev.filter(v => v.id === payload.old.id));
+            setVideos(prev => prev.filter(v => v.id !== (payload.old as VideoRow).id));
           }
         }
       )
@@ -89,11 +108,35 @@ export default function VideosPage() {
     }
   };
 
+  const handleProcessDue = async () => {
+    setProcessingDue(true);
+    try {
+      const res = await fetch("/api/videos/process", { method: "POST" });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to process due reels");
+      }
+
+      toast.success(
+        data.processed > 0
+          ? `Published ${data.processed} due reel${data.processed === 1 ? "" : "s"}.`
+          : "No due reels were ready to publish."
+      );
+    } catch (err) {
+      console.error("Failed to process due reels:", err);
+      toast.error(err instanceof Error ? err.message : "Failed to process due reels");
+    } finally {
+      setProcessingDue(false);
+    }
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "posted": return <CheckCircle2 size={14} className="text-emerald-500" />;
       case "scheduled": return <Clock size={14} className="text-[#2563EB]" />;
       case "processing": return <div className="w-3.5 h-3.5 border-2 border-[#2563EB]/30 border-t-[#2563EB] rounded-full animate-spin" />;
+      case "failed": return <AlertCircle size={14} className="text-rose-500" />;
       default: return <AlertCircle size={14} className="text-amber-500" />;
     }
   };
@@ -111,6 +154,15 @@ export default function VideosPage() {
           <p className="text-[14px] md:text-[15px] text-slate-500 font-medium">Manage and track your AI-generated content.</p>
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+          <button
+            type="button"
+            onClick={handleProcessDue}
+            disabled={processingDue}
+            className="w-full sm:w-auto h-11 px-4 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <RefreshCw size={16} className={processingDue ? "animate-spin" : ""} />
+            <span className="text-[13px] font-bold">Run Due Publishes</span>
+          </button>
           <div className="relative group w-full md:w-auto">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#2563EB] transition-colors" size={16} />
             <input 
@@ -139,9 +191,9 @@ export default function VideosPage() {
         <div className="flex flex-wrap justify-center gap-8 md:gap-12 pb-10">
           {/* Latest Draft from LocalStorage */}
           {draft && (
-            <div className="w-full sm:w-[280px] aspect-[9/16] bg-slate-900 rounded-[2.5rem] relative overflow-hidden shadow-2xl border-[6px] border-blue-500 shrink-0 group transition-all duration-500 hover:scale-[1.03]">
-              <img src={draft.thumbnail} className="absolute inset-0 w-full h-full object-cover opacity-50" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/10" />
+            <div className="w-full sm:w-70 aspect-9/16 bg-slate-900 rounded-[2.5rem] relative overflow-hidden shadow-2xl border-[6px] border-blue-500 shrink-0 group transition-all duration-500 hover:scale-[1.03]">
+              <Image src={draft.thumbnail} alt="Latest draft thumbnail" fill sizes="(max-width: 640px) 100vw, 280px" className="object-cover opacity-50" />
+              <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-black/10" />
               <div className="absolute top-6 left-6">
                 <div className="px-4 py-2 bg-blue-500 text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl border border-blue-400">
                   LATEST DRAFT
@@ -157,14 +209,16 @@ export default function VideosPage() {
             </div>
           )}
           {filteredVideos.map((video) => (
-            <div key={video.id} className="w-full sm:w-[280px] aspect-[9/16] bg-slate-900 rounded-[2.5rem] relative overflow-hidden shadow-2xl border-[6px] border-white shrink-0 group transition-all duration-500 hover:scale-[1.03] hover:shadow-blue-500/10">
-              <img src={video.thumbnail_url} className="absolute inset-0 w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity duration-700" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/10" />
+            <div key={video.id} className="w-full sm:w-70 aspect-9/16 bg-slate-900 rounded-[2.5rem] relative overflow-hidden shadow-2xl border-[6px] border-white shrink-0 group transition-all duration-500 hover:scale-[1.03] hover:shadow-blue-500/10">
+              <Image src={video.thumbnail_url ?? ""} alt={video.title} fill sizes="(max-width: 640px) 100vw, 280px" className="object-cover opacity-70 group-hover:opacity-90 transition-opacity duration-700" />
+              <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-black/10" />
               
               {/* Status Badge */}
               <div className="absolute top-6 left-6">
                 <div className={`px-4 py-2 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest border shadow-xl flex items-center gap-2 ${
                   video.status === 'posted' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 
+                  video.status === 'failed' ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' :
+                  video.status === 'processing' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
                   'bg-blue-500/20 text-blue-400 border-blue-500/30'
                 }`}>
                     {getStatusIcon(video.status)}
@@ -193,7 +247,7 @@ export default function VideosPage() {
 
                 <div className="flex items-center gap-3 pt-2">
                   <a 
-                    href={video.source_url} 
+                    href={video.source_url ?? "#"} 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="flex-1 py-3 bg-white/10 backdrop-blur-md rounded-xl text-[11px] font-bold text-white text-center hover:bg-white hover:text-slate-900 transition-all border border-white/10"

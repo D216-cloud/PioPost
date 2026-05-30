@@ -87,6 +87,7 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
   const [followGateMessage, setFollowGateMessage] = useState(
     "Hey! Follow me first and I'll send you the link 🙌"
   );
+  const [activationDelayDays, setActivationDelayDays] = useState(0);
 
   const fetchPosts = useCallback(async () => {
     console.log("[AutoDM] CreateAutoDMModal opened: loading Instagram posts");
@@ -184,6 +185,7 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
           comment_reply_text: autoReply ? commentReplyText : null,
           require_follow: requireFollow,
           follow_gate_message: requireFollow ? followGateMessage : null,
+          activation_delay_days: activationDelayDays,
         }),
       });
 
@@ -655,6 +657,26 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
                         {requireFollow ? "✓" : "✗"}
                       </span>
                       <span className={requireFollow ? "text-slate-800" : "text-slate-400"}>Follow gate enabled</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="mb-2 text-xs text-slate-500">Activation delay</p>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      min={0}
+                      value={activationDelayDays}
+                      onChange={(e) => {
+                        const nextValue = Number(e.target.value);
+                        setActivationDelayDays(Number.isFinite(nextValue) && nextValue > 0 ? Math.floor(nextValue) : 0);
+                      }}
+                      className="w-24 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-900 focus:border-slate-400 focus:outline-none"
+                    />
+                    <div>
+                      <p className="text-sm text-slate-800">Start this automation after this many days.</p>
+                      <p className="text-xs text-slate-500">Use 2 or 5 if you want the rule to begin later instead of immediately.</p>
                     </div>
                   </div>
                 </div>

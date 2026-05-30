@@ -115,6 +115,22 @@ async function sendInstagramDM(
   }
 }
 
+function getActivationDelayDays(rule: Record<string, unknown>): number {
+  const value = Number(rule.activation_delay_days ?? 0);
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  return Math.floor(value);
+}
+
+function isRuleEligible(rule: Record<string, unknown>, now: Date): boolean {
+  if (rule.active === false || rule.deleted === true) return false;
+
+  const createdAt = rule.created_at ? new Date(String(rule.created_at)) : null;
+  if (!createdAt || Number.isNaN(createdAt.getTime())) return true;
+
+  const activationDelayMs = getActivationDelayDays(rule) * 24 * 60 * 60 * 1000;
+  return now.getTime() >= createdAt.getTime() + activationDelayMs;
+}
+
 /** Post a public reply to a comment */
 async function postCommentReply(
   commentId: string,
@@ -198,14 +214,13 @@ export async function POST(req: Request) {
           continue;
         }
 
-        // Fetch active, non-deleted rules for this account
+        // Fetch all rules for this account and decide which are eligible now.
+        // Older rows may have null active/deleted values, so filter in code.
         const { data: rules, error: rulesError } = await supabaseAdmin
           .from("automation_rules")
           .select("*")
           .eq("user_id", igAccount.user_id)
-          .eq("instagram_account_id", igAccount.id)
-          .eq("active", true)
-          .eq("deleted", false);
+          .eq("instagram_account_id", igAccount.id);
 
         if (rulesError) {
           console.error("[Webhook] ❌ Failed to fetch active rules:", rulesError.message);
@@ -213,9 +228,10 @@ export async function POST(req: Request) {
         }
 
         const tokenToUse = igAccount.access_token;
+        const activeRules = (rules ?? []).filter((rule) => isRuleEligible(rule as Record<string, unknown>, new Date()));
 
         if (!rules?.length) {
-          console.log("[Webhook] ℹ️ No active rules found. Sending default DM.");
+          console.log("[Webhook] ℹ️ No automation rules found. Sending default DM.");
           // Send a fallback DM to the commenter
           await sendInstagramDM(
             { comment_id: commentId },
@@ -225,7 +241,12 @@ export async function POST(req: Request) {
           continue;
         }
 
-        for (const rule of rules) {
+        if (!activeRules.length) {
+          console.log("[Webhook] ℹ️ Automation rules exist, but none are eligible yet. Skipping fallback DM.");
+          continue;
+        }
+
+        for (const rule of activeRules) {
           // ── Scope check ─────────────────────────────────────────────────
           // Support both old schema (comment_scope + instagram_media_id)
           // and new schema (post_id determines "specific")
