@@ -20,6 +20,8 @@ const decodeHTMLEntities = (text: string) => {
   return text.replace(/&amp;|&lt;|&gt;|&quot;|&#39;|&apos;/g, (match) => entities[match]);
 };
 
+const normalizeThumbnailUrl = (videoId: string) => `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+
 async function fetchTranscript(videoId: string) {
   try {
     const userAgents = [
@@ -158,8 +160,10 @@ export async function POST(req: NextRequest) {
       const oembedRes = await fetch(oembedUrl);
       metadata = await oembedRes.json();
     } catch (e) {
-      metadata = { title: "YouTube Video", author_name: "Unknown", thumbnail_url: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg` };
+      metadata = { title: "YouTube Video", author_name: "Unknown" };
     }
+
+    const thumbnailUrl = normalizeThumbnailUrl(videoId);
 
     const events = await fetchTranscript(videoId);
     
@@ -171,12 +175,12 @@ export async function POST(req: NextRequest) {
          videoId,
          title: metadata.title,
          author: metadata.author_name,
-         thumbnail: metadata.thumbnail_url,
+         thumbnail: thumbnailUrl,
          youtubeUrl: `https://www.youtube.com/watch?v=${videoId}`,
          clips: [
-           { id: "m1", text: "Welcome to this amazing video! We're exploring the secrets of the universe and how everything is connected.", start_seconds: 0, end_seconds: 30, start: "0:00", end: "0:30", thumb: metadata.thumbnail_url },
-           { id: "m2", text: "The complexity of space-time is truly mind-blowing. Let's dive deeper into the quantum realm.", start_seconds: 30, end_seconds: 60, start: "0:30", end: "1:00", thumb: metadata.thumbnail_url },
-           { id: "m3", text: "In conclusion, the future of AI and technology is brighter than ever. Stay tuned for more!", start_seconds: 60, end_seconds: 90, start: "1:00", end: "1:30", thumb: metadata.thumbnail_url }
+           { id: "m1", text: "Welcome to this amazing video! We're exploring the secrets of the universe and how everything is connected.", start_seconds: 0, end_seconds: 30, start: "0:00", end: "0:30", thumb: thumbnailUrl },
+           { id: "m2", text: "The complexity of space-time is truly mind-blowing. Let's dive deeper into the quantum realm.", start_seconds: 30, end_seconds: 60, start: "0:30", end: "1:00", thumb: thumbnailUrl },
+           { id: "m3", text: "In conclusion, the future of AI and technology is brighter than ever. Stay tuned for more!", start_seconds: 60, end_seconds: 90, start: "1:00", end: "1:30", thumb: thumbnailUrl }
          ],
          warning: "Note: Real-time transcript extraction was limited for this video, providing high-quality placeholders."
        });
@@ -205,7 +209,7 @@ export async function POST(req: NextRequest) {
           end_seconds: endTime,
           start: formatTime(startTime),
           end: formatTime(endTime),
-          thumb: metadata.thumbnail_url
+          thumb: thumbnailUrl
         });
         
         currentClip = { segments: [], duration: 0 };
@@ -225,7 +229,7 @@ export async function POST(req: NextRequest) {
         end_seconds: endTime,
         start: formatTime(startTime),
         end: formatTime(endTime),
-        thumb: metadata.thumbnail_url
+        thumb: thumbnailUrl
       });
     }
 
@@ -234,7 +238,7 @@ export async function POST(req: NextRequest) {
       videoId,
       title: metadata.title,
       author: metadata.author_name,
-      thumbnail: metadata.thumbnail_url,
+      thumbnail: thumbnailUrl,
       youtubeUrl: `https://www.youtube.com/watch?v=${videoId}`,
       clips
     });

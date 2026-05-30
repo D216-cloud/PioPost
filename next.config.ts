@@ -11,6 +11,10 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
+        hostname: "i2.ytimg.com",
+      },
+      {
+        protocol: "https",
         hostname: "img.youtube.com",
       },
       {
