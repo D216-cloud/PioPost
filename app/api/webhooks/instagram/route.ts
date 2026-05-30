@@ -21,9 +21,14 @@ export async function GET(req: Request) {
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Check if same commenter already got a DM from same rule in the last 24 h */
-async function isDuplicate(automationId: string, commenterId: string): Promise<boolean> {
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+/** Check if same commenter already got a DM from same rule within cooldown window */
+async function isDuplicate(
+  automationId: string,
+  commenterId: string,
+  cooldownHours: number
+): Promise<boolean> {
+  if (cooldownHours <= 0) return false;
+  const since = new Date(Date.now() - cooldownHours * 60 * 60 * 1000).toISOString();
   const { data } = await supabaseAdmin
     .from("automation_logs")
     .select("id")
@@ -33,6 +38,13 @@ async function isDuplicate(automationId: string, commenterId: string): Promise<b
     .gte("created_at", since)
     .limit(1);
   return (data?.length ?? 0) > 0;
+}
+
+function getDedupeCooldownHours(rule: Record<string, unknown>): number {
+  const raw = Number(rule.dedupe_cooldown_hours ?? 24);
+  if (!Number.isFinite(raw)) return 24;
+  if (raw <= 0) return 0;
+  return Math.floor(raw);
 }
 
 /** Count DMs sent from this IG account in the last hour (rate limit: 200/hr) */
@@ -185,6 +197,11 @@ export async function POST(req: Request) {
         const commenterId = commentValue.from?.id;
         const mediaId = commentValue.media?.id;
 
+        if (!commentId || !commenterId) {
+          console.warn("[Webhook] ⚠️ Missing comment ID or commenter ID. Skipping event.");
+          continue;
+        }
+
         console.log(`[Webhook] 💬 Comment: "${commentText}" from ${commenterId} on media ${mediaId}`);
 
         // Find the IG account in our DB
@@ -284,8 +301,11 @@ export async function POST(req: Request) {
           }
 
           // ── Deduplication ────────────────────────────────────────────────
-          if (await isDuplicate(rule.id, commenterId)) {
-            console.log(`[Webhook] ⏭️ Duplicate — skipping commenter ${commenterId} on rule ${rule.id}`);
+          const dedupeCooldownHours = getDedupeCooldownHours(rule as Record<string, unknown>);
+          if (await isDuplicate(rule.id, commenterId, dedupeCooldownHours)) {
+            console.log(
+              `[Webhook] ⏭️ Duplicate — skipping commenter ${commenterId} on rule ${rule.id} (${dedupeCooldownHours}h cooldown)`
+            );
             continue;
           }
 
