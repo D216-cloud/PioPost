@@ -293,7 +293,6 @@ export default function CreatePage() {
           source_url: selectedVideo?.url ?? videoData?.youtubeUrl ?? "",
           youtube_url: selectedVideo?.url ?? videoData?.youtubeUrl ?? "",
           thumbnail_url: videoData?.thumbnail ?? selectedVideo?.thumbnail ?? "",
-          caption: clip.text ?? "",
           start_seconds: clip.start_seconds,
           end_seconds: clip.end_seconds,
           status: "scheduled",

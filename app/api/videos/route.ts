@@ -77,7 +77,6 @@ export async function POST(req: Request) {
       .map((row) => ({
         user_id: session.user.id,
         title: typeof row.title === 'string' && row.title.trim() ? row.title.trim() : 'Untitled video',
-        caption: typeof row.caption === 'string' ? row.caption : '',
         source_url: typeof row.source_url === 'string' ? row.source_url : '',
         thumbnail_url: typeof row.thumbnail_url === 'string' ? row.thumbnail_url : '',
         status: typeof row.status === 'string' && row.status.trim() ? row.status : 'scheduled',
