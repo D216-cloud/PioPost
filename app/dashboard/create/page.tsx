@@ -633,7 +633,21 @@ export default function CreatePage() {
                   <h4 className="text-[18px] font-black tracking-tight text-slate-900">
                     Reels ({clips.length}) · Page {clipPage + 1} of {totalClipPages}
                   </h4>
-                  <p className="text-[12px] font-medium text-slate-500">Select the clips you want to schedule.</p>
+                  <div className="flex items-center gap-2 text-[12px] font-medium text-slate-500">
+                    <span>Select the clips you want to schedule.</span>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 font-bold text-slate-700">
+                      {selectedIds.size} selected
+                    </span>
+                    {selectedIds.size > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedIds(new Set())}
+                        className="rounded-full border border-slate-200 bg-white px-2.5 py-1 font-bold text-slate-700 transition-all hover:bg-slate-50"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -642,13 +656,16 @@ export default function CreatePage() {
                     const isSelected = selectedIds.has(clipIndex);
 
                     return (
-                      <div
+                      <button
                         key={clip.id}
+                        type="button"
+                        onClick={() => toggleSelect(clipIndex)}
                         className={`group relative overflow-hidden rounded-4xl border transition-all ${
                           isSelected
                             ? "border-[#a855f7] ring-4 ring-[#a855f7]/10 shadow-[0_16px_35px_rgba(168,85,247,0.12)]"
                             : "border-slate-200 hover:border-slate-300 hover:shadow-[0_16px_35px_rgba(15,23,42,0.08)]"
                         }`}
+                        title={isSelected ? "Deselect clip" : "Select clip"}
                       >
                         <div className="relative aspect-4/5 bg-slate-100">
                           <Image src={clip.thumb} alt={`Clip ${clipIndex + 1}`} fill className="object-cover transition-transform duration-700 group-hover:scale-105" />
@@ -661,7 +678,10 @@ export default function CreatePage() {
                           <div className="absolute right-3 top-3 flex items-center gap-2">
                             <button
                               type="button"
-                              onClick={() => toast.info(`Edit is not implemented for clip ${clipIndex + 1}`)}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                toast.info(`Edit is not implemented for clip ${clipIndex + 1}`);
+                              }}
                               className="rounded-full bg-white/15 p-2 text-white backdrop-blur transition hover:bg-white/30"
                               title="Edit"
                             >
@@ -669,7 +689,10 @@ export default function CreatePage() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => toggleSelect(clipIndex)}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                toggleSelect(clipIndex);
+                              }}
                               className={`rounded-full p-2 backdrop-blur transition ${
                                 isSelected ? "bg-[#a855f7] text-white" : "bg-white/15 text-white hover:bg-white/30"
                               }`}
@@ -691,7 +714,7 @@ export default function CreatePage() {
                             </div>
                           </div>
                         </div>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>

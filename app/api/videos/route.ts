@@ -71,18 +71,33 @@ export async function POST(req: Request) {
     const body = await req.json();
     const rows = Array.isArray(body) ? body : [body];
 
-    // Ensure all rows belong to the current user
-    const userRows = rows.map(row => ({
-      ...row,
-      user_id: session.user.id
-    }));
+    // Only persist columns that actually exist on the videos table.
+    const userRows = rows
+      .filter((row) => row && typeof row === 'object')
+      .map((row) => ({
+        user_id: session.user.id,
+        title: typeof row.title === 'string' && row.title.trim() ? row.title.trim() : 'Untitled video',
+        caption: typeof row.caption === 'string' ? row.caption : '',
+        source_url: typeof row.source_url === 'string' ? row.source_url : '',
+        thumbnail_url: typeof row.thumbnail_url === 'string' ? row.thumbnail_url : '',
+        status: typeof row.status === 'string' && row.status.trim() ? row.status : 'scheduled',
+        scheduled_at: typeof row.scheduled_at === 'string' && row.scheduled_at ? row.scheduled_at : new Date().toISOString(),
+        platform: typeof row.platform === 'string' && row.platform.trim() ? row.platform : 'instagram',
+      }));
+
+    if (userRows.length === 0) {
+      return NextResponse.json({ error: 'No valid video rows provided' }, { status: 400 });
+    }
 
     const { data, error } = await supabaseAdmin
       .from('videos')
       .insert(userRows)
       .select();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Video creation error details:', error);
+      throw error;
+    }
 
     return NextResponse.json({ data, success: true });
   } catch (error: any) {
