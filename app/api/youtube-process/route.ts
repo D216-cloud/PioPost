@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
+import { fetchTranscript } from "youtube-transcript";
+import { createWriteStream } from "fs";
+import { createReadStream } from "fs";
+import { mkdtemp, rm } from "fs/promises";
+import os from "os";
+import path from "path";
+import ytdl from "ytdl-core";
+import OpenAI from "openai";
 
 const getYoutubeVideoId = (url: string) => {
   const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
@@ -22,122 +30,165 @@ const decodeHTMLEntities = (text: string) => {
 
 const normalizeThumbnailUrl = (videoId: string) => `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
 
-async function fetchTranscript(videoId: string) {
+async function downloadYoutubeAudio(videoId: string, destinationPath: string) {
+  const sourceUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  if (!ytdl.validateURL(sourceUrl)) {
+    throw new Error("The provided YouTube URL is invalid.");
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const stream = ytdl(sourceUrl, {
+      quality: "highestaudio",
+      filter: "audioonly",
+      highWaterMark: 1 << 25,
+    });
+    const output = createWriteStream(destinationPath);
+
+    stream.on("error", reject);
+    output.on("error", reject);
+    output.on("finish", () => resolve());
+    stream.pipe(output);
+  });
+}
+
+async function transcribeWithOpenAI(videoId: string) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return null;
+  }
+
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "piopost-transcript-"));
+  const audioPath = path.join(tempDir, `${videoId}.webm`);
+
   try {
-    const userAgents = [
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
-      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
-    ];
+    await downloadYoutubeAudio(videoId, audioPath);
 
-    const urls = [
-      `https://www.youtube.com/watch?v=${videoId}&hl=en&bpctr=9999999999&has_verified=1`,
-      `https://www.youtube.com/watch?v=${videoId}&hl=en&persist_hl=1`
-    ];
-    
-    let html = "";
-    for (const url of urls) {
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': userAgents[Math.floor(Math.random() * userAgents.length)],
-          'Accept-Language': 'en-US,en;q=0.9',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      });
-      if (response.ok) {
-        html = await response.text();
-        if (html.includes("captionTracks")) break;
-      }
-    }
+    const client = new OpenAI({ apiKey });
+    const transcription = await client.audio.transcriptions.create({
+      file: createReadStream(audioPath),
+      model: process.env.OPENAI_TRANSCRIPTION_MODEL || "whisper-1",
+      response_format: "verbose_json",
+      timestamp_granularities: ["segment"],
+    });
 
-    if (!html) return null;
+    const segments = Array.isArray(transcription.segments)
+      ? transcription.segments.map((segment) => ({
+          text: segment.text,
+          start: segment.start,
+          end: segment.end,
+        }))
+      : [];
 
-    // Strategy 1: Extract from JSON objects in HTML
-    const extractJSON = (key: string) => {
-      const startStr = `${key} = `;
-      const startIdx = html.indexOf(startStr);
-      if (startIdx === -1) return null;
-      
-      let balance = 0;
-      let started = false;
-      let result = "";
-      
-      for (let i = startIdx + startStr.length; i < html.length; i++) {
-        const char = html[i];
-        if (char === '{') { balance++; started = true; }
-        else if (char === '}') { balance--; }
-        if (started) result += char;
-        if (started && balance === 0) break;
-      }
-      try { return JSON.parse(result); } catch (e) { return null; }
-    };
-
-    const playerResponse = extractJSON("ytInitialPlayerResponse");
-    const initialData = extractJSON("ytInitialData");
-
-    let captionTracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks ||
-                        initialData?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
-
-    // Strategy 2: Direct Regex Search for captionTracks array
-    if (!captionTracks) {
-      const match = html.match(/"captionTracks":\s*(\[.+?\])/);
-      if (match) {
-        try { captionTracks = JSON.parse(match[1]); } catch (e) {}
-      }
-    }
-
-    if (!captionTracks || captionTracks.length === 0) {
-      // If we still have nothing, maybe the video is blocked or truly has no captions
-      if (html.includes("class=\"g-recaptcha\"") || html.includes("consent.youtube.com")) {
-        throw new Error("YouTube blocked the request (Bot detection). Please try again in a few minutes or try a different video.");
-      }
+    if (segments.length === 0 && !transcription.text) {
       return null;
     }
 
-    return await downloadCaptions(captionTracks);
-  } catch (e: any) {
-    console.error("Transcript fetch error:", e);
-    throw e;
+    return {
+      text: transcription.text || segments.map((segment) => segment.text).join(" "),
+      segments,
+    };
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
   }
 }
 
-async function downloadCaptions(captionTracks: any[]) {
-  // Priority: manual en > auto en > any en > first available
-  const track = captionTracks.find((t: any) => t.languageCode === 'en' && !t.kind) || 
-                captionTracks.find((t: any) => t.languageCode === 'en' && t.kind === 'asr') || 
-                captionTracks.find((t: any) => t.languageCode?.startsWith('en')) || 
-                captionTracks[0];
+function buildFallbackResponse(videoId: string, title: string, author: string) {
+  const thumbnailUrl = normalizeThumbnailUrl(videoId);
+  const transcript = [
+    "Transcript could not be loaded automatically for this video right now.",
+    "You can still review the video card and try again when network access is available.",
+  ].join(" ");
 
-  if (!track || !track.baseUrl) return null;
+  return NextResponse.json({
+    ok: true,
+    videoId,
+    title,
+    author,
+    thumbnail: thumbnailUrl,
+    youtubeUrl: `https://www.youtube.com/watch?v=${videoId}`,
+    transcript,
+    clips: [
+      {
+        id: "fallback-1",
+        text: transcript,
+        start_seconds: 0,
+        end_seconds: 30,
+        start: "0:00",
+        end: "0:30",
+        thumb: thumbnailUrl,
+      },
+    ],
+    warning: "Transcript extraction could not reach YouTube, so a local fallback was returned.",
+  });
+}
 
-  const formats = ['&fmt=json3', '&fmt=vtt', ''];
-  for (const fmt of formats) {
-    try {
-      const res = await fetch(track.baseUrl + fmt);
-      if (!res.ok) continue;
-      const text = await res.text();
-      
-      if (fmt === '&fmt=json3') {
-        const data = JSON.parse(text);
-        if (data.events) return data.events;
-      } else {
-        // Simple XML/VTT fallback
-        const events: any[] = [];
-        const matches = text.matchAll(/<text start="([\d.]+)" dur="([\d.]+)"[^>]*>(.*?)<\/text>/g);
-        for (const match of matches) {
-          events.push({
-            tStartMs: parseFloat(match[1]) * 1000,
-            dDurationMs: parseFloat(match[2]) * 1000,
-            segs: [{ utf8: decodeHTMLEntities(match[3]) }]
-          });
-        }
-        if (events.length > 0) return events;
-      }
-    } catch (e) {}
+function buildSegmentsFromTranscriptText(text: string) {
+  const sentences = text
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+
+  if (sentences.length === 0) {
+    return [];
   }
-  return null;
+
+  return sentences.map((sentence, index) => ({
+    text: sentence,
+    start: index * 8,
+    end: index * 8 + 8,
+  }));
+}
+
+function buildTranscriptClips(segments: Array<{ text: string; start: number; end: number }>, thumbnailUrl: string) {
+  const clips: Array<{ id: string; text: string; start_seconds: number; end_seconds: number; start: string; end: string; thumb: string }> = [];
+  let currentClip: { segments: Array<{ text: string; start: number; end: number }>; duration: number } = { segments: [], duration: 0 };
+
+  const sourceSegments = segments.length > 0 ? segments : [];
+
+  sourceSegments.forEach((segment) => {
+    const text = decodeHTMLEntities(segment.text).replace(/\s+/g, " ").trim();
+    if (!text) return;
+
+    const start = segment.start;
+    const duration = Math.max(0, segment.end - segment.start);
+
+    if (currentClip.duration + duration > 45 && currentClip.duration >= 15 && currentClip.segments.length > 0) {
+      const startTime = currentClip.segments[0].start;
+      const endTime = currentClip.segments[currentClip.segments.length - 1].end;
+
+      clips.push({
+        id: `clip-${clips.length}`,
+        text: currentClip.segments.map((item) => item.text).join(" "),
+        start_seconds: startTime,
+        end_seconds: endTime,
+        start: formatTime(startTime),
+        end: formatTime(endTime),
+        thumb: thumbnailUrl,
+      });
+
+      currentClip = { segments: [], duration: 0 };
+    }
+
+    currentClip.segments.push({ text, start, end: segment.end });
+    currentClip.duration += duration;
+  });
+
+  if (currentClip.segments.length > 0 && currentClip.duration >= 5) {
+    const startTime = currentClip.segments[0].start;
+    const endTime = currentClip.segments[currentClip.segments.length - 1].end;
+
+    clips.push({
+      id: `clip-${clips.length}`,
+      text: currentClip.segments.map((item) => item.text).join(" "),
+      start_seconds: startTime,
+      end_seconds: endTime,
+      start: formatTime(startTime),
+      end: formatTime(endTime),
+      thumb: thumbnailUrl,
+    });
+  }
+
+  return clips;
 }
 
 export async function POST(req: NextRequest) {
@@ -165,73 +216,43 @@ export async function POST(req: NextRequest) {
 
     const thumbnailUrl = normalizeThumbnailUrl(videoId);
 
-    const events = await fetchTranscript(videoId);
-    
-    // If still no events, we provide a HIGH-QUALITY MOCK for the user to see the flow
-    // This solves the "Bad Request" and shows the video result as requested.
-    if (!events) {
-       return NextResponse.json({
-         ok: true,
-         videoId,
-         title: metadata.title,
-         author: metadata.author_name,
-         thumbnail: thumbnailUrl,
-         youtubeUrl: `https://www.youtube.com/watch?v=${videoId}`,
-         clips: [
-           { id: "m1", text: "Welcome to this amazing video! We're exploring the secrets of the universe and how everything is connected.", start_seconds: 0, end_seconds: 30, start: "0:00", end: "0:30", thumb: thumbnailUrl },
-           { id: "m2", text: "The complexity of space-time is truly mind-blowing. Let's dive deeper into the quantum realm.", start_seconds: 30, end_seconds: 60, start: "0:30", end: "1:00", thumb: thumbnailUrl },
-           { id: "m3", text: "In conclusion, the future of AI and technology is brighter than ever. Stay tuned for more!", start_seconds: 60, end_seconds: 90, start: "1:00", end: "1:30", thumb: thumbnailUrl }
-         ],
-         warning: "Note: Real-time transcript extraction was limited for this video, providing high-quality placeholders."
-       });
+    let transcriptEntries: Array<{ text: string; duration: number; offset: number }> | null = null;
+    let transcriptSegments: Array<{ text: string; start: number; end: number }> | null = null;
+    try {
+      transcriptEntries = await fetchTranscript(videoId);
+    } catch (error) {
+      console.error("Transcript fetch failed, using fallback response:", error);
     }
-
-    const clips = [];
-    let currentClip: any = { segments: [], duration: 0 };
     
-    events.forEach((event: any) => {
-      if (!event.segs) return;
-      let text = event.segs.map((s: any) => s.utf8).join("");
-      text = decodeHTMLEntities(text).replace(/\s+/g, " ").trim();
-      if (!text) return;
-
-      const start = event.tStartMs / 1000;
-      const duration = (event.dDurationMs || 0) / 1000;
-
-      if (currentClip.duration + duration > 45 && currentClip.duration >= 15) {
-        const startTime = currentClip.segments[0].start;
-        const endTime = currentClip.segments[currentClip.segments.length - 1].start + currentClip.segments[currentClip.segments.length - 1].duration;
-        
-        clips.push({
-          id: `clip-${clips.length}`,
-          text: currentClip.segments.map((s: any) => s.text).join(" "),
-          start_seconds: startTime,
-          end_seconds: endTime,
-          start: formatTime(startTime),
-          end: formatTime(endTime),
-          thumb: thumbnailUrl
-        });
-        
-        currentClip = { segments: [], duration: 0 };
+    if (!transcriptEntries) {
+      try {
+        const openAiTranscript = await transcribeWithOpenAI(videoId);
+        if (openAiTranscript?.text) {
+          transcriptSegments = openAiTranscript.segments.length > 0 ? openAiTranscript.segments : buildSegmentsFromTranscriptText(openAiTranscript.text);
+        }
+      } catch (error) {
+        console.error("OpenAI transcription failed:", error);
       }
 
-      currentClip.segments.push({ text, start, duration });
-      currentClip.duration += duration;
-    });
-
-    if (currentClip.duration >= 5) {
-      const startTime = currentClip.segments[0].start;
-      const endTime = currentClip.segments[currentClip.segments.length - 1].start + currentClip.segments[currentClip.segments.length - 1].duration;
-      clips.push({
-        id: `clip-${clips.length}`,
-        text: currentClip.segments.map((s: any) => s.text).join(" "),
-        start_seconds: startTime,
-        end_seconds: endTime,
-        start: formatTime(startTime),
-        end: formatTime(endTime),
-        thumb: thumbnailUrl
-      });
+      if (!transcriptSegments) {
+        return buildFallbackResponse(videoId, metadata.title, metadata.author_name);
+      }
     }
+
+    const transcript = transcriptEntries
+      ? transcriptEntries.map((entry) => decodeHTMLEntities(entry.text).replace(/\s+/g, " ").trim()).filter(Boolean).join(" ")
+      : transcriptSegments?.map((segment) => segment.text).join(" ") || "";
+
+    const clips = transcriptEntries
+      ? buildTranscriptClips(
+          transcriptEntries.map((entry) => ({
+            text: entry.text,
+            start: entry.offset / 1000,
+            end: (entry.offset + entry.duration) / 1000,
+          })),
+          thumbnailUrl,
+        )
+      : buildTranscriptClips(transcriptSegments ?? [], thumbnailUrl);
 
     return NextResponse.json({
       ok: true,
@@ -240,14 +261,23 @@ export async function POST(req: NextRequest) {
       author: metadata.author_name,
       thumbnail: thumbnailUrl,
       youtubeUrl: `https://www.youtube.com/watch?v=${videoId}`,
+      transcript,
       clips
     });
 
   } catch (e: any) {
     console.error("YouTube Processing Error:", e);
-    return NextResponse.json({ 
-      ok: false, 
-      error: e.message || "Failed to process video. YouTube might be limiting automated requests." 
+    const videoId = typeof e?.videoId === "string" ? e.videoId : null;
+    const title = typeof e?.title === "string" ? e.title : "YouTube Video";
+    const author = typeof e?.author === "string" ? e.author : "YouTube Creator";
+
+    if (videoId) {
+      return buildFallbackResponse(videoId, title, author);
+    }
+
+    return NextResponse.json({
+      ok: false,
+      error: e.message || "Failed to process video. YouTube might be limiting automated requests.",
     }, { status: 500 });
   }
 }

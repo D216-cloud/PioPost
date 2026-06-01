@@ -22,6 +22,21 @@ async function getAccountForUser(userId: string) {
   return data as InstagramAccountRecord | null;
 }
 
+async function getAccountById(accountId: string, userId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("instagram_accounts")
+    .select("id, user_id, instagram_business_id, access_token, username")
+    .eq("id", accountId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as InstagramAccountRecord | null;
+}
+
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -34,6 +49,7 @@ export async function POST(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const limit = Math.max(1, Math.min(20, Number(searchParams.get("limit") || "10")));
+    const requestedVideoId = searchParams.get("id");
     const now = new Date().toISOString();
 
     let query = supabaseAdmin
@@ -43,6 +59,10 @@ export async function POST(req: Request) {
       .lte("scheduled_at", now)
       .order("scheduled_at", { ascending: true })
       .limit(limit);
+
+    if (requestedVideoId) {
+      query = query.eq("id", requestedVideoId).limit(1);
+    }
 
     if (session?.user?.id) {
       query = query.eq("user_id", session.user.id);
@@ -72,7 +92,9 @@ export async function POST(req: Request) {
       }
 
       try {
-        const account = await getAccountForUser(row.user_id);
+        const account = row.instagram_account_id
+          ? await getAccountById(row.instagram_account_id, row.user_id)
+          : await getAccountForUser(row.user_id);
         if (!account) {
           throw new Error("No connected Instagram account was found for this user.");
         }

@@ -15,6 +15,14 @@ import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
+interface RecentVideo {
+  id: string;
+  title: string;
+  thumbnail_url?: string | null;
+  created_at: string;
+  status: string;
+}
+
 export default function OverviewPage() {
   const { data: session } = useSession();
   const [stats, setStats] = useState({
@@ -22,7 +30,7 @@ export default function OverviewPage() {
     emailsCollected: 0,
     followersGained: 57,
   });
-  const [recentVideos, setRecentVideos] = useState<any[]>([]);
+  const [recentVideos, setRecentVideos] = useState<RecentVideo[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -180,7 +188,11 @@ export default function OverviewPage() {
               <div key={video.id} className="flex items-center gap-4 md:gap-8 p-3 md:p-4 hover:bg-slate-50 rounded-2xl transition-all group">
                 <div className="w-12 md:w-16 aspect-[9/16] rounded-xl bg-slate-900 overflow-hidden shrink-0 shadow-sm">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={video.thumbnail_url} alt={video.title} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                    <img
+                      src={video.thumbnail_url || "/assets/avatar-placeholder.png"}
+                      alt={video.title}
+                      className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                    />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h4 className="text-[15px] md:text-[16px] font-semibold text-slate-900 truncate">{video.title}</h4>

@@ -11,6 +11,7 @@ export interface ScheduledVideoRecord {
   user_id: string;
   status?: "scheduled" | "pending" | "processing" | "posted" | "failed" | string | null;
   title: string;
+  instagram_account_id?: string | null;
   source_url?: string | null;
   youtube_url?: string | null;
   caption?: string | null;

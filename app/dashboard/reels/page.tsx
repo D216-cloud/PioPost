@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -101,6 +101,8 @@ export default function ReelsPage() {
   const [automationKeywords, setAutomationKeywords] = useState<string[]>([]);
   const [keywordInput, setKeywordInput] = useState("");
   const [activePresetIndex, setActivePresetIndex] = useState(0);
+  const [autoReplyComment, setAutoReplyComment] = useState(false);
+  const [commentReplyText, setCommentReplyText] = useState("Check your DMs! 📩");
   const [savingAutomation, setSavingAutomation] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -137,7 +139,7 @@ export default function ReelsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const fetchRules = async () => {
+  const fetchRules = useCallback(async () => {
     try {
       const res = await fetch("/api/automations");
       const { data, error } = await res.json();
@@ -146,14 +148,37 @@ export default function ReelsPage() {
     } catch (e) {
       console.error("Failed to fetch automation rules:", e);
     }
-  };
+  }, []);
 
   // Fetch media and rules when account changes
   useEffect(() => {
     if (!selectedAccount) return;
     fetchMedia(selectedAccount.id);
     fetchRules();
-  }, [selectedAccount]);
+  }, [fetchRules, selectedAccount]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      if (selectedAccount) {
+        void fetchRules();
+      }
+    }, 10000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && selectedAccount) {
+        void fetchRules();
+      }
+    };
+
+    window.addEventListener("focus", handleVisibilityChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleVisibilityChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [fetchRules, selectedAccount]);
 
   const fetchMedia = async (accountId: string, isRefresh = false) => {
     if (isRefresh) {
@@ -184,6 +209,8 @@ export default function ReelsPage() {
       setAutomationActive(existingRule.active);
       setAutomationKeywordMode(existingRule.keyword_mode || "any");
       setAutomationKeywords(existingRule.keywords || []);
+      setAutoReplyComment(Boolean(existingRule.auto_reply_comment));
+      setCommentReplyText(existingRule.comment_reply_text || "Check your DMs! 📩");
       
       const matchedPreset = AUTOMATION_PRESETS.findIndex(p => p.message === existingRule.dm_message);
       setActivePresetIndex(matchedPreset !== -1 ? matchedPreset : 0);
@@ -192,6 +219,8 @@ export default function ReelsPage() {
       setAutomationActive(true);
       setAutomationKeywordMode("any");
       setAutomationKeywords([]);
+      setAutoReplyComment(false);
+      setCommentReplyText("Check your DMs! 📩");
       setActivePresetIndex(1); // Default to the first preset (Send Link) for ease of use
       setAutomationMessage(AUTOMATION_PRESETS[1].message);
     }
@@ -216,6 +245,8 @@ export default function ReelsPage() {
             active: automationActive,
             keyword_mode: automationKeywordMode,
             keywords: automationKeywordMode === "specific" ? automationKeywords : [],
+            auto_reply_comment: autoReplyComment,
+            comment_reply_text: autoReplyComment ? commentReplyText : null,
           }),
         });
 
@@ -237,6 +268,8 @@ export default function ReelsPage() {
             keywords: automationKeywordMode === "specific" ? automationKeywords : [],
             dm_message: automationMessage,
             active: automationActive,
+            auto_reply_comment: autoReplyComment,
+            comment_reply_text: autoReplyComment ? commentReplyText : null,
             rule_name: `Auto-DM: ${selectedItemForAutomation.caption ? selectedItemForAutomation.caption.substring(0, 20) : selectedItemForAutomation.id}`,
           }),
         });
@@ -565,7 +598,7 @@ export default function ReelsPage() {
                               }`}
                             >
                               <span className={`w-1.5 h-1.5 rounded-full ${rule.active ? "bg-white animate-pulse" : "bg-slate-400"}`} />
-                              Auto-DM
+                                {rule.auto_reply_comment ? "DM + Comment" : "Auto-DM"}
                             </button>
                           );
                         } else {
@@ -681,7 +714,7 @@ export default function ReelsPage() {
                             }`}
                           >
                             <span className={`w-1.5 h-1.5 rounded-full ${rule.active ? "bg-emerald-500 animate-pulse" : "bg-slate-400"}`} />
-                            {rule.active ? "Active" : "Paused"} Auto-DM
+                              {rule.active ? "Active" : "Paused"} {rule.auto_reply_comment ? "DM + Comment" : "Auto-DM"}
                           </button>
                         );
                       } else {
@@ -951,6 +984,49 @@ export default function ReelsPage() {
                   <p className="text-[9.5px] text-slate-400 leading-tight">
                     💡 Tip: Keep it short, conversational, and direct. You can use <code>{`{first_name}`}</code> for personalization.
                   </p>
+                </div>
+
+                {/* 6. Comment Reply */}
+                <div className="space-y-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-[12.5px] font-bold text-slate-800">Reply in comments too</p>
+                      <p className="text-[10.5px] text-slate-400 font-semibold mt-0.5">Show a public comment reply when the automation triggers.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAutoReplyComment(!autoReplyComment)}
+                      className={`w-10 h-5.5 rounded-full relative transition-all flex-shrink-0 cursor-pointer ${
+                        autoReplyComment
+                          ? "bg-gradient-to-r from-[#ee2a7b] to-[#6228d7]"
+                          : "bg-slate-200"
+                      }`}
+                    >
+                      <div
+                        className={`absolute top-0.5 w-4.5 h-4.5 rounded-full bg-white shadow transition-all ${
+                          autoReplyComment ? "right-0.5" : "left-0.5"
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {autoReplyComment ? (
+                    <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-300">
+                      <label className="text-[10.5px] font-black uppercase tracking-wider text-slate-450 block">Comment Reply Text</label>
+                      <textarea
+                        value={commentReplyText}
+                        onChange={(e) => setCommentReplyText(e.target.value)}
+                        placeholder="Thanks! Check your DMs for the link 📩"
+                        rows={3}
+                        className="w-full resize-none rounded-2xl border border-slate-250 bg-slate-50 p-3 text-[12.5px] font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#a855f7]/20 leading-relaxed"
+                      />
+                      <p className="text-[9.5px] text-slate-400 leading-tight">
+                        This reply will post publicly in the comment thread alongside the DM.
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-[10px] text-slate-400 font-semibold italic">Comment reply is off. Turn it on to reply publicly and send the DM together.</p>
+                  )}
                 </div>
 
               </div>
