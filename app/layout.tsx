@@ -12,6 +12,9 @@ export const metadata: Metadata = {
   description:
     "AI powered reels scheduling, DM automation and engagement tools. Built specifically for creators, digital strategists, and modern brands.",
   keywords: ["social media", "instagram", "reels", "dm automation", "growth tools", "scheduler"],
+  icons: {
+    icon: "/favicon.svg",
+  },
   openGraph: {
     title: "ReelFlow",
     description: "Automate Your Instagram Growth with AI powered reels scheduling and DM automation.",

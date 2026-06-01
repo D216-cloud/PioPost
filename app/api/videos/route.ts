@@ -12,18 +12,42 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url);
-    const limit = parseInt(searchParams.get('limit') || '10');
+    const requestedLimit = Number.parseInt(searchParams.get('limit') || '10', 10);
+    const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(100, requestedLimit)) : 10;
 
-    const { data, error } = await supabaseAdmin
+    const sortVideos = (videos: any[] | null | undefined) => {
+      const rows = Array.isArray(videos) ? [...videos] : [];
+      return rows.sort((left, right) => {
+        const leftValue = new Date(left?.created_at || left?.scheduled_at || 0).getTime();
+        const rightValue = new Date(right?.created_at || right?.scheduled_at || 0).getTime();
+        return rightValue - leftValue;
+      });
+    };
+
+    const orderedQuery = await supabaseAdmin
       .from('videos')
       .select('*')
       .eq('user_id', session.user.id)
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    if (error) throw error;
+    if (orderedQuery.error) {
+      console.warn('Videos fetch order fallback:', orderedQuery.error);
 
-    return NextResponse.json({ data });
+      const fallbackQuery = await supabaseAdmin
+        .from('videos')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .limit(limit);
+
+      if (fallbackQuery.error) {
+        throw fallbackQuery.error;
+      }
+
+      return NextResponse.json({ data: sortVideos(fallbackQuery.data) });
+    }
+
+    return NextResponse.json({ data: sortVideos(orderedQuery.data) });
   } catch (error: any) {
     console.error('Videos fetch error:', error);
     return NextResponse.json({ error: error.message || 'Failed to fetch videos' }, { status: 500 });
