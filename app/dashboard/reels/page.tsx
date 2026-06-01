@@ -103,6 +103,8 @@ export default function ReelsPage() {
   const [activePresetIndex, setActivePresetIndex] = useState(0);
   const [autoReplyComment, setAutoReplyComment] = useState(false);
   const [commentReplyText, setCommentReplyText] = useState("Check your DMs! 📩");
+  const [requireFollow, setRequireFollow] = useState(false);
+  const [followGateMessage, setFollowGateMessage] = useState("Hey! Follow me first and I'll send you the link 🙌");
   const [savingAutomation, setSavingAutomation] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -211,6 +213,8 @@ export default function ReelsPage() {
       setAutomationKeywords(existingRule.keywords || []);
       setAutoReplyComment(Boolean(existingRule.auto_reply_comment));
       setCommentReplyText(existingRule.comment_reply_text || "Check your DMs! 📩");
+      setRequireFollow(Boolean(existingRule.require_follow));
+      setFollowGateMessage(existingRule.follow_gate_message || "Hey! Follow me first and I'll send you the link 🙌");
       
       const matchedPreset = AUTOMATION_PRESETS.findIndex(p => p.message === existingRule.dm_message);
       setActivePresetIndex(matchedPreset !== -1 ? matchedPreset : 0);
@@ -221,6 +225,8 @@ export default function ReelsPage() {
       setAutomationKeywords([]);
       setAutoReplyComment(false);
       setCommentReplyText("Check your DMs! 📩");
+      setRequireFollow(false);
+      setFollowGateMessage("Hey! Follow me first and I'll send you the link 🙌");
       setActivePresetIndex(1); // Default to the first preset (Send Link) for ease of use
       setAutomationMessage(AUTOMATION_PRESETS[1].message);
     }
@@ -247,6 +253,8 @@ export default function ReelsPage() {
             keywords: automationKeywordMode === "specific" ? automationKeywords : [],
             auto_reply_comment: autoReplyComment,
             comment_reply_text: autoReplyComment ? commentReplyText : null,
+            require_follow: requireFollow,
+            follow_gate_message: requireFollow ? followGateMessage : null,
           }),
         });
 
@@ -271,6 +279,8 @@ export default function ReelsPage() {
             auto_reply_comment: autoReplyComment,
             comment_reply_text: autoReplyComment ? commentReplyText : null,
             rule_name: `Auto-DM: ${selectedItemForAutomation.caption ? selectedItemForAutomation.caption.substring(0, 20) : selectedItemForAutomation.id}`,
+            require_follow: requireFollow,
+            follow_gate_message: requireFollow ? followGateMessage : null,
           }),
         });
 
@@ -1026,6 +1036,49 @@ export default function ReelsPage() {
                     </div>
                   ) : (
                     <p className="text-[10px] text-slate-400 font-semibold italic">Comment reply is off. Turn it on to reply publicly and send the DM together.</p>
+                  )}
+                </div>
+
+                {/* 7. Ask to Follow First (Follow Gate) */}
+                <div className="space-y-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-[12.5px] font-bold text-slate-800">Ask to follow first</p>
+                      <p className="text-[10.5px] text-slate-400 font-semibold mt-0.5">Require the user to follow you to get the DM link.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setRequireFollow(!requireFollow)}
+                      className={`w-10 h-5.5 rounded-full relative transition-all flex-shrink-0 cursor-pointer ${
+                        requireFollow
+                          ? "bg-gradient-to-r from-[#ee2a7b] to-[#6228d7]"
+                          : "bg-slate-200"
+                      }`}
+                    >
+                      <div
+                        className={`absolute top-0.5 w-4.5 h-4.5 rounded-full bg-white shadow transition-all ${
+                          requireFollow ? "right-0.5" : "left-0.5"
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {requireFollow ? (
+                    <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-300">
+                      <label className="text-[10.5px] font-black uppercase tracking-wider text-slate-450 block">Follow Gate Message</label>
+                      <textarea
+                        value={followGateMessage}
+                        onChange={(e) => setFollowGateMessage(e.target.value)}
+                        placeholder="Hey! Follow me first and I'll send you the link 🙌"
+                        rows={3}
+                        className="w-full resize-none rounded-2xl border border-slate-250 bg-slate-50 p-3 text-[12.5px] font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#a855f7]/20 leading-relaxed"
+                      />
+                      <p className="text-[9.5px] text-slate-400 leading-tight">
+                        This message will be sent first, requesting a follow before delivering the main content.
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-[10px] text-slate-400 font-semibold italic">Follow gate is off. Anyone commenting will receive the main DM immediately.</p>
                   )}
                 </div>
 

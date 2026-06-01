@@ -339,8 +339,15 @@ export async function POST(req: Request) {
           // Old schema: ask_follow
           const shouldAskFollow = rule.require_follow || rule.ask_follow;
           if (shouldAskFollow && rule.follow_gate_message) {
-            // Send the follow-gate message first, then the actual DM
-            await sendInstagramDM({ comment_id: commentId }, rule.follow_gate_message, tokenToUse);
+            // Send the follow-gate message first, with a button to visit profile and follow
+            const profileUrl = `https://instagram.com/${igAccount.username}`;
+            await sendInstagramDM(
+              { comment_id: commentId },
+              rule.follow_gate_message,
+              tokenToUse,
+              "Visit Profile & Follow",
+              profileUrl
+            );
           }
 
           // Ask for email (old schema only)
