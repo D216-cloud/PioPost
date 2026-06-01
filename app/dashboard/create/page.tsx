@@ -430,27 +430,7 @@ export default function CreatePage() {
         return;
       }
 
-      const rows = selectedClips.map((clip, index) => {
-        const dayOffset = Math.floor(index / postsPerDay);
-        const hourOffset = (index % postsPerDay) * (24 / postsPerDay);
-        const scheduled = new Date(`${startDate}T${startTime}`);
-        scheduled.setDate(scheduled.getDate() + dayOffset);
-        scheduled.setHours(scheduled.getHours() + Math.floor(hourOffset));
-        scheduled.setMinutes(scheduled.getMinutes() + Math.floor((hourOffset % 1) * 60));
-
-        return {
-          user_id: session.user.id,
-          title: `${videoData?.title ?? selectedVideo?.title ?? "Video"} – Reel ${index + 1}`,
-          source_url: selectedVideo?.url ?? videoData?.youtubeUrl ?? "",
-          youtube_url: selectedVideo?.url ?? videoData?.youtubeUrl ?? "",
-          thumbnail_url: videoData?.thumbnail ?? selectedVideo?.thumbnail ?? "",
-          start_seconds: clip.start_seconds,
-          end_seconds: clip.end_seconds,
-          status: "scheduled",
-          scheduled_at: scheduled.toISOString(),
-          platform: "instagram",
-        };
-      });
+      const rows = buildVideoRows("scheduled");
 
       const res = await fetch("/api/videos", {
         method: "POST",
@@ -466,6 +446,92 @@ export default function CreatePage() {
       router.push("/dashboard/videos");
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Schedule error");
+    } finally {
+      setIsScheduling(false);
+    }
+  };
+
+  const buildVideoRows = useCallback(
+    (status: "scheduled" | "pending") => {
+      const selectedClips = clips.filter((_, index) => selectedIds.has(index));
+
+      return selectedClips.map((clip, index) => {
+        const dayOffset = Math.floor(index / postsPerDay);
+        const hourOffset = (index % postsPerDay) * (24 / postsPerDay);
+        const scheduled = new Date(`${startDate}T${startTime}`);
+        scheduled.setDate(scheduled.getDate() + dayOffset);
+        scheduled.setHours(scheduled.getHours() + Math.floor(hourOffset));
+        scheduled.setMinutes(scheduled.getMinutes() + Math.floor((hourOffset % 1) * 60));
+
+        return {
+          user_id: session?.user?.id,
+          title: `${videoData?.title ?? selectedVideo?.title ?? "Video"} – Reel ${index + 1}`,
+          source_url: selectedVideo?.url ?? videoData?.youtubeUrl ?? "",
+          thumbnail_url: videoData?.thumbnail ?? selectedVideo?.thumbnail ?? "",
+          caption: clip.text,
+          status,
+          scheduled_at: status === "pending" ? new Date().toISOString() : scheduled.toISOString(),
+          platform: "instagram",
+        };
+      });
+    },
+    [clips, postsPerDay, selectedIds, selectedVideo?.thumbnail, selectedVideo?.title, selectedVideo?.url, session?.user?.id, startDate, startTime, videoData?.thumbnail, videoData?.title, videoData?.youtubeUrl],
+  );
+
+  const publishVideosById = useCallback(async (videoIds: string[]) => {
+    for (const id of videoIds) {
+      const res = await fetch(`/api/videos/process?id=${encodeURIComponent(id)}`, { method: "POST" });
+      const json = await res.json();
+
+      if (!res.ok) {
+        throw new Error(json.error || "Immediate publish failed");
+      }
+
+      const failedItem = Array.isArray(json.results) ? json.results.find((item: { status?: string; error?: string }) => item.status === "failed") : null;
+      if (failedItem?.error) {
+        throw new Error(failedItem.error);
+      }
+    }
+  }, []);
+
+  const handlePostNow = async () => {
+    if (!session?.user?.id) {
+      toast.error("Please sign in to post");
+      return;
+    }
+
+    if (!instagramConnected) {
+      toast.error("Connect Instagram first");
+      return;
+    }
+
+    setIsScheduling(true);
+
+    try {
+      const rows = buildVideoRows("pending");
+      if (!rows.length) {
+        toast.error("Select at least one reel");
+        return;
+      }
+
+      const res = await fetch("/api/videos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(rows),
+      });
+
+      const payload = await res.json();
+      if (!res.ok) {
+        throw new Error(payload.error || "Posting failed");
+      }
+
+      const createdRows = Array.isArray(payload.data) ? payload.data : [];
+      await publishVideosById(createdRows.map((row: { id?: string }) => row.id).filter((id: string | undefined): id is string => Boolean(id)));
+
+      toast.success(`Posted ${createdRows.length} reel${createdRows.length === 1 ? "" : "s"} immediately`);
+      router.push("/dashboard/videos");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Post now error");
     } finally {
       setIsScheduling(false);
     }
@@ -702,15 +768,26 @@ export default function CreatePage() {
                         +
                       </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleSchedule}
-                      disabled={isScheduling || !instagramConnected}
-                      className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-[13px] font-bold text-white transition-all hover:bg-slate-800 disabled:opacity-50"
-                    >
-                      {isScheduling ? <Loader2 className="animate-spin" size={14} /> : <CheckCircle2 size={14} />}
-                      Schedule Reels
-                    </button>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={handlePostNow}
+                        disabled={isScheduling || !instagramConnected}
+                        className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-[13px] font-bold text-white transition-all hover:bg-emerald-600 disabled:opacity-50"
+                      >
+                        {isScheduling ? <Loader2 className="animate-spin" size={14} /> : <CheckCircle2 size={14} />}
+                        Post Now
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSchedule}
+                        disabled={isScheduling || !instagramConnected}
+                        className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-[13px] font-bold text-white transition-all hover:bg-slate-800 disabled:opacity-50"
+                      >
+                        {isScheduling ? <Loader2 className="animate-spin" size={14} /> : <CheckCircle2 size={14} />}
+                        Schedule Reels
+                      </button>
+                    </div>
                   </div>
                 </div>
 
