@@ -163,48 +163,6 @@ async function postCommentReply(
   }
 }
 
-/** Check if user follows the business account */
-async function checkIfUserFollowsBusiness(
-  commenterId: string,
-  accessToken: string,
-  pageAccessToken?: string | null
-): Promise<boolean> {
-  try {
-    // 1. If pageAccessToken is available, try Facebook Graph API first (standard for Instagram messaging relationships)
-    if (pageAccessToken) {
-      const urlFb = `https://graph.facebook.com/v21.0/${commenterId}?fields=is_user_follow_business&access_token=${pageAccessToken}`;
-      const resFb = await fetch(urlFb);
-      const dataFb = await resFb.json();
-      
-      if (dataFb && dataFb.error) {
-        console.warn(`[Webhook] Follow check (FB Graph) error: ${dataFb.error.message}`);
-      } else if (dataFb && typeof dataFb.is_user_follow_business === "boolean") {
-        console.log(`[Webhook] Follow check (FB Graph) for ${commenterId}:`, dataFb.is_user_follow_business);
-        return dataFb.is_user_follow_business;
-      }
-    }
-
-    // 2. Try Instagram Graph API endpoint as fallback / secondary check
-    const urlIg = `https://graph.instagram.com/v21.0/${commenterId}?fields=is_user_follow_business&access_token=${accessToken}`;
-    const resIg = await fetch(urlIg);
-    const dataIg = await resIg.json();
-    
-    if (dataIg && dataIg.error) {
-      console.warn(`[Webhook] Follow check (IG Graph) error: ${dataIg.error.message}`);
-    } else if (dataIg && typeof dataIg.is_user_follow_business === "boolean") {
-      console.log(`[Webhook] Follow check (IG Graph) for ${commenterId}:`, dataIg.is_user_follow_business);
-      return dataIg.is_user_follow_business;
-    }
-
-    // If both failed or did not return the expected field, log it and return true (bypass follow gate to not block users)
-    console.warn("[Webhook] ⚠️ Follow check could not verify relationship. Bypassing gate to send DM.");
-    return true; 
-  } catch (err) {
-    console.error("[Webhook] ❌ Follow check request failed. Bypassing gate to send DM. Error:", err);
-    return true; 
-  }
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // POST — Incoming Instagram events
 // ─────────────────────────────────────────────────────────────────────────────
@@ -249,7 +207,7 @@ export async function POST(req: Request) {
         // Find the IG account in our DB
         const { data: igAccounts, error: accError } = await supabaseAdmin
           .from("instagram_accounts")
-          .select("id, user_id, access_token, username, page_access_token")
+          .select("id, user_id, access_token, username")
           .eq("instagram_business_id", igBusinessId.toString())  // Convert to string
           .order("updated_at", { ascending: false })
           .limit(1);
@@ -380,38 +338,18 @@ export async function POST(req: Request) {
           // New schema: require_follow + follow_gate_message
           // Old schema: ask_follow
           const shouldAskFollow = rule.require_follow || rule.ask_follow;
-          let isFollowing = false;
-
-          if (shouldAskFollow) {
-            isFollowing = await checkIfUserFollowsBusiness(commenterId, tokenToUse, igAccount.page_access_token);
-          }
-
-          if (shouldAskFollow && !isFollowing && rule.follow_gate_message) {
-            // User does not follow: Send ONLY the follow-gate message, do NOT send the main DM.
+          if (shouldAskFollow && rule.follow_gate_message) {
+            // Send the follow-gate message first, with a button to visit profile and follow
             const profileUrl = `https://instagram.com/${igAccount.username}`;
-            const fgResult = await sendInstagramDM(
+            await sendInstagramDM(
               { comment_id: commentId },
               rule.follow_gate_message,
               tokenToUse,
               "Visit Profile & Follow",
               profileUrl
             );
-
-            // Log that we sent the follow-gate message instead of the main DM
-            await supabaseAdmin.from("automation_logs").insert({
-              automation_id: rule.id,
-              instagram_user_id: commenterId,
-              comment_text: commentText,
-              comment_id: commentId,
-              dm_sent: false, // Set to false so that they can trigger again once they follow
-              dm_sent_at: null,
-              error_message: fgResult.success ? "Follow gate active (follow request sent)" : (fgResult.error ?? "Failed to send follow gate message"),
-            });
-
-            continue; // Stop here, do not send the main DM.
           }
 
-          // User either already follows or shouldAskFollow is false: Send the main DM.
           // Ask for email (old schema only)
           if (rule.ask_email) {
             dmText = `${dmText}\n\nCould you also share your email so we can send you more details?`;
