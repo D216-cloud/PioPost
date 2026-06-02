@@ -84,6 +84,51 @@ const AUTOMATION_PRESETS = [
   }
 ];
 
+const SUGGESTED_GIFS = [
+  {
+    id: "dm-1",
+    url: "https://media.giphy.com/media/LALdbW3COmMFq/giphy.gif",
+    title: "Check your DMs"
+  },
+  {
+    id: "dm-2",
+    url: "https://media.giphy.com/media/l41YmQjOz9qgJg9K0/giphy.gif",
+    title: "Slide into DMs"
+  },
+  {
+    id: "dm-3",
+    url: "https://media.giphy.com/media/3o7TKoWXm3okO1kg6s/giphy.gif",
+    title: "You've got mail!"
+  },
+  {
+    id: "dm-4",
+    url: "https://media.giphy.com/media/3o85xGocUH8TCQDDry/giphy.gif",
+    title: "Incoming DM"
+  },
+  {
+    id: "dm-5",
+    url: "https://media.giphy.com/media/xT5LMz1W4o5IoPscbC/giphy.gif",
+    title: "Checking mailbox"
+  },
+  {
+    id: "dm-6",
+    url: "https://media.giphy.com/media/l3q2uySsZmVCUdJrG/giphy.gif",
+    title: "Check your phone"
+  }
+];
+
+const extractGifAndText = (fullText: string) => {
+  if (!fullText) return { text: "", gifUrl: "" };
+  const giphyRegex = /(https:\/\/media\.giphy\.com\/media\/[a-zA-Z0-9_-]+\/giphy\.gif)/i;
+  const match = fullText.match(giphyRegex);
+  if (match) {
+    const gifUrl = match[1];
+    const text = fullText.replace(giphyRegex, "").trim();
+    return { text, gifUrl };
+  }
+  return { text: fullText, gifUrl: "" };
+};
+
 export default function ReelsPage() {
   const { data: session } = useSession();
 
@@ -103,6 +148,8 @@ export default function ReelsPage() {
   const [activePresetIndex, setActivePresetIndex] = useState(0);
   const [autoReplyComment, setAutoReplyComment] = useState(false);
   const [commentReplyText, setCommentReplyText] = useState("Check your DMs! 📩");
+  const [selectedCommentReplyGif, setSelectedCommentReplyGif] = useState("");
+  const [isGifPickerOpen, setIsGifPickerOpen] = useState(false);
   const [requireFollow, setRequireFollow] = useState(false);
   const [followGateMessage, setFollowGateMessage] = useState("Hey! Follow me first and I'll send you the link 🙌");
   const [savingAutomation, setSavingAutomation] = useState(false);
@@ -206,13 +253,18 @@ export default function ReelsPage() {
   const openAutomationModal = (item: InstagramMedia) => {
     const existingRule = rules.find((r) => r.post_id === item.id);
     setSelectedItemForAutomation(item);
+    setIsGifPickerOpen(false);
     if (existingRule) {
       setAutomationMessage(existingRule.dm_message || "");
       setAutomationActive(existingRule.active);
       setAutomationKeywordMode(existingRule.keyword_mode || "any");
       setAutomationKeywords(existingRule.keywords || []);
       setAutoReplyComment(Boolean(existingRule.auto_reply_comment));
-      setCommentReplyText(existingRule.comment_reply_text || "Check your DMs! 📩");
+      
+      const parsed = extractGifAndText(existingRule.comment_reply_text || "Check your DMs! 📩");
+      setCommentReplyText(parsed.text);
+      setSelectedCommentReplyGif(parsed.gifUrl);
+      
       setRequireFollow(Boolean(existingRule.require_follow));
       setFollowGateMessage(existingRule.follow_gate_message || "Hey! Follow me first and I'll send you the link 🙌");
       
@@ -225,6 +277,7 @@ export default function ReelsPage() {
       setAutomationKeywords([]);
       setAutoReplyComment(false);
       setCommentReplyText("Check your DMs! 📩");
+      setSelectedCommentReplyGif("");
       setRequireFollow(false);
       setFollowGateMessage("Hey! Follow me first and I'll send you the link 🙌");
       setActivePresetIndex(1); // Default to the first preset (Send Link) for ease of use
@@ -241,6 +294,10 @@ export default function ReelsPage() {
     const existingRule = rules.find((r) => r.post_id === selectedItemForAutomation.id);
 
     try {
+      const commentReplyWithGif = autoReplyComment 
+        ? (selectedCommentReplyGif ? `${commentReplyText} ${selectedCommentReplyGif}` : commentReplyText)
+        : null;
+
       if (existingRule) {
         const res = await fetch("/api/automations", {
           method: "PATCH",
@@ -252,7 +309,7 @@ export default function ReelsPage() {
             keyword_mode: automationKeywordMode,
             keywords: automationKeywordMode === "specific" ? automationKeywords : [],
             auto_reply_comment: autoReplyComment,
-            comment_reply_text: autoReplyComment ? commentReplyText : null,
+            comment_reply_text: commentReplyWithGif,
             require_follow: requireFollow,
             follow_gate_message: requireFollow ? followGateMessage : null,
           }),
@@ -277,7 +334,7 @@ export default function ReelsPage() {
             dm_message: automationMessage,
             active: automationActive,
             auto_reply_comment: autoReplyComment,
-            comment_reply_text: autoReplyComment ? commentReplyText : null,
+            comment_reply_text: commentReplyWithGif,
             rule_name: `Auto-DM: ${selectedItemForAutomation.caption ? selectedItemForAutomation.caption.substring(0, 20) : selectedItemForAutomation.id}`,
             require_follow: requireFollow,
             follow_gate_message: requireFollow ? followGateMessage : null,
@@ -1021,8 +1078,72 @@ export default function ReelsPage() {
                   </div>
 
                   {autoReplyComment ? (
-                    <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-300">
-                      <label className="text-[10.5px] font-black uppercase tracking-wider text-slate-450 block">Comment Reply Text</label>
+                    <div className="relative space-y-2 animate-in fade-in slide-in-from-top-1 duration-300">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10.5px] font-black uppercase tracking-wider text-slate-450 block">Comment Reply Text</label>
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setIsGifPickerOpen(!isGifPickerOpen)}
+                            className="h-7 px-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-650 font-bold text-[11px] flex items-center gap-1 transition-all"
+                          >
+                            🎬 Add GIF
+                          </button>
+
+                          {/* GIF Picker Popover */}
+                          {isGifPickerOpen && (
+                            <div className="absolute right-0 top-8 z-50 w-80 rounded-[2rem] border border-slate-200 bg-white p-4 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200">
+                              {/* Header */}
+                              <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-3">
+                                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">SELECT GIF</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setIsGifPickerOpen(false)}
+                                  className="rounded-full p-1 text-slate-450 hover:bg-slate-50 hover:text-slate-700 transition-colors"
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+
+                              {/* Grid */}
+                              <div className="grid grid-cols-3 gap-2">
+                                {SUGGESTED_GIFS.map((gif) => (
+                                  <div
+                                    key={gif.id}
+                                    onClick={() => {
+                                      setSelectedCommentReplyGif(gif.url);
+                                      setIsGifPickerOpen(false);
+                                    }}
+                                    className={`group relative aspect-square rounded-xl overflow-hidden bg-slate-100 border-2 cursor-pointer transition-all hover:scale-105 ${
+                                      selectedCommentReplyGif === gif.url ? "border-[#a855f7]" : "border-transparent"
+                                    }`}
+                                  >
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={gif.url}
+                                      alt={gif.title}
+                                      className="w-full h-full object-cover animate-in fade-in duration-300"
+                                    />
+                                    <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                      <span className="text-[9px] text-white font-bold text-center px-1 leading-tight">{gif.title}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Bottom button */}
+                              <button
+                                type="button"
+                                onClick={() => setIsGifPickerOpen(false)}
+                                className="bg-slate-50 hover:bg-slate-100 text-slate-500 font-bold rounded-2xl py-2.5 px-4 text-center text-xs tracking-wider cursor-pointer mt-3 block w-full uppercase transition-all"
+                              >
+                                Close
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
                       <textarea
                         value={commentReplyText}
                         onChange={(e) => setCommentReplyText(e.target.value)}
@@ -1030,6 +1151,21 @@ export default function ReelsPage() {
                         rows={3}
                         className="w-full resize-none rounded-2xl border border-slate-250 bg-slate-50 p-3 text-[12.5px] font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#a855f7]/20 leading-relaxed"
                       />
+
+                      {selectedCommentReplyGif && (
+                        <div className="relative w-28 aspect-video rounded-xl overflow-hidden border border-slate-200 mt-2 animate-in zoom-in-95 duration-200">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={selectedCommentReplyGif} alt="Selected GIF" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setSelectedCommentReplyGif("")}
+                            className="absolute top-1 right-1 bg-slate-900/80 text-white rounded-full p-1 hover:bg-slate-950 transition-colors"
+                          >
+                            <X size={10} />
+                          </button>
+                        </div>
+                      )}
+
                       <p className="text-[9.5px] text-slate-400 leading-tight">
                         This reply will post publicly in the comment thread alongside the DM.
                       </p>
