@@ -40,6 +40,35 @@ async function isDuplicate(
   return (data?.length ?? 0) > 0;
 }
 
+/** Check if the user is already following the business account */
+async function checkIfUserFollows(
+  commenterId: string,
+  accessToken: string
+): Promise<boolean> {
+  try {
+    const fbUrl = `https://graph.facebook.com/v21.0/${commenterId}?fields=is_user_follow_business&access_token=${accessToken}`;
+    const fbRes = await fetch(fbUrl);
+    const fbData = await fbRes.json();
+    console.log(`[Webhook] Follow check response (graph.facebook.com) for ${commenterId}:`, JSON.stringify(fbData));
+    
+    if (fbData.is_user_follow_business !== undefined) {
+      return !!fbData.is_user_follow_business;
+    }
+    
+    const igUrl = `https://graph.instagram.com/v21.0/${commenterId}?fields=is_user_follow_business&access_token=${accessToken}`;
+    const igRes = await fetch(igUrl);
+    const igData = await igRes.json();
+    console.log(`[Webhook] Follow check response (graph.instagram.com) for ${commenterId}:`, JSON.stringify(igData));
+    
+    if (igData.is_user_follow_business !== undefined) {
+      return !!igData.is_user_follow_business;
+    }
+  } catch (err) {
+    console.error("[Webhook] ❌ Exception checking follow status:", err);
+  }
+  return false;
+}
+
 function getDedupeCooldownHours(rule: Record<string, unknown>): number {
   const raw = Number(rule.dedupe_cooldown_hours ?? 24);
   if (!Number.isFinite(raw)) return 24;
@@ -338,16 +367,51 @@ export async function POST(req: Request) {
           // New schema: require_follow + follow_gate_message
           // Old schema: ask_follow
           const shouldAskFollow = rule.require_follow || rule.ask_follow;
-          if (shouldAskFollow && rule.follow_gate_message) {
+          let isFollowing = false;
+          if (shouldAskFollow) {
+            isFollowing = await checkIfUserFollows(commenterId, tokenToUse);
+            console.log(`[Webhook] Follow status check for user ${commenterId}: ${isFollowing}`);
+          }
+
+          if (shouldAskFollow && !isFollowing && rule.follow_gate_message) {
             // Send the follow-gate message first, with a button to visit profile and follow
             const profileUrl = `https://instagram.com/${igAccount.username}`;
-            await sendInstagramDM(
+            const dmResult = await sendInstagramDM(
               { comment_id: commentId },
               rule.follow_gate_message,
               tokenToUse,
               "Visit Profile & Follow",
               profileUrl
             );
+
+            // ── Log result for follow gate message ───────────────────────────
+            await supabaseAdmin.from("automation_logs").insert({
+              automation_id: rule.id,
+              instagram_user_id: commenterId,
+              comment_text: commentText,
+              comment_id: commentId,
+              dm_sent: dmResult.success,
+              dm_sent_at: dmResult.success ? new Date().toISOString() : null,
+              error_message: dmResult.error ?? null,
+            });
+
+            if (dmResult.success) {
+              console.log("[Webhook] ✅ Follow-gate DM sent successfully to:", commenterId);
+              // Update stats — support both executions (old) and total_dms_sent (new)
+              await supabaseAdmin
+                .from("automation_rules")
+                .update({
+                  total_dms_sent: (rule.total_dms_sent || 0) + 1,
+                  executions: (rule.executions || 0) + 1,
+                  last_execution: new Date().toISOString(),
+                })
+                .eq("id", rule.id);
+            } else {
+              console.error("[Webhook] ❌ Follow-gate DM failed for commenter", commenterId, ":", dmResult.error);
+            }
+
+            // Skip sending the main DM since they need to follow first
+            continue;
           }
 
           // Ask for email (old schema only)
