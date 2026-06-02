@@ -182,6 +182,13 @@ async function handleFollowPostback(
   
   const tokenToUse = igAccount.access_token;
 
+  // Send a status message first
+  await sendInstagramDM(
+    { id: senderId },
+    "Checking your follow status... ⏳",
+    tokenToUse
+  );
+
   // 2. Fetch the automation rule
   const { data: rule } = await supabaseAdmin
     .from("automation_rules")
