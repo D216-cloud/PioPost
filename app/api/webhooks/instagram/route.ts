@@ -166,32 +166,42 @@ async function postCommentReply(
 /** Check if user follows the business account */
 async function checkIfUserFollowsBusiness(
   commenterId: string,
-  accessToken: string
+  accessToken: string,
+  pageAccessToken?: string | null
 ): Promise<boolean> {
   try {
-    // 1. Try Instagram Graph API endpoint
+    // 1. If pageAccessToken is available, try Facebook Graph API first (standard for Instagram messaging relationships)
+    if (pageAccessToken) {
+      const urlFb = `https://graph.facebook.com/v21.0/${commenterId}?fields=is_user_follow_business&access_token=${pageAccessToken}`;
+      const resFb = await fetch(urlFb);
+      const dataFb = await resFb.json();
+      
+      if (dataFb && dataFb.error) {
+        console.warn(`[Webhook] Follow check (FB Graph) error: ${dataFb.error.message}`);
+      } else if (dataFb && typeof dataFb.is_user_follow_business === "boolean") {
+        console.log(`[Webhook] Follow check (FB Graph) for ${commenterId}:`, dataFb.is_user_follow_business);
+        return dataFb.is_user_follow_business;
+      }
+    }
+
+    // 2. Try Instagram Graph API endpoint as fallback / secondary check
     const urlIg = `https://graph.instagram.com/v21.0/${commenterId}?fields=is_user_follow_business&access_token=${accessToken}`;
     const resIg = await fetch(urlIg);
     const dataIg = await resIg.json();
-    if (dataIg && typeof dataIg.is_user_follow_business === "boolean") {
+    
+    if (dataIg && dataIg.error) {
+      console.warn(`[Webhook] Follow check (IG Graph) error: ${dataIg.error.message}`);
+    } else if (dataIg && typeof dataIg.is_user_follow_business === "boolean") {
       console.log(`[Webhook] Follow check (IG Graph) for ${commenterId}:`, dataIg.is_user_follow_business);
       return dataIg.is_user_follow_business;
     }
 
-    // 2. Try Facebook Graph API fallback endpoint
-    const urlFb = `https://graph.facebook.com/v21.0/${commenterId}?fields=is_user_follow_business&access_token=${accessToken}`;
-    const resFb = await fetch(urlFb);
-    const dataFb = await resFb.json();
-    if (dataFb && typeof dataFb.is_user_follow_business === "boolean") {
-      console.log(`[Webhook] Follow check (FB Graph) for ${commenterId}:`, dataFb.is_user_follow_business);
-      return dataFb.is_user_follow_business;
-    }
-
-    console.warn("[Webhook] ⚠️ Follow check response did not return expected boolean field:", JSON.stringify({ dataIg, dataFb }));
-    return false;
+    // If both failed or did not return the expected field, log it and return true (bypass follow gate to not block users)
+    console.warn("[Webhook] ⚠️ Follow check could not verify relationship. Bypassing gate to send DM.");
+    return true; 
   } catch (err) {
-    console.error("[Webhook] ❌ Follow check request failed:", err);
-    return false;
+    console.error("[Webhook] ❌ Follow check request failed. Bypassing gate to send DM. Error:", err);
+    return true; 
   }
 }
 
@@ -239,7 +249,7 @@ export async function POST(req: Request) {
         // Find the IG account in our DB
         const { data: igAccounts, error: accError } = await supabaseAdmin
           .from("instagram_accounts")
-          .select("id, user_id, access_token, username")
+          .select("id, user_id, access_token, username, page_access_token")
           .eq("instagram_business_id", igBusinessId.toString())  // Convert to string
           .order("updated_at", { ascending: false })
           .limit(1);
@@ -373,7 +383,7 @@ export async function POST(req: Request) {
           let isFollowing = false;
 
           if (shouldAskFollow) {
-            isFollowing = await checkIfUserFollowsBusiness(commenterId, tokenToUse);
+            isFollowing = await checkIfUserFollowsBusiness(commenterId, tokenToUse, igAccount.page_access_token);
           }
 
           if (shouldAskFollow && !isFollowing && rule.follow_gate_message) {
