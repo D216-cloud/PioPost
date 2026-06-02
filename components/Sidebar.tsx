@@ -157,7 +157,7 @@ export function Sidebar({
                     <img
                       src={avatarUrl}
                       alt="avatar"
-                      className="w-9 h-9 rounded-full object-cover shrink-0 ring-2 ring-[#a855f7]/20"
+                      className="w-9 h-9 rounded-full object-cover shrink-0 ring-2 ring-slate-950/20 dark:ring-white/20"
                     />
                   ) : (
                     <div className="w-9 h-9 rounded-full bg-linear-to-br from-[#7c3aed] to-[#d946ef] flex items-center justify-center text-white text-[13px] font-black shrink-0">
@@ -198,7 +198,7 @@ export function Sidebar({
                   src={avatarUrl}
                   alt="avatar"
                   title={username}
-                  className="w-9 h-9 rounded-full object-cover ring-2 ring-[#a855f7]/20"
+                  className="w-9 h-9 rounded-full object-cover ring-2 ring-slate-950/20 dark:ring-white/20"
                 />
               ) : (
                 <div

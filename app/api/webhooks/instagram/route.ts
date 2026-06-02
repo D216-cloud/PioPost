@@ -102,20 +102,21 @@ async function sendInstagramDM(
   recipient: { id: string } | { comment_id: string },
   message: string,
   accessToken: string,
-  buttonLabel?: string | null,
+  buttonLabelOrButtons?: string | Array<any> | null,
   buttonUrl?: string | null
 ): Promise<{ success: boolean; error?: string; messageId?: string }> {
   const url = `https://graph.instagram.com/v21.0/me/messages`;
 
-  let body:
-    | {
-      recipient: { id: string } | { comment_id: string };
-      message: { text: string } | { attachment: { type: string; payload: { template_type: string; text: string; buttons: Array<{ type: string; url: string; title: string }> } } };
-      access_token: string;
-    }
-    | null = null;
+  let buttonsArray: Array<any> = [];
+  if (Array.isArray(buttonLabelOrButtons)) {
+    buttonsArray = buttonLabelOrButtons;
+  } else if (typeof buttonLabelOrButtons === "string" && buttonUrl) {
+    buttonsArray = [{ type: "web_url", url: buttonUrl, title: buttonLabelOrButtons }];
+  }
 
-  if (buttonLabel && buttonUrl) {
+  let body: any = null;
+
+  if (buttonsArray.length > 0) {
     // Button template message
     body = {
       recipient,
@@ -125,7 +126,7 @@ async function sendInstagramDM(
           payload: {
             template_type: "button",
             text: message,
-            buttons: [{ type: "web_url", url: buttonUrl, title: buttonLabel }],
+            buttons: buttonsArray,
           },
         },
       },
@@ -153,6 +154,114 @@ async function sendInstagramDM(
     return { success: true, messageId: data.message_id };
   } catch (err: unknown) {
     return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
+  }
+}
+
+/** Process follow confirmation postback clicks and send the main DM if follow check succeeds */
+async function handleFollowPostback(
+  senderId: string,
+  ruleId: string,
+  commentId: string,
+  igBusinessId: string
+) {
+  console.log(`[Webhook] Processing follow postback for user:${senderId}, rule:${ruleId}, comment:${commentId}`);
+  
+  // 1. Fetch the IG account from the business ID
+  const { data: igAccounts } = await supabaseAdmin
+    .from("instagram_accounts")
+    .select("id, user_id, access_token, username")
+    .eq("instagram_business_id", igBusinessId.toString())
+    .order("updated_at", { ascending: false })
+    .limit(1);
+
+  const igAccount = igAccounts?.[0] ?? null;
+  if (!igAccount) {
+    console.error("[Webhook] No IG account found for business ID in postback:", igBusinessId);
+    return;
+  }
+  
+  const tokenToUse = igAccount.access_token;
+
+  // 2. Fetch the automation rule
+  const { data: rule } = await supabaseAdmin
+    .from("automation_rules")
+    .select("*")
+    .eq("id", ruleId)
+    .limit(1)
+    .single();
+
+  if (!rule) {
+    console.error("[Webhook] Rule not found in postback:", ruleId);
+    return;
+  }
+
+  // 3. Check if user follows now
+  const isFollowing = await checkIfUserFollows(senderId, tokenToUse);
+  console.log(`[Webhook] Postback follow check result for ${senderId}: ${isFollowing}`);
+
+  if (isFollowing) {
+    // 4. Send the main DM message!
+    let dmText = (rule.dm_message || rule.reply_message || "").toString();
+    dmText = dmText
+      .replace(/\n\n\[Attached Image: .*?\]/g, "")
+      .replace(/\[Button: (.*?)\]\((.*?)\)/g, "$1: $2")
+      .replace(/\[Follow Request: (.*?)\]/g, "$1")
+      .trim();
+
+    if (!dmText) {
+      console.warn(`[Webhook] Rule "${rule.rule_name || rule.name}" has no DM message in postback.`);
+      return;
+    }
+
+    if (rule.ask_email) {
+      dmText = `${dmText}\n\nCould you also share your email so we can send you more details?`;
+    }
+
+    const hasButton = rule.dm_type === "message_button";
+    const dmResult = await sendInstagramDM(
+      { id: senderId },
+      dmText,
+      tokenToUse,
+      hasButton ? rule.dm_button_label : null,
+      hasButton ? rule.dm_button_url : null
+    );
+
+    // Log execution
+    await supabaseAdmin.from("automation_logs").insert({
+      automation_id: rule.id,
+      instagram_user_id: senderId,
+      comment_text: "[Postback Follow Verification]",
+      comment_id: commentId,
+      dm_sent: dmResult.success,
+      dm_sent_at: dmResult.success ? new Date().toISOString() : null,
+      error_message: dmResult.error ?? null,
+    });
+
+    if (dmResult.success) {
+      console.log("[Webhook] ✅ Main DM sent successfully via postback to:", senderId);
+      await supabaseAdmin
+        .from("automation_rules")
+        .update({
+          total_dms_sent: (rule.total_dms_sent || 0) + 1,
+          executions: (rule.executions || 0) + 1,
+          last_execution: new Date().toISOString(),
+        })
+        .eq("id", rule.id);
+    } else {
+      console.error("[Webhook] ❌ Main DM failed via postback for commenter", senderId, ":", dmResult.error);
+    }
+  } else {
+    // Send a reminder with the two buttons again
+    const profileUrl = `https://instagram.com/${igAccount.username}`;
+    await sendInstagramDM(
+      { id: senderId },
+      "Oops! It seems you are not following us yet. Please follow us first, then click \"I'm Following\" to get the link! 🙌",
+      tokenToUse,
+      [
+        { type: "web_url", url: profileUrl, title: "Visit Profile" },
+        { type: "postback", title: "I'm Following", payload: `check_follow:${ruleId}:${commentId}` }
+      ]
+    );
   }
 }
 
@@ -373,15 +482,18 @@ export async function POST(req: Request) {
             console.log(`[Webhook] Follow status check for user ${commenterId}: ${isFollowing}`);
           }
 
-          if (shouldAskFollow && !isFollowing && rule.follow_gate_message) {
+          if (shouldAskFollow && !isFollowing) {
+            const followGateMsg = rule.follow_gate_message || "Hey! Follow me first and I'll send you the link 🙌";
             // Send the follow-gate message first, with a button to visit profile and follow
             const profileUrl = `https://instagram.com/${igAccount.username}`;
             const dmResult = await sendInstagramDM(
               { comment_id: commentId },
-              rule.follow_gate_message,
+              followGateMsg,
               tokenToUse,
-              "Visit Profile & Follow",
-              profileUrl
+              [
+                { type: "web_url", url: profileUrl, title: "Visit Profile" },
+                { type: "postback", title: "I'm Following", payload: `check_follow:${rule.id}:${commentId}` }
+              ]
             );
 
             // ── Log result for follow gate message ───────────────────────────
@@ -461,10 +573,27 @@ export async function POST(req: Request) {
       // ── DM / messaging events ────────────────────────────────────────────
       for (const messaging of entry.messaging ?? []) {
         const senderId = messaging.sender?.id;
+        if (!senderId) continue;
+
+        // Handle postback (e.g. check follow status)
+        if (messaging.postback) {
+          const payload = messaging.postback.payload;
+          console.log(`[Webhook] 📮 Postback received from ${senderId}: payload="${payload}"`);
+          if (payload && payload.startsWith("check_follow:")) {
+            const parts = payload.split(":");
+            const ruleId = parts[1];
+            const commentId = parts[2];
+            await handleFollowPostback(senderId, ruleId, commentId, igBusinessId);
+          }
+          continue;
+        }
+
+        // Handle text message
         const messageText = messaging.message?.text;
-        if (!senderId || !messageText) continue;
-        console.log(`[Webhook] 📩 DM received from ${senderId}: "${messageText}"`);
-        // Future: DM-triggered automations
+        if (messageText) {
+          console.log(`[Webhook] 📩 DM received from ${senderId}: "${messageText}"`);
+          // Future: DM-triggered automations
+        }
       }
     }
 

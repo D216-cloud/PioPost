@@ -790,7 +790,7 @@ export default function ReelsPage() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
               transition={{ type: "spring", duration: 0.4 }}
-              className="relative w-full max-w-xl max-h-[85vh] overflow-hidden flex flex-col rounded-[2.5rem] border border-slate-200 bg-white shadow-2xl z-10"
+              className="relative w-full max-w-xl max-h-[85vh] overflow-hidden flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl z-10"
             >
               {/* Header */}
               <div className="flex items-center justify-between border-b border-slate-100 bg-white px-6 py-4">
@@ -810,7 +810,7 @@ export default function ReelsPage() {
               <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50 no-scrollbar">
                 
                 {/* 1. Account Header Card (cloned style from settings page) */}
-                <div className="p-4 bg-white border border-slate-200/80 rounded-3xl shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex items-center justify-between gap-4">
+                <div className="p-4 bg-white border border-slate-200/80 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.01)] flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3.5 min-w-0">
                     <div className="relative shrink-0">
                       <div className="w-14 h-14 rounded-full p-0.5 bg-linear-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7]">
@@ -847,21 +847,21 @@ export default function ReelsPage() {
                     </span>
                     <button
                       onClick={() => setAutomationActive(!automationActive)}
-                      className={`w-10 h-5.5 rounded-full relative transition-all flex-shrink-0 cursor-pointer ${
+                      className={`w-10 h-5.5 rounded-full relative transition-colors duration-200 flex-shrink-0 cursor-pointer ${
                         automationActive 
-                          ? "bg-gradient-to-r from-[#ee2a7b] to-[#6228d7]" 
-                          : "bg-slate-200"
+                          ? "bg-slate-900 dark:bg-white" 
+                          : "bg-slate-200 dark:bg-slate-800"
                       }`}
                     >
-                      <div className={`absolute top-0.5 w-4.5 h-4.5 rounded-full bg-white shadow transition-all ${
-                        automationActive ? "right-0.5" : "left-0.5"
+                      <div className={`absolute top-0.5 w-4.5 h-4.5 rounded-full shadow transition-all duration-200 ${
+                        automationActive ? "left-[19px] bg-white dark:bg-slate-950" : "left-0.5 bg-white"
                       }`} />
                     </button>
                   </div>
                 </div>
 
                 {/* 2. Selected Reel Preview Card */}
-                <div className="p-3 bg-white border border-slate-250/70 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.01)] flex gap-3 items-start">
+                <div className="p-3 bg-white border border-slate-250/70 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.01)] flex gap-3 items-start">
                   <div className="relative w-12 h-16 shrink-0 overflow-hidden rounded-xl bg-slate-100 border border-slate-200/50">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={getThumb(selectedItemForAutomation)} alt="" className="w-full h-full object-cover" />
@@ -870,7 +870,7 @@ export default function ReelsPage() {
                     </span>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <span className="text-[8px] font-extrabold uppercase tracking-widest text-[#a855f7]">Target Post</span>
+                    <span className="text-[8px] font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400">Target Post</span>
                     <p className="line-clamp-2 text-[12px] leading-relaxed text-slate-650 font-semibold mt-0.5">
                       {selectedItemForAutomation.caption || <span className="italic text-slate-400">No caption</span>}
                     </p>
@@ -882,7 +882,7 @@ export default function ReelsPage() {
                   <div className="flex items-center justify-between">
                     <label className="text-[12px] font-black uppercase tracking-wider text-slate-400">Choose Template Preset</label>
                     {activePresetIndex > 0 && (
-                      <span className="text-[10px] text-[#a855f7] font-bold">Preset loaded</span>
+                      <span className="text-[10px] text-slate-900 dark:text-white font-bold">Preset loaded</span>
                     )}
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -898,7 +898,7 @@ export default function ReelsPage() {
                         }}
                         className={`p-2.5 rounded-xl border text-left transition-all hover:scale-[1.01] ${
                           activePresetIndex === idx
-                            ? "border-[#a855f7] bg-violet-50/50 text-[#a855f7]"
+                            ? "border-slate-900 bg-slate-50/50 text-slate-900 dark:border-white dark:bg-slate-850 dark:text-white"
                             : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
                         }`}
                       >
@@ -913,7 +913,7 @@ export default function ReelsPage() {
                 </div>
 
                 {/* 4. Trigger Setting */}
-                <div className="space-y-2.5 p-4.5 bg-white border border-slate-200 rounded-3xl">
+                <div className="space-y-2.5 p-4.5 bg-white border border-slate-200 rounded-xl">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-[12.5px] font-bold text-slate-800">Trigger on Any Comment</p>
@@ -997,7 +997,7 @@ export default function ReelsPage() {
                 </div>
 
                 {/* 6. Comment Reply */}
-                <div className="space-y-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-[12.5px] font-bold text-slate-800">Reply in comments too</p>
@@ -1006,15 +1006,15 @@ export default function ReelsPage() {
                     <button
                       type="button"
                       onClick={() => setAutoReplyComment(!autoReplyComment)}
-                      className={`w-10 h-5.5 rounded-full relative transition-all flex-shrink-0 cursor-pointer ${
+                      className={`w-10 h-5.5 rounded-full relative transition-colors duration-200 flex-shrink-0 cursor-pointer ${
                         autoReplyComment
-                          ? "bg-gradient-to-r from-[#ee2a7b] to-[#6228d7]"
-                          : "bg-slate-200"
+                          ? "bg-slate-900 dark:bg-white"
+                          : "bg-slate-200 dark:bg-slate-800"
                       }`}
                     >
                       <div
-                        className={`absolute top-0.5 w-4.5 h-4.5 rounded-full bg-white shadow transition-all ${
-                          autoReplyComment ? "right-0.5" : "left-0.5"
+                        className={`absolute top-0.5 w-4.5 h-4.5 rounded-full shadow transition-all duration-200 ${
+                          autoReplyComment ? "left-[19px] bg-white dark:bg-slate-950" : "left-0.5 bg-white"
                         }`}
                       />
                     </button>
@@ -1040,7 +1040,7 @@ export default function ReelsPage() {
                 </div>
 
                 {/* 7. Ask to Follow First (Follow Gate) */}
-                <div className="space-y-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-[12.5px] font-bold text-slate-800">Ask to follow first</p>
@@ -1049,15 +1049,15 @@ export default function ReelsPage() {
                     <button
                       type="button"
                       onClick={() => setRequireFollow(!requireFollow)}
-                      className={`w-10 h-5.5 rounded-full relative transition-all flex-shrink-0 cursor-pointer ${
+                      className={`w-10 h-5.5 rounded-full relative transition-colors duration-200 flex-shrink-0 cursor-pointer ${
                         requireFollow
-                          ? "bg-gradient-to-r from-[#ee2a7b] to-[#6228d7]"
-                          : "bg-slate-200"
+                          ? "bg-slate-900 dark:bg-white"
+                          : "bg-slate-200 dark:bg-slate-800"
                       }`}
                     >
                       <div
-                        className={`absolute top-0.5 w-4.5 h-4.5 rounded-full bg-white shadow transition-all ${
-                          requireFollow ? "right-0.5" : "left-0.5"
+                        className={`absolute top-0.5 w-4.5 h-4.5 rounded-full shadow transition-all duration-200 ${
+                          requireFollow ? "left-[19px] bg-white dark:bg-slate-950" : "left-0.5 bg-white"
                         }`}
                       />
                     </button>
@@ -1114,7 +1114,7 @@ export default function ReelsPage() {
                   <button
                     onClick={handleSaveAutomation}
                     disabled={savingAutomation || (automationKeywordMode === "specific" && automationKeywords.length === 0) || !automationMessage.trim()}
-                    className="h-10 px-5 rounded-xl bg-[#a855f7] hover:bg-[#9333ea] text-white text-[12.5px] font-bold shadow-md shadow-purple-100 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="h-10 px-5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 text-[12.5px] font-bold shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {savingAutomation ? (
                       <>

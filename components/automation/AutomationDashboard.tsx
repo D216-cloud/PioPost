@@ -278,7 +278,7 @@ export function AutomationDashboard() {
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between mb-10">
         <div className="space-y-3">
           <h1 className="text-[32px] md:text-[52px] font-normal tracking-tight text-slate-900 leading-none">
-            AutoDM <span className="text-[#a855f7] font-medium">Studio</span>
+            AutoDM <span className="font-extrabold text-slate-900 dark:text-white">Studio</span>
           </h1>
           <p className="text-[14.5px] md:text-[16px] text-slate-500 font-medium max-w-xl leading-relaxed">
             Automate comment triggers, deliver instant product links, collect leads, and scale your Instagram growth like ManyChat.
@@ -296,7 +296,7 @@ export function AutomationDashboard() {
                   void fetchRules(account.id);
                 }
               }}
-              className="h-10 rounded-full border border-slate-200 bg-white px-4 text-[13px] font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#a855f7]/20"
+              className="h-10 rounded-full border border-slate-200 bg-white px-4 text-[13px] font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-950/20 dark:focus:ring-white/20"
             >
               {instagramAccounts.map((account) => (
                 <option key={account.id} value={account.id}>
@@ -318,7 +318,7 @@ export function AutomationDashboard() {
           <button
             onClick={() => setIsCreateOpen(true)}
             disabled={!selectedAccount}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-linear-to-r from-[#e84c9f] via-[#b656e3] to-[#5a60f6] text-white text-[13.5px] font-bold rounded-full shadow-[0_8px_20px_-4px_rgba(182,86,227,0.25)] transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 text-[13.5px] font-bold rounded-full shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus size={14} />
             New Automation
@@ -331,7 +331,7 @@ export function AutomationDashboard() {
           <div className="flex items-center gap-4 flex-1 min-w-0">
             {selectedAccount.profile_picture_url ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={selectedAccount.profile_picture_url} alt="avatar" className="w-11 h-11 rounded-full object-cover ring-2 ring-[#a855f7]/20 shrink-0" />
+              <img src={selectedAccount.profile_picture_url} alt="avatar" className="w-11 h-11 rounded-full object-cover ring-2 ring-slate-950/20 dark:ring-white/20 shrink-0" />
             ) : (
               <div className="w-11 h-11 rounded-full bg-linear-to-br from-[#7c3aed] to-[#d946ef] flex items-center justify-center text-white text-[14px] font-black shrink-0">
                 {selectedAccount.username.charAt(0).toUpperCase()}
@@ -439,69 +439,69 @@ export function AutomationDashboard() {
                 const isSpecific = !!rule.post_id || rule.comment_scope === "specific";
 
                 return (
-                  <div key={rule.id} className="bg-white rounded-3xl border border-slate-200 p-4 md:p-5 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
+                  <div key={rule.id} className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5 shadow-[0_2px_12px_rgba(0,0,0,0.01)] hover:border-slate-350 dark:hover:border-slate-700 transition-all duration-200">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                       <div className="flex items-start gap-4 min-w-0 flex-1">
-                        <div className="relative w-16 h-16 rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 shrink-0">
+                        <div className="relative w-14 h-14 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-850 bg-slate-50 shrink-0">
                           {isSpecific && (rule.post_thumbnail_url || rule.post_thumbnail) ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={(rule.post_thumbnail_url || rule.post_thumbnail) ?? undefined} alt="automation thumbnail" className="w-full h-full object-cover" />
                           ) : isSpecific ? (
-                            <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-slate-100 to-slate-200 text-slate-400">
-                              <Play size={18} fill="currentColor" />
+                            <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-400">
+                              <Play size={16} fill="currentColor" />
                             </div>
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-[#ee2a7b]/10 to-[#6228d7]/10 text-[#ee2a7b]">
-                              <Zap size={18} />
+                            <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-400">
+                              <Zap size={16} />
                             </div>
                           )}
-                          <span className="absolute left-2 top-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/90 backdrop-blur text-[9px] font-black uppercase tracking-wider text-slate-700">
+                          <span className="absolute left-1 top-1 inline-flex items-center px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-xs text-[8px] font-black uppercase tracking-wider text-white">
                             {mediaLabel}
                           </span>
                         </div>
 
-                        <div className="min-w-0 flex-1 space-y-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#f5f3ff] text-[#8b5cf6] text-[10px] font-black uppercase tracking-wider">
+                        <div className="min-w-0 flex-1 space-y-1.5">
+                          <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-slate-400">
+                            <span className="px-2 py-0.5 rounded bg-slate-50 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700 text-slate-600 dark:text-slate-350 text-[9.5px] font-extrabold uppercase tracking-wider leading-none">
                               {isSpecific ? ((rule.post_type === "REEL" || !!rule.instagram_media_id) ? "REEL" : "POST") : "ANY COMMENT"}
                             </span>
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${isActive ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-500"}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-500" : "bg-slate-400"}`} />
+                            <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-750" />
+                            <span className="flex items-center gap-1 text-slate-500 dark:text-slate-400">
+                              <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-500 animate-pulse" : "bg-slate-350 dark:bg-slate-700"}`} />
                               {isActive ? "Active" : "Paused"}
                             </span>
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-wider border border-slate-200">
-                              {new Date(rule.created_at).toLocaleDateString()}
-                            </span>
+                            <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-750" />
+                            <span>{new Date(rule.created_at).toLocaleDateString()}</span>
                           </div>
 
                           <div>
-                            <h3 className="text-[15px] md:text-[16px] font-bold text-slate-900 truncate font-sans">
+                            <h3 className="text-[14.5px] font-bold text-slate-800 dark:text-slate-200 truncate leading-snug">
                               {rule.rule_name || rule.name || (rule.post_caption ? rule.post_caption.slice(0, 40) + "..." : "") || "AutoDM Rule"}
                             </h3>
-                            <p className="text-[13px] text-slate-500 mt-1 leading-relaxed line-clamp-2">
+                            <p className="text-[12.5px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed line-clamp-2">
                               {previewText}
                             </p>
                           </div>
 
-                          <div className="flex flex-wrap items-center gap-2 pt-1">
+                          <div className="flex flex-wrap items-center gap-1.5 pt-1">
                             {rule.keyword_mode === "any" || rule.trigger_keyword === "Any comment" ? (
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200 text-[11px] font-semibold text-slate-500 italic">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-50 dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/60 text-[10.5px] font-bold text-slate-500 dark:text-slate-400">
                                 Any comment triggers DM
                               </span>
                             ) : (
                               (rule.keywords?.length ? rule.keywords : rule.trigger_keyword ? rule.trigger_keyword.split(",").map((item) => item.trim()).filter(Boolean) : []).slice(0, 4).map((keyword) => (
-                                <span key={keyword} className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200 text-[11px] font-semibold text-slate-700">
+                                <span key={keyword} className="inline-flex items-center px-2 py-0.5 rounded bg-slate-50 dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/60 text-[10.5px] font-bold text-slate-650 dark:text-slate-300">
                                   {keyword}
                                 </span>
                               ))
                             )}
                             {(rule.require_follow || rule.ask_follow) && (
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-amber-50 border border-amber-100 text-[11px] font-semibold text-amber-600">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/40 dark:border-amber-900/40 text-[10.5px] font-bold text-amber-600 dark:text-amber-450">
                                 Ask to Follow
                               </span>
                             )}
                             {rule.ask_email && (
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-purple-50 border border-purple-100 text-[11px] font-semibold text-purple-600">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded bg-purple-50/50 dark:bg-purple-950/20 border border-purple-200/40 dark:border-purple-900/40 text-[10.5px] font-bold text-[#8b5cf6] dark:text-purple-400">
                                 Ask Email
                               </span>
                             )}
@@ -509,34 +509,46 @@ export function AutomationDashboard() {
                         </div>
                       </div>
 
-                      <div className="flex flex-col md:items-end gap-3 md:min-w-50">
-                        <div className="flex items-center gap-2 justify-end">
+                      <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-3 shrink-0 md:min-w-44 border-t md:border-t-0 border-slate-100 dark:border-slate-800 pt-3 md:pt-0">
+                        <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleViewLogs(rule)}
-                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-slate-50 border border-slate-200 text-[12px] font-bold text-slate-700 hover:bg-slate-100 transition-colors"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-750 text-[11.5px] font-bold text-slate-600 dark:text-slate-300 transition-colors cursor-pointer active:scale-98"
                           >
-                            <Activity size={13} />
+                            <Activity size={12} className="text-slate-400" />
                             Logs
                           </button>
                           <button
                             onClick={() => void handleToggleRule(rule.id, !rule.active)}
-                            className={`w-12 h-6 rounded-full relative transition-all shrink-0 ${rule.active ? "bg-linear-to-r from-[#ee2a7b] to-[#6228d7]" : "bg-slate-200"}`}
+                            className={`w-10 h-5.5 rounded-full relative transition-colors duration-200 shrink-0 cursor-pointer ${
+                              rule.active 
+                                ? "bg-slate-900 dark:bg-white" 
+                                : "bg-slate-200 dark:bg-slate-850"
+                            }`}
                             title={rule.active ? "Pause automation" : "Activate automation"}
                           >
-                            <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${rule.active ? "right-0.5" : "left-0.5"}`} />
+                            <div className={`absolute top-0.5 w-4.5 h-4.5 rounded-full shadow-sm transition-all duration-200 ${
+                              rule.active 
+                                ? "left-[19px] bg-white dark:bg-slate-950" 
+                                : "left-0.5 bg-white"
+                            }`} />
                           </button>
                           <button
                             onClick={() => void handleDeleteRule(rule.id)}
-                            className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
+                            className="w-7 h-7 rounded-full flex items-center justify-center border border-slate-100 dark:border-slate-800 hover:border-red-100 dark:hover:border-red-950/40 hover:bg-red-50 dark:hover:bg-red-950/10 text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
                             title="Delete automation"
                           >
-                            <XCircle size={14} />
+                            <XCircle size={15} />
                           </button>
                         </div>
 
-                        <div className="text-right">
-                          <p className="text-[12px] font-semibold text-slate-700">{rule.total_dms_sent ?? rule.executions ?? 0} executions</p>
-                          <p className="text-[10px] text-slate-400 mt-0.5">{lastExecutedText ? `Last sent ${lastExecutedText}` : "No sends yet"}</p>
+                        <div className="text-left md:text-right">
+                          <p className="text-[12px] font-bold text-slate-800 dark:text-slate-250">
+                            {rule.total_dms_sent ?? rule.executions ?? 0} {(rule.total_dms_sent ?? rule.executions ?? 0) === 1 ? "execution" : "executions"}
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">
+                            {lastExecutedText ? `Last sent ${lastExecutedText}` : "No sends yet"}
+                          </p>
                         </div>
                       </div>
                     </div>
