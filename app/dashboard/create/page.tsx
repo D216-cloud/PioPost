@@ -561,10 +561,10 @@ export default function CreatePage() {
     const isReady = status === "ready";
 
     return (
-      <div className="min-h-screen bg-white text-slate-900 animate-in fade-in duration-700 px-6 pb-16 pt-4 md:px-8 md:pb-16 md:pt-8 relative">
+      <div className="relative mx-auto max-w-7xl px-6 md:px-8 pt-8 md:pt-24 pb-20 animate-in fade-in duration-700 bg-white text-slate-900">
         <div className="absolute inset-x-0 top-0 -z-10 h-128 bg-[radial-gradient(circle_at_top,rgba(168,85,247,0.12),transparent_50%),radial-gradient(circle_at_50%_0%,rgba(59,130,246,0.08),transparent_42%)]" />
 
-        <div className="mx-auto w-full max-w-5xl space-y-8 text-center pt-4">
+        <div className="mx-auto w-full max-w-7xl space-y-8 text-center pt-4">
           {/* Header */}
           <div className="space-y-3">
             <h1 className="text-[32px] md:text-[52px] font-normal tracking-tight text-slate-900 leading-none">
@@ -983,8 +983,8 @@ export default function CreatePage() {
   }
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 animate-in fade-in duration-700">
-      <div className="relative w-full px-6 pb-16 pt-4 md:px-8 md:pb-16 md:pt-8 space-y-8">
+    <div className="min-h-screen bg-white text-slate-900">
+      <div className="relative mx-auto max-w-7xl px-6 md:px-8 pt-8 md:pt-24 pb-20 space-y-8 animate-in fade-in duration-700">
         <div className="absolute inset-x-0 top-0 -z-10 h-128 bg-[radial-gradient(circle_at_top,rgba(168,85,247,0.12),transparent_50%),radial-gradient(circle_at_50%_0%,rgba(59,130,246,0.08),transparent_42%)]" />
 
         <section className="pt-2 md:pt-4 text-center space-y-6 md:space-y-8">
@@ -997,7 +997,7 @@ export default function CreatePage() {
             </p>
           </div>
 
-          <div className="mx-auto w-full max-w-4xl space-y-8">
+          <div className="mx-auto w-full max-w-7xl space-y-8">
             <div className="rounded-[28px] border border-slate-200 bg-white p-5 md:p-7 shadow-[0_18px_42px_rgba(15,23,42,0.05)]">
               {/* Center interactive Tab Switcher */}
               <div className="mb-6 flex justify-center">

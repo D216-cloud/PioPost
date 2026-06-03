@@ -117,8 +117,8 @@ export default function ControlPostPage() {
         </div>
       </div>
 
-      <section className="relative px-4 pb-16 sm:px-8 md:pb-20">
-        <div className="mx-auto max-w-6xl">
+      <section className="relative px-6 pb-20 md:px-8">
+        <div className="mx-auto max-w-7xl">
           <div className="text-center md:text-left">
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
               <h1 className={`${headingFont.className} text-3xl font-semibold md:text-4xl`}>
@@ -307,8 +307,8 @@ export default function ControlPostPage() {
         </div>
       </section>
 
-      <section className="px-4 pb-20 sm:px-8">
-        <div className="mx-auto max-w-6xl">
+      <section className="px-6 pb-20 md:px-8">
+        <div className="mx-auto max-w-7xl">
           <div className="text-center">
             <h2 className={`${headingFont.className} text-3xl font-semibold`}>Why AutoPost makes launches smoother</h2>
             <p className="mt-3 text-sm text-black/60 md:text-base">
@@ -336,8 +336,8 @@ export default function ControlPostPage() {
         </div>
       </section>
 
-      <section className="px-4 pb-20 sm:px-8">
-        <div className="mx-auto max-w-6xl">
+      <section className="px-6 pb-20 md:px-8">
+        <div className="mx-auto max-w-7xl">
           <div className="text-center">
             <h2 className={`${headingFont.className} text-3xl font-semibold`}>How AutoPost works</h2>
             <p className="mt-3 text-sm text-black/60 md:text-base">
@@ -361,8 +361,8 @@ export default function ControlPostPage() {
         </div>
       </section>
 
-      <section className="px-4 pb-20 sm:px-8">
-        <div className="mx-auto max-w-6xl">
+      <section className="px-6 pb-20 md:px-8">
+        <div className="mx-auto max-w-7xl">
           <div className="text-center">
             <h2 className={`${headingFont.className} text-3xl font-semibold`}>Choose a plan for autoposting</h2>
             <p className="mt-3 text-sm text-black/60 md:text-base">
@@ -404,8 +404,8 @@ export default function ControlPostPage() {
         </div>
       </section>
 
-      <section className="px-4 pb-24 sm:px-8">
-        <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 rounded-[32px] border border-white/10 bg-white px-10 py-12 text-center">
+      <section className="px-6 pb-20 md:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col items-center gap-4 rounded-[32px] border border-white/10 bg-white px-10 py-12 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#2563EB] text-white">
             <Share2 size={24} />
           </div>

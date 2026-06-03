@@ -197,7 +197,7 @@ export default function SettingsPage() {
 
   return (
     <div className="flex-1 min-h-screen overflow-y-auto bg-white pt-24 md:pt-20">
-      <div className="relative w-[95%] md:max-w-6xl mx-auto px-4 md:px-8 pb-20">
+      <div className="relative mx-auto max-w-7xl px-6 md:px-8 pb-20">
         <div className="absolute inset-0 -z-10">
           <div className="absolute -top-24 -right-15 h-72 w-72 rounded-full bg-sky-200/30 blur-[120px]" />
           <div className="absolute -bottom-24 -left-10 h-72 w-72 rounded-full bg-amber-200/30 blur-[120px]" />
@@ -415,7 +415,7 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div className="max-w-6xl w-full mx-auto">
+              <div className="max-w-7xl w-full mx-auto">
                 <div id="instagram-section" className="space-y-4">
                   {instagramAccounts.map((account) => {
                     const isOpen = postsVisibleFor === account.id;

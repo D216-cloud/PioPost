@@ -82,7 +82,7 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
   const [buttonLabel, setButtonLabel] = useState("");
   const [buttonUrl, setButtonUrl] = useState("");
   const [autoReply, setAutoReply] = useState(false);
-  const [commentReplyText, setCommentReplyText] = useState("Check your DMs! 📩");
+  const [commentReplyText, setCommentReplyText] = useState("Thanks for the comment! Link is in bio 📩");
   const [requireFollow, setRequireFollow] = useState(false);
   const [followGateMessage, setFollowGateMessage] = useState(
     "Hey! Follow me first and I'll send you the link 🙌"
@@ -556,7 +556,7 @@ export default function CreateAutoDMModal({ onClose, onCreated }: Props) {
                   <input
                     value={commentReplyText}
                     onChange={(e) => setCommentReplyText(e.target.value)}
-                    placeholder="Check your DMs! 📩"
+                    placeholder="Thanks for the comment! Link is in bio 📩"
                     className="mt-3 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-slate-400 focus:outline-none"
                   />
                 )}

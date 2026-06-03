@@ -20,8 +20,8 @@ import {
 } from "lucide-react";
 
 const navItems = [
-  { label: "Dashboard",        icon: LayoutDashboard, href: "/dashboard" },
-  { label: "Reels",            icon: Film,            href: "/dashboard/reels" },
+  { label: "Home",             icon: LayoutDashboard, href: "/dashboard" },
+  { label: "AutoDM",           icon: Film,            href: "/dashboard/auto-dm" },
   { label: "Quick Replies",    icon: MessageSquareText, href: "/dashboard/quick-replies" },
   { label: "Scheduler",        icon: CalendarDays,    href: "/dashboard/schedule" },
   { label: "Automation",       icon: Zap,             href: "/dashboard/automation" },
@@ -56,7 +56,7 @@ export function Sidebar({
       )}
       
       <aside
-        className={`fixed md:relative z-50 h-dvh bg-[#f8f8f8] flex flex-col shrink-0 border-r border-slate-100/80 transition-all duration-300 ease-in-out ${
+        className={`fixed md:relative z-50 h-dvh bg-white flex flex-col shrink-0 border-r border-slate-100/80 transition-all duration-300 ease-in-out ${
           isOpen ? "translate-x-0 w-60" : "-translate-x-full md:translate-x-0 md:w-17"
         }`}
       >
@@ -139,82 +139,87 @@ export function Sidebar({
         <div className="mt-4 px-3 space-y-3">
           {isOpen ? (
             <>
-              {/* Theme label + moon */}
-              <div className="flex items-center justify-between px-1">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.18em]">
-                  Theme Style
-                </span>
-                <button className="w-6 h-6 rounded-full bg-white border border-slate-100 shadow-sm flex items-center justify-center hover:bg-slate-50 transition-all">
-                  <Moon size={12} className="text-slate-500" />
-                </button>
-              </div>
-
-              {/* Profile card */}
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_1px_6px_rgba(0,0,0,0.05)] px-3.5 py-3 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
+              {/* Profile Card & Theme Toggle side by side */}
+              <div className="flex gap-2 w-full min-w-0">
+                <Link
+                  href="/dashboard/profile"
+                  className="flex items-center gap-2.5 flex-1 p-2 rounded-xl border border-slate-100 bg-white hover:bg-slate-50 shadow-[0_1px_5px_rgba(0,0,0,0.03)] transition-all duration-150 text-left min-w-0"
+                >
                   {avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={avatarUrl}
                       alt="avatar"
-                      className="w-9 h-9 rounded-full object-cover shrink-0 ring-2 ring-slate-950/20 dark:ring-white/20"
+                      className="w-8 h-8 rounded-full object-cover shrink-0 ring-1 ring-slate-205"
                     />
                   ) : (
-                    <div className="w-9 h-9 rounded-full bg-linear-to-br from-[#7c3aed] to-[#d946ef] flex items-center justify-center text-white text-[13px] font-black shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-linear-to-br from-[#7c3aed] to-[#d946ef] flex items-center justify-center text-white text-[12px] font-black shrink-0">
                       {username.charAt(1)?.toUpperCase() ?? "D"}
                     </div>
                   )}
-                  <div className="min-w-0">
-                    <p className="text-[13px] font-bold text-slate-900 truncate">{username}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[12px] font-bold text-slate-900 truncate leading-snug">{username}</p>
                     <span className="inline-flex items-center gap-1 mt-0.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#10b981]" />
-                      <span className="text-[9px] font-black text-[#10b981] uppercase tracking-wider">
+                      <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-[8px] font-black text-emerald-600 uppercase tracking-wider">
                         Online
                       </span>
                     </span>
                   </div>
-                </div>
+                </Link>
+
                 <button
-                  onClick={() => signOut({ callbackUrl: "/" })}
-                  className="w-8 h-8 rounded-full bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 flex items-center justify-center transition-colors shadow-sm border border-slate-100 shrink-0"
-                  title="Sign out"
+                  className="w-9 h-9 rounded-xl bg-white border border-slate-100 shadow-[0_1px_5px_rgba(0,0,0,0.03)] flex items-center justify-center hover:bg-slate-50 transition-all text-slate-400 hover:text-slate-700 shrink-0"
+                  title="Toggle theme"
                 >
-                  <LogOut size={14} />
+                  <Moon size={14} className="text-slate-500" />
                 </button>
               </div>
+
+              {/* Separate Sign Out Button */}
+              <button
+                onClick={() => signOut({ callbackUrl: "/" })}
+                className="w-full flex items-center gap-3.5 px-4 py-2.5 rounded-xl text-[13px] font-bold text-slate-500 hover:text-rose-600 hover:bg-rose-50 border border-slate-100 hover:border-rose-100 bg-white hover:shadow-[0_1px_5px_rgba(0,0,0,0.03)] transition-all duration-150 group cursor-pointer"
+              >
+                <LogOut size={15} className="text-slate-400 group-hover:text-rose-500 shrink-0" />
+                <span>Sign Out</span>
+              </button>
             </>
           ) : (
             /* Collapsed: just avatar + moon icon stacked */
-            <div className="flex flex-col items-center gap-3">
+            <div className="flex flex-col items-center gap-2 w-full">
+              <Link
+                href="/dashboard/profile"
+                title={username}
+                className="w-9 h-9 rounded-xl border border-slate-100 bg-white hover:bg-slate-50 shadow-[0_1px_5px_rgba(0,0,0,0.03)] flex items-center justify-center transition-all overflow-hidden"
+              >
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt="avatar"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-linear-to-br from-[#7c3aed] to-[#d946ef] flex items-center justify-center text-white text-[12px] font-black">
+                    {username.charAt(1)?.toUpperCase() ?? "D"}
+                  </div>
+                )}
+              </Link>
+              
               <button
-                className="w-7 h-7 rounded-full bg-white border border-slate-100 shadow-sm flex items-center justify-center hover:bg-slate-50 transition-all"
+                className="w-9 h-9 rounded-xl bg-white border border-slate-100 shadow-[0_1px_5px_rgba(0,0,0,0.03)] flex items-center justify-center hover:bg-slate-50 transition-all text-slate-450"
                 title="Toggle theme"
               >
-                <Moon size={12} className="text-slate-500" />
+                <Moon size={14} className="text-slate-500" />
               </button>
-              {avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={avatarUrl}
-                  alt="avatar"
-                  title={username}
-                  className="w-9 h-9 rounded-full object-cover ring-2 ring-slate-950/20 dark:ring-white/20"
-                />
-              ) : (
-                <div
-                  title={username}
-                  className="w-9 h-9 rounded-full bg-linear-to-br from-[#7c3aed] to-[#d946ef] flex items-center justify-center text-white text-[13px] font-black"
-                >
-                  {username.charAt(1)?.toUpperCase() ?? "D"}
-                </div>
-              )}
-              <div className="w-full h-px bg-slate-200 my-1" />
+              
+              <div className="w-full h-px bg-slate-100 my-1" />
+              
               <button
                 onClick={() => signOut({ callbackUrl: "/" })}
-                className="w-7 h-7 rounded-full bg-white border border-slate-100 shadow-sm flex items-center justify-center hover:bg-red-50 hover:text-red-500 hover:border-red-100 transition-all text-slate-400"
+                className="w-9 h-9 rounded-xl bg-white border border-slate-100 shadow-[0_1px_5px_rgba(0,0,0,0.03)] flex items-center justify-center hover:bg-rose-50 hover:text-rose-600 hover:border-rose-100 transition-all text-slate-400"
                 title="Sign out"
               >
-                <LogOut size={12} />
+                <LogOut size={14} />
               </button>
             </div>
           )}

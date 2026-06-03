@@ -56,7 +56,7 @@ export default function CreateResultPage() {
 
   return (
     <div className="min-h-screen bg-[#f7faf7] text-slate-900">
-      <div className="relative mx-auto max-w-380 px-4 pb-8 pt-4 md:px-6 md:pt-5">
+      <div className="relative mx-auto max-w-7xl px-6 md:px-8 pt-8 md:pt-24 pb-20 animate-in fade-in duration-700">
         <div className="absolute inset-x-0 top-0 -z-10 h-32 bg-[radial-gradient(circle_at_top,rgba(34,197,94,0.08),transparent_48%),radial-gradient(circle_at_50%_0%,rgba(16,185,129,0.05),transparent_36%)]" />
 
         <header className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">

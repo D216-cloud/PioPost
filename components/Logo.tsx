@@ -86,10 +86,10 @@ export function Logo({ className = "", size = "md", withText = true, theme = "li
   }
 
   return (
-    <div className="flex items-center gap-3 select-none">
+    <div className="flex items-center gap-1.5 select-none">
       {LogoSymbol}
-      <span className={`font-sans tracking-tight ${current.text} ${theme === "dark" ? "text-white" : "text-slate-900"}`}>
-        <span className="font-extrabold">R</span> <span className="font-medium">Decode</span>
+      <span className={`display-serif font-black italic tracking-normal ${current.text} ${theme === "dark" ? "text-white" : "text-slate-900"}`}>
+        Decode
       </span>
     </div>
   );

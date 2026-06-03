@@ -30,7 +30,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-white font-sans">
-      <div className="relative mx-auto max-w-3xl px-6 md:px-8 pt-8 md:pt-20 pb-16 space-y-8 animate-in fade-in duration-500">
+      <div className="relative mx-auto max-w-7xl px-6 md:px-8 pt-8 md:pt-24 pb-20 space-y-8 animate-in fade-in duration-500">
 
         {/* Ambient background */}
         <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">

@@ -72,13 +72,13 @@ const AUTOMATION_PRESETS = [
   },
   {
     name: "Free Guide PDF",
-    message: "Awesome! I've sent the complete PDF guide straight to your DMs. Check it out and let me know your thoughts! 📩",
+    message: "Awesome! You can download your copy of the PDF guide using the link in our bio. 📚",
     icon: "📚",
     desc: "Deliver lead magnets or files"
   },
   {
     name: "Chat Invite",
-    message: "Hey! Thanks for showing interest in our project. Let's chat here in the DMs about how we can help you grow! 💬",
+    message: "Hey! Thanks for showing interest in our project. Check out the link in our bio to see how we can help you grow! 💬",
     icon: "💬",
     desc: "Start a sales conversation or consultation"
   }
@@ -102,7 +102,7 @@ export default function ReelsPage() {
   const [keywordInput, setKeywordInput] = useState("");
   const [activePresetIndex, setActivePresetIndex] = useState(0);
   const [autoReplyComment, setAutoReplyComment] = useState(false);
-  const [commentReplyText, setCommentReplyText] = useState("Check your DMs! 📩");
+  const [commentReplyText, setCommentReplyText] = useState("Thanks for the comment! Link is in bio 📩");
   const [requireFollow, setRequireFollow] = useState(false);
   const [followGateMessage, setFollowGateMessage] = useState("Hey! Follow me first and I'll send you the link 🙌");
   const [savingAutomation, setSavingAutomation] = useState(false);
@@ -212,7 +212,7 @@ export default function ReelsPage() {
       setAutomationKeywordMode(existingRule.keyword_mode || "any");
       setAutomationKeywords(existingRule.keywords || []);
       setAutoReplyComment(Boolean(existingRule.auto_reply_comment));
-      setCommentReplyText(existingRule.comment_reply_text || "Check your DMs! 📩");
+      setCommentReplyText(existingRule.comment_reply_text || "Thanks for the comment! Link is in bio 📩");
       setRequireFollow(Boolean(existingRule.require_follow));
       setFollowGateMessage(existingRule.follow_gate_message || "Hey! Follow me first and I'll send you the link 🙌");
       
@@ -224,7 +224,7 @@ export default function ReelsPage() {
       setAutomationKeywordMode("any");
       setAutomationKeywords([]);
       setAutoReplyComment(false);
-      setCommentReplyText("Check your DMs! 📩");
+      setCommentReplyText("Thanks for the comment! Link is in bio 📩");
       setRequireFollow(false);
       setFollowGateMessage("Hey! Follow me first and I'll send you the link 🙌");
       setActivePresetIndex(1); // Default to the first preset (Send Link) for ease of use
@@ -354,7 +354,7 @@ export default function ReelsPage() {
   ];
 
   return (
-    <div className="relative mx-auto max-w-6xl px-6 md:px-8 pt-8 md:pt-24 pb-16 animate-in fade-in duration-700">
+    <div className="relative mx-auto max-w-7xl px-6 md:px-8 pt-8 md:pt-24 pb-20 animate-in fade-in duration-700">
       {/* Ambient glows */}
       <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
         <div className="absolute top-0 right-1/4 h-80 w-80 rounded-full bg-violet-100/30 blur-[120px]" />
@@ -1026,7 +1026,7 @@ export default function ReelsPage() {
                       <textarea
                         value={commentReplyText}
                         onChange={(e) => setCommentReplyText(e.target.value)}
-                        placeholder="Thanks! Check your DMs for the link 📩"
+                        placeholder="Thanks! You can find the link in my bio 📩"
                         rows={3}
                         className="w-full resize-none rounded-2xl border border-slate-250 bg-slate-50 p-3 text-[12.5px] font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#a855f7]/20 leading-relaxed"
                       />
