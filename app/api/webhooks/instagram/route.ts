@@ -203,8 +203,15 @@ async function handleFollowPostback(
   }
 
   // 3. Check if user follows now
-  const isFollowing = await checkIfUserFollows(senderId, tokenToUse);
+  let isFollowing = await checkIfUserFollows(senderId, tokenToUse);
   console.log(`[Webhook] Postback follow check result for ${senderId}: ${isFollowing}`);
+
+  if (!isFollowing) {
+    console.log(`[Webhook] Follow check was false. Retrying in 2 seconds...`);
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    isFollowing = await checkIfUserFollows(senderId, tokenToUse);
+    console.log(`[Webhook] Postback follow check retry result for ${senderId}: ${isFollowing}`);
+  }
 
   if (isFollowing) {
     // 4. Send the main DM message!
@@ -224,7 +231,7 @@ async function handleFollowPostback(
       dmText = `${dmText}\n\nCould you also share your email so we can send you more details?`;
     }
 
-    const hasButton = rule.dm_type === "message_button";
+    const hasButton = rule.dm_type === "message_button" || (!!rule.dm_button_label && !!rule.dm_button_url);
     const dmResult = await sendInstagramDM(
       { id: senderId },
       dmText,
@@ -258,6 +265,17 @@ async function handleFollowPostback(
       console.error("[Webhook] ❌ Main DM failed via postback for commenter", senderId, ":", dmResult.error);
     }
   } else {
+    // Log verification failure
+    await supabaseAdmin.from("automation_logs").insert({
+      automation_id: rule.id,
+      instagram_user_id: senderId,
+      comment_text: "[Postback Follow Verification]",
+      comment_id: commentId,
+      dm_sent: false,
+      dm_sent_at: null,
+      error_message: "Follow verification failed: User is not following the business account.",
+    });
+
     // Send a reminder with the two buttons again
     const profileUrl = `https://instagram.com/${igAccount.username}`;
     await sendInstagramDM(
