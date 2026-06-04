@@ -195,6 +195,8 @@ export function QuickRepliesStudio() {
   const [launching, setLaunching] = useState(false);
   const [liveRuleId, setLiveRuleId] = useState<string | null>(null);
   const [recentLogs, setRecentLogs] = useState<LogEntry[]>([]);
+  const [replyMessage, setReplyMessage] = useState("");
+  const [showTemplateDropdown, setShowTemplateDropdown] = useState(false);
 
   const selectedAccount = accounts.find((account) => account.id === selectedAccountId) || accounts[0] || null;
   const selectedTemplate = templates.find((template) => template.id === selectedTemplateId) || templates[0];
@@ -287,6 +289,10 @@ export function QuickRepliesStudio() {
   }, [selectedAccountId]);
 
   useEffect(() => {
+    setReplyMessage(selectedTemplate.message);
+  }, [selectedTemplate.message]);
+
+  useEffect(() => {
     if (!liveRuleId) return;
 
     const fetchLiveLogs = async () => {
@@ -337,11 +343,14 @@ export function QuickRepliesStudio() {
         trigger_type: selectedMedia.media_type === "VIDEO" ? "reel_comment" : "post_comment",
         comment_scope: "specific",
         instagram_media_id: selectedMedia.id,
+        post_id: selectedMedia.id,
         post_thumbnail: getMediaThumb(selectedMedia),
+        post_thumbnail_url: getMediaThumb(selectedMedia),
         keyword_mode: "any",
         keywords: [],
         trigger_keyword: "Any comment",
-        reply_message: selectedTemplate.message,
+        reply_message: replyMessage || selectedTemplate.message,
+        dm_message: replyMessage || selectedTemplate.message,
         auto_reply_enabled: false,
         auto_reply_text: "",
         dm_type: "message_only",
@@ -424,6 +433,26 @@ export function QuickRepliesStudio() {
           </button>
         </div>
       </div>
+
+      {!loadingAccounts && !selectedAccount && (
+        <div className="bg-white rounded-[24px] border border-[#e4e4e7] p-5 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+          <div className="flex items-center gap-4 flex-1 min-w-0">
+            <div className="w-11 h-11 rounded-full bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100">
+              <Sparkles size={20} className="text-[#a855f7]" />
+            </div>
+            <div>
+              <p className="text-[14.5px] font-bold text-slate-800 leading-tight">Ready to automate comment replies?</p>
+              <p className="text-[12.5px] text-slate-400 mt-1 font-medium">Pick a template and launch a live comment auto-reply for comments on one post or reel.</p>
+            </div>
+          </div>
+          <a
+            href="/api/auth/instagram/link"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#e84c9f] via-[#b656e3] to-[#5a60f6] text-white text-[13.5px] font-bold rounded-full shadow-[0_8px_20px_-4px_rgba(182,86,227,0.25)] transition-all hover:scale-[1.01] shrink-0 text-center justify-center cursor-pointer"
+          >
+            Connect Instagram
+          </a>
+        </div>
+      )}
 
       {selectedAccount && (
         <div className="bg-white rounded-[24px] border border-[#e4e4e7] p-5 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col md:flex-row md:items-center gap-4 mb-8">
@@ -817,11 +846,69 @@ export function QuickRepliesStudio() {
                                   <span className="inline-flex items-center text-[8px] px-1.5 py-0.5 rounded-full bg-[#a855f7]/10 text-[#a855f7] font-bold">AutoReply</span>
                                   <span className="text-[10px] text-slate-400">Instant</span>
                                 </div>
-                                <p className="text-[12.5px] text-slate-700 mt-0.5">
-                                  <span className="text-blue-600 font-medium">@instagram_user</span> {selectedTemplate.message}
-                                </p>
-                                <div className="flex items-center gap-3 mt-1 text-[10px] font-bold text-slate-400">
-                                  <span>Replied</span>
+                                <div className="mt-2 space-y-2 relative">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-blue-600 font-medium text-[12.5px]">@instagram_user</span>
+                                    <div className="relative">
+                                      <button
+                                        type="button"
+                                        onClick={() => setShowTemplateDropdown(!showTemplateDropdown)}
+                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-[10px] font-bold text-slate-600 transition-colors shadow-xs cursor-pointer"
+                                      >
+                                        <BookOpen size={10} />
+                                        Templates
+                                      </button>
+                                      
+                                      {showTemplateDropdown && (
+                                        <div className="absolute right-0 bottom-full mb-3 z-50 w-80 bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] p-2.5 max-h-72 overflow-y-auto space-y-1.5 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded-full animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                          <div className="flex items-center gap-1.5 px-3 py-1.5 mb-1.5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                                            <Sparkles size={10} className="text-[#a855f7]" />
+                                            Choose Template
+                                          </div>
+                                          {templates.map((t) => (
+                                            <button
+                                              key={t.id}
+                                              type="button"
+                                              onClick={() => {
+                                                setReplyMessage(t.message);
+                                                setShowTemplateDropdown(false);
+                                              }}
+                                              className="w-full flex items-start gap-3 p-2.5 rounded-xl hover:bg-violet-50/40 border border-transparent hover:border-violet-100 text-left transition-all duration-200 cursor-pointer group"
+                                            >
+                                              <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 group-hover:bg-white group-hover:text-[#a855f7] group-hover:border-violet-200 text-slate-500 flex items-center justify-center shrink-0 transition-colors">
+                                                {t.icon}
+                                              </div>
+                                              <div className="flex-1 min-w-0">
+                                                <div className="flex items-center justify-between gap-1.5">
+                                                  <span className="text-[12.5px] font-bold text-slate-900 group-hover:text-[#a855f7] transition-colors">{t.title}</span>
+                                                  <span className="text-[9px] font-bold text-slate-400 bg-slate-100 group-hover:bg-violet-100/50 group-hover:text-violet-600 px-1.5 py-0.5 rounded-md transition-colors shrink-0">
+                                                    {t.label}
+                                                  </span>
+                                                </div>
+                                                <p className="text-[11px] text-slate-500 mt-1 font-medium line-clamp-2 leading-relaxed group-hover:text-slate-600 transition-colors">
+                                                  {t.message}
+                                                </p>
+                                              </div>
+                                            </button>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                  
+                                  <textarea
+                                    value={replyMessage}
+                                    onChange={(e) => setReplyMessage(e.target.value)}
+                                    className="w-full text-[12.5px] text-slate-800 bg-white border border-slate-200 rounded-xl p-2.5 focus:border-[#a855f7] focus:ring-2 focus:ring-[#a855f7]/10 outline-none resize-none leading-relaxed shadow-xs"
+                                    rows={2}
+                                    placeholder="Type auto-reply message..."
+                                  />
+                                </div>
+                                <div className="flex items-center gap-3 mt-1.5 text-[10px] font-bold text-slate-400">
+                                  <span className="inline-flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100 text-[9px] font-black uppercase tracking-wider">
+                                    <CheckCircle2 size={10} className="text-emerald-500" />
+                                    Replied
+                                  </span>
                                 </div>
                               </div>
                             </div>

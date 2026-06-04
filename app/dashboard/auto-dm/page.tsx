@@ -108,6 +108,7 @@ export default function ReelsPage() {
   const [followGateMessage, setFollowGateMessage] = useState("Hey! Follow me first and I'll send you the link 🙌");
   const [previewTab, setPreviewTab] = useState<"dm" | "comment">("dm");
   const [simStep, setSimStep] = useState<"load-data" | "user-typing" | "user-sent" | "creator-typing" | "creator-sent">("creator-sent");
+  const [dmType, setDmType] = useState<"message_only" | "comment_only">("message_only");
 
   useEffect(() => {
     if (!isAutomationModalOpen) return;
@@ -252,7 +253,7 @@ export default function ReelsPage() {
     const existingRule = rules.find((r) => r.post_id === item.id);
     setSelectedItemForAutomation(item);
     if (existingRule) {
-      setAutomationMessage(existingRule.dm_message || "");
+      setAutomationMessage(existingRule.dm_type === "comment_only" ? (existingRule.comment_reply_text || "") : (existingRule.dm_message || ""));
       setAutomationActive(existingRule.active);
       setAutomationKeywordMode(existingRule.keyword_mode || "any");
       setAutomationKeywords(existingRule.keywords || []);
@@ -260,6 +261,7 @@ export default function ReelsPage() {
       setCommentReplyText(existingRule.comment_reply_text || "Thanks for the comment! Link is in bio 📩");
       setRequireFollow(Boolean(existingRule.require_follow));
       setFollowGateMessage(existingRule.follow_gate_message || "Hey! Follow me first and I'll send you the link 🙌");
+      setDmType(existingRule.dm_type === "comment_only" ? "comment_only" : "message_only");
       
       const matchedPreset = AUTOMATION_PRESETS.findIndex(p => p.message === existingRule.dm_message);
       setActivePresetIndex(matchedPreset !== -1 ? matchedPreset : 0);
@@ -272,6 +274,7 @@ export default function ReelsPage() {
       setCommentReplyText("Thanks for the comment! Link is in bio 📩");
       setRequireFollow(false);
       setFollowGateMessage("Hey! Follow me first and I'll send you the link 🙌");
+      setDmType("message_only");
       setActivePresetIndex(1); // Default to the first preset (Send Link) for ease of use
       setAutomationMessage(AUTOMATION_PRESETS[1].message);
     }

@@ -472,6 +472,40 @@ export async function POST(req: Request) {
             continue;
           }
 
+          // ── Comment Only Mode ────────────────────────────────────────────
+          if (rule.dm_type === "comment_only") {
+            console.log(`[Webhook] ✅ Rule "${rule.rule_name || rule.name}" matched! [Comment Only Mode]`);
+            const commentReplyText = (rule.comment_reply_text || rule.auto_reply_text || rule.dm_message || rule.reply_message || "").toString().trim();
+            if (commentReplyText) {
+              console.log(`[Webhook] Comment Only mode. Replying to comment ${commentId} with: "${commentReplyText}"`);
+              await postCommentReply(commentId, commentReplyText, tokenToUse);
+              
+              // Log the comment reply execution
+              await supabaseAdmin.from("automation_logs").insert({
+                automation_id: rule.id,
+                instagram_user_id: commenterId,
+                comment_text: commentText,
+                comment_id: commentId,
+                dm_sent: false,
+                dm_sent_at: null,
+                error_message: null,
+              });
+
+              // Update stats
+              await supabaseAdmin
+                .from("automation_rules")
+                .update({
+                  total_dms_sent: (rule.total_dms_sent || 0) + 1,
+                  executions: (rule.executions || 0) + 1,
+                  last_execution: new Date().toISOString(),
+                })
+                .eq("id", rule.id);
+            } else {
+              console.warn(`[Webhook] ⚠️ Rule "${rule.rule_name || rule.name}" is comment_only but has no reply text — skipping.`);
+            }
+            continue; // Skip the rest of the loop (no DM sending)
+          }
+
           console.log(`[Webhook] ✅ Rule "${rule.rule_name || rule.name}" matched! Sending DM to ${commenterId}`);
 
           // ── Public comment reply ─────────────────────────────────────────

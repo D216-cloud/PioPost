@@ -64,12 +64,13 @@ export async function POST(req: Request) {
       follow_gate_message,
       rule_name,
       activation_delay_days,
+      dm_type,
     } = body;
 
     // Validate required fields
-    if (!instagram_account_id || !post_id || !dm_message) {
+    if (!instagram_account_id || !post_id || (dm_type === "comment_only" ? !comment_reply_text : !dm_message)) {
       return NextResponse.json(
-        { error: "instagram_account_id, post_id, and dm_message are required" },
+        { error: dm_type === "comment_only" ? "Comment reply text is required" : "DM message is required" },
         { status: 400 }
       );
     }
@@ -98,7 +99,7 @@ export async function POST(req: Request) {
         post_permalink,
         keyword_mode: keyword_mode || "specific",
         keywords: keywords || [],
-        dm_message,
+        dm_message: dm_message || "",
         dm_button_label,
         dm_button_url,
         auto_reply_comment: auto_reply_comment || false,
@@ -109,6 +110,7 @@ export async function POST(req: Request) {
         activation_delay_days: Number.isFinite(Number(activation_delay_days))
           ? Math.max(0, Math.floor(Number(activation_delay_days)))
           : 0,
+        dm_type: dm_type || "message_only",
         active: true,
         deleted: false,
       })

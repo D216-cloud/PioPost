@@ -15,6 +15,23 @@ function getUnsupportedFieldFromSchemaError(message?: string) {
   return message?.match(SCHEMA_FIELD_PATTERN)?.[1];
 }
 
+function mapCompatibilityPayload(body: Record<string, any>) {
+  const mapped = { ...body };
+  if (body.instagram_media_id && !mapped.post_id) {
+    mapped.post_id = body.instagram_media_id;
+  }
+  if (body.reply_message && !mapped.dm_message) {
+    mapped.dm_message = body.reply_message;
+  }
+  if (body.post_thumbnail && !mapped.post_thumbnail_url) {
+    mapped.post_thumbnail_url = body.post_thumbnail;
+  }
+  if (body.trigger_type && !mapped.post_type) {
+    mapped.post_type = body.trigger_type.includes("reel") ? "REEL" : "POST";
+  }
+  return mapped;
+}
+
 async function insertAutomationRule(payload: Record<string, unknown>) {
   const { data, error } = await supabaseAdmin
     .from('automation_rules')
@@ -24,7 +41,12 @@ async function insertAutomationRule(payload: Record<string, unknown>) {
 
   if (error) {
     console.error("Supabase insert error details:", error);
-    return { data: null, error: new Error(error instanceof Error ? error.message : String(error) || JSON.stringify(error)) };
+    const errorMsg = error instanceof Error 
+      ? error.message 
+      : (typeof error === 'object' && error !== null && 'message' in error)
+        ? String((error as any).message)
+        : String(error);
+    return { data: null, error: new Error(errorMsg) };
   }
 
   return { data, error: null };
@@ -91,7 +113,7 @@ export async function POST(req: Request) {
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const insertPayload = { ...body, user_id: session.user.id };
+    const insertPayload = mapCompatibilityPayload({ ...body, user_id: session.user.id });
 
     const { data, error } = await insertAutomationRule(insertPayload);
 
@@ -113,7 +135,8 @@ export async function PATCH(req: Request) {
 
     if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
-    const { data, error } = await updateAutomationRule(id, session.user.id, body as Record<string, unknown>);
+    const mappedBody = mapCompatibilityPayload(body);
+    const { data, error } = await updateAutomationRule(id, session.user.id, mappedBody as Record<string, unknown>);
 
     if (error) throw error;
     return NextResponse.json({ data });
