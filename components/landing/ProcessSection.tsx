@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 
 const steps = [
   {
@@ -46,41 +46,30 @@ const steps = [
 ];
 
 const gradients = [
-  "from-[#7c3aed] to-[#a855f7]",
-  "from-[#e84c9f] to-[#b656e3]",
-  "from-[#5a60f6] to-[#7c3aed]",
-  "from-[#b656e3] to-[#e84c9f]",
+  "from-slate-700 to-slate-900",
+  "from-slate-800 to-black",
+  "from-slate-900 to-slate-800",
+  "from-black to-slate-700",
 ];
 
 export function ProcessSection() {
-  const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect(); } },
-      { threshold: 0.1 }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-
   return (
-    <section id="how" className="py-28 md:py-40 bg-slate-50/50 border-y border-slate-100">
-      <div className="mx-auto max-w-6xl px-6" ref={ref}>
+    <section id="how" className="py-28 md:py-40 bg-white border-y border-slate-100 relative">
+      {/* Subtle background decoration */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(241,245,249,0.5),transparent_40%)] pointer-events-none" />
+
+      <div className="mx-auto max-w-6xl px-6 relative z-10">
 
         {/* Header */}
         <div className="text-center mb-20 space-y-4">
-          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-white px-4 py-1 text-[13px] font-semibold text-slate-600 shadow-sm">
-            <span className="h-2 w-2 rounded-full bg-[#a855f7] animate-pulse"></span>
+          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-slate-50/60 px-3.5 py-1 text-[12px] font-semibold text-slate-600 shadow-sm">
+            <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-pulse"></span>
             How it works
           </div>
-          <h2 className="mt-8 text-[32px] md:text-[68px] font-normal tracking-tight text-black leading-[1.08] max-w-none mx-auto md:whitespace-nowrap">
+          <h2 className="mt-6 text-[32px] md:text-[56px] font-normal tracking-tight text-slate-900 leading-[1.1] text-center max-w-3xl mx-auto">
             From sign-up to growth in minutes
           </h2>
-          <p className="mt-8 mx-auto max-w-2xl text-[16px] md:text-[18px] text-slate-500 leading-relaxed font-medium">
+          <p className="mt-4 mx-auto max-w-2xl text-[16px] md:text-[18px] text-slate-500 leading-relaxed font-normal">
             Four simple steps to automate your entire Instagram presence.
           </p>
         </div>
@@ -88,14 +77,24 @@ export function ProcessSection() {
         {/* Steps Grid */}
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
           {steps.map((step, i) => (
-            <div
+            <motion.div
               key={step.number}
-              style={{
-                opacity: visible ? 1 : 0,
-                transform: visible ? "translateY(0)" : "translateY(24px)",
-                transition: `all 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) ${i * 120}ms`,
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              whileHover={{ 
+                rotateY: 8, 
+                rotateX: -4,
+                scale: 1.02,
+                boxShadow: "0 20px 40px rgba(0, 0, 0, 0.04)"
               }}
-              className="group bg-white rounded-3xl p-7 border border-slate-100 shadow-[0_4px_24px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_40px_rgba(0,0,0,0.09)] hover:-translate-y-1 transition-all duration-300"
+              style={{ transformStyle: "preserve-3d" }}
+              transition={{ 
+                type: "spring", 
+                stiffness: 300, 
+                damping: 20
+              }}
+              className="group bg-slate-50/30 rounded-3xl p-7 border border-slate-100 hover:border-slate-200 hover:bg-white transition-all duration-300 cursor-pointer"
             >
               {/* Icon badge */}
               <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${gradients[i]} flex items-center justify-center shadow-md mb-6`}>
@@ -103,14 +102,14 @@ export function ProcessSection() {
               </div>
 
               {/* Step number */}
-              <span className="text-[11px] font-black text-slate-300 uppercase tracking-widest">{step.number}</span>
+              <span className="text-[11px] font-bold text-slate-300 uppercase tracking-widest">{step.number}</span>
 
               {/* Title */}
               <h3 className="mt-2 text-[17px] font-bold text-slate-900 leading-snug">{step.title}</h3>
 
               {/* Description */}
               <p className="mt-3 text-[13.5px] text-slate-500 leading-relaxed font-medium">{step.description}</p>
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>

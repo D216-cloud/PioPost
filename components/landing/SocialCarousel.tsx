@@ -30,9 +30,18 @@ export function SocialCarousel() {
           }}
         >
           {allImages.map((img, idx) => (
-            <div 
+            <motion.div 
               key={idx} 
-              className="w-[180px] md:w-[240px] aspect-[9/16] shrink-0 rounded-3xl overflow-hidden relative shadow-2xl border border-white/10"
+              className="w-[180px] md:w-[240px] aspect-[9/16] shrink-0 rounded-3xl overflow-hidden relative shadow-xl border border-white/10 cursor-pointer"
+              whileHover={{ 
+                rotateY: 12, 
+                rotateX: -5,
+                scale: 1.03,
+                z: 20,
+                boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)"
+              }}
+              style={{ transformStyle: "preserve-3d" }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
             >
               <Image 
                 src={img} 
@@ -41,8 +50,8 @@ export function SocialCarousel() {
                 className="object-cover"
                 sizes="(max-width: 768px) 180px, 240px"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-            </div>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent pointer-events-none" />
+            </motion.div>
           ))}
         </motion.div>
       </div>
