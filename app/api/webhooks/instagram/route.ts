@@ -215,21 +215,11 @@ async function handleFollowPostback(
 
   if (isFollowing) {
     // 4. Send the main DM message!
-    // Try to get sender's username for placeholder replacement
-    let senderUsername = "there";
-    try {
-      const userRes = await fetch(`https://graph.instagram.com/v21.0/${senderId}?fields=username&access_token=${tokenToUse}`);
-      const userData = await userRes.json();
-      if (userData.username) senderUsername = userData.username;
-    } catch { /* ignore, fallback to "there" */ }
-
     let dmText = (rule.dm_message || rule.reply_message || "").toString();
     dmText = dmText
       .replace(/\n\n\[Attached Image: .*?\]/g, "")
       .replace(/\[Button: (.*?)\]\((.*?)\)/g, "$1: $2")
       .replace(/\[Follow Request: (.*?)\]/g, "$1")
-      .replace(/{first_name}/g, senderUsername)
-      .replace(/{username}/g, senderUsername)
       .trim();
 
     if (!dmText) {
@@ -368,7 +358,6 @@ export async function POST(req: Request) {
         const commentId = commentValue.id;
         const commentText = commentValue.text ?? "";
         const commenterId = commentValue.from?.id;
-        const commenterUsername = commentValue.from?.username ?? "there";
         const mediaId = commentValue.media?.id;
 
         if (!commentId || !commenterId) {
@@ -422,7 +411,13 @@ export async function POST(req: Request) {
         const activeRules = (rules ?? []).filter((rule) => isRuleEligible(rule as Record<string, unknown>, new Date()));
 
         if (!rules?.length) {
-          console.log("[Webhook] ℹ️ No automation rules found for this account. Skipping.");
+          console.log("[Webhook] ℹ️ No automation rules found. Sending default DM.");
+          // Send a fallback DM to the commenter
+          await sendInstagramDM(
+            { comment_id: commentId },
+            "Thanks for your comment! We'll get back to you soon.",
+            tokenToUse
+          );
           continue;
         }
 
@@ -517,11 +512,8 @@ export async function POST(req: Request) {
           // New schema: auto_reply_comment + comment_reply_text
           // Old schema: auto_reply_enabled + auto_reply_text
           const shouldAutoReply = rule.auto_reply_comment || rule.auto_reply_enabled;
-          const rawReplyText = rule.comment_reply_text || rule.auto_reply_text;
-          if (shouldAutoReply && rawReplyText) {
-            const replyText = rawReplyText
-              .replace(/{first_name}/g, commenterUsername)
-              .replace(/{username}/g, commenterUsername);
+          const replyText = rule.comment_reply_text || rule.auto_reply_text;
+          if (shouldAutoReply && replyText) {
             await postCommentReply(commentId, replyText, tokenToUse);
           }
 
@@ -532,8 +524,6 @@ export async function POST(req: Request) {
             .replace(/\n\n\[Attached Image: .*?\]/g, "")
             .replace(/\[Button: (.*?)\]\((.*?)\)/g, "$1: $2")
             .replace(/\[Follow Request: (.*?)\]/g, "$1")
-            .replace(/{first_name}/g, commenterUsername)
-            .replace(/{username}/g, commenterUsername)
             .trim();
 
           if (!dmText) {

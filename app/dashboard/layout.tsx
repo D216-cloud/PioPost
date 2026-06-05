@@ -32,7 +32,7 @@ export default function DashboardLayout({
 
   if (status === "loading") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white dark:bg-[#03040b]">
+      <div className="flex min-h-screen items-center justify-center bg-white">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#a855f7] border-t-transparent" />
       </div>
     );
@@ -41,14 +41,14 @@ export default function DashboardLayout({
   if (!session) return null;
 
   return (
-    <div className="flex h-screen bg-white dark:bg-[#03040b] overflow-hidden relative">
+    <div className="flex h-screen bg-white overflow-hidden relative">
       <Sidebar
         isOpen={isSidebarOpen}
         onToggle={() => setIsSidebarOpen((v) => !v)}
       />
-      <main className="flex-1 h-full overflow-y-auto flex flex-col relative w-full bg-slate-50 dark:bg-[#03040b]">
+      <main className="flex-1 h-full overflow-y-auto flex flex-col relative w-full">
         {/* Mobile Header */}
-        <div className="md:hidden flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-[#080915] sticky top-0 z-30">
+        <div className="md:hidden flex items-center justify-between p-4 border-b border-slate-100 bg-white sticky top-0 z-30">
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setIsSidebarOpen(true)}
@@ -58,7 +58,8 @@ export default function DashboardLayout({
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
             </button>
           </div>
-          <span className="font-black tracking-tight text-[17px] text-slate-900 dark:text-white">
+          {/* We import Logo later or just inline text if Logo isn't available in this file. Wait, let's just use text for now to avoid breaking imports, or add the import. I will add the import above using multi_replace instead if needed. For now I'll just put standard text or import Logo. */}
+          <span className="font-black tracking-tight text-[17px] text-slate-900">
             ReelFlow<span className="text-[#a855f7]">.</span>
           </span>
           <div className="w-8" /> {/* spacer for center alignment */}
