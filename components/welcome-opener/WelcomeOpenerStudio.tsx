@@ -96,8 +96,10 @@ export function WelcomeOpenerStudio() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isTypingInPreview, setIsTypingInPreview] = useState(false);
   const [simStep, setSimStep] = useState<"idle" | "bot-typing" | "sent">("sent");
+  const [simLogs, setSimLogs] = useState<{ emoji: string; text: string; time: string }[]>([]);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const logEndRef = useRef<HTMLDivElement>(null);
   const variableDropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -425,37 +427,80 @@ export function WelcomeOpenerStudio() {
     ]);
   };
 
+  const addLog = (emoji: string, text: string) => {
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setSimLogs((prev) => [...prev, { emoji, text, time }]);
+    setTimeout(() => logEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+  };
+
   const handleSimulateFollow = () => {
-    // Clear chat
+    // Clear chat and logs
     setChatMessages([]);
     setSimStep("idle");
     setIsTypingInPreview(false);
+    setSimLogs([]);
 
-    // After 0.5s, show "bot typing"
+    const btnNames = quickReplies.map((b) => b.label).join(" | ");
+
+    // Step 1: Check toggle
     setTimeout(() => {
-      setSimStep("bot-typing");
-      setIsTypingInPreview(true);
+      if (!autoWelcomeEnabled) {
+        addLog("⚙️", "Auto-Welcome DM status: OFF ❌");
+        addLog("⏹", "Feature is disabled. No message sent.");
+        return;
+      }
+      addLog("⚙️", "Auto-Welcome DM status: ACTIVE ✅");
 
-      // After 1.5s, send welcome message
+      // Step 2: Follow event
       setTimeout(() => {
-        setIsTypingInPreview(false);
-        setSimStep("sent");
-        setChatMessages([
-          {
-            id: "welcome-bot",
-            sender: "bot",
-            text: getProcessedWelcomeMessage(),
-            timestamp: new Date(),
-          },
-        ]);
-      }, 1500);
-    }, 500);
+        addLog("👤", "@user started following you");
+        addLog("📋", `Message: "${(welcomeMessage || "").substring(0, 50)}..."`);
+        addLog("🧩", `Buttons: ${btnNames || "(none)"}`);
+        setSimStep("bot-typing");
+        setIsTypingInPreview(true);
+
+        // Step 3: Bot typing
+        setTimeout(() => {
+          addLog("📤", "Sending welcome text message...");
+
+          // Step 4: Message sent
+          setTimeout(() => {
+            setIsTypingInPreview(false);
+            setSimStep("sent");
+            setChatMessages([
+              {
+                id: "welcome-bot",
+                sender: "bot",
+                text: getProcessedWelcomeMessage(),
+                timestamp: new Date(),
+              },
+            ]);
+            addLog("✅", "Welcome message sent successfully!");
+
+            // Step 5: Buttons sent
+            if (quickReplies.length > 0) {
+              setTimeout(() => {
+                addLog("📤", `Sending quick reply buttons: ${btnNames}`);
+                setTimeout(() => {
+                  addLog("✅", "Quick reply buttons sent!");
+                  addLog("🏁", "Auto-Welcome DM complete!");
+                }, 400);
+              }, 300);
+            } else {
+              addLog("🏁", "Auto-Welcome DM complete!");
+            }
+          }, 800);
+        }, 500);
+      }, 400);
+    }, 300);
   };
 
   // Handle Quick Reply Click in simulator
   const handleQuickReplyClick = (button: QuickReplyButton) => {
     // Prevent duplicate triggers if bot is typing
     if (isTypingInPreview) return;
+
+    addLog("🖱", `User clicked button: "${button.label}"`);
 
     // Add user response bubble
     const userMsg: ChatMessage = {
@@ -467,6 +512,7 @@ export function WelcomeOpenerStudio() {
 
     setChatMessages((prev) => [...prev, userMsg]);
     setIsTypingInPreview(true);
+    addLog("📤", `Sending response for "${button.label}"...`);
 
     // Simulate bot response after a delay
     setTimeout(() => {
@@ -494,6 +540,7 @@ export function WelcomeOpenerStudio() {
 
       setChatMessages((prev) => [...prev, replyMsg]);
       setIsTypingInPreview(false);
+      addLog("✅", `Response for "${button.label}" sent!`);
     }, 1500);
   };
 
@@ -938,6 +985,39 @@ export function WelcomeOpenerStudio() {
 
               </div>
 
+            </div>
+
+            {/* Live Activity Log Panel */}
+            <div className="w-full max-w-[340px] mt-4">
+              <div className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_rgba(0,0,0,0.015)] overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-xs font-bold text-slate-700">Live Activity Log</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSimLogs([])}
+                    className="text-[10px] font-bold text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                </div>
+                <div className="max-h-[180px] overflow-y-auto p-3 space-y-1.5 no-scrollbar bg-slate-50/50">
+                  {simLogs.length === 0 ? (
+                    <p className="text-[11px] text-slate-400 text-center py-3 font-medium">Click &quot;Simulate Follow&quot; to see real-time logs</p>
+                  ) : (
+                    simLogs.map((log, i) => (
+                      <div key={i} className="flex items-start gap-2 text-[11px]">
+                        <span className="shrink-0">{log.emoji}</span>
+                        <span className="text-slate-600 font-medium flex-1">{log.text}</span>
+                        <span className="text-[9px] text-slate-400 font-mono shrink-0">{log.time}</span>
+                      </div>
+                    ))
+                  )}
+                  <div ref={logEndRef} />
+                </div>
+              </div>
             </div>
           </div>
 

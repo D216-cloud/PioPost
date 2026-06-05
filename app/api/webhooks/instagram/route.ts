@@ -355,7 +355,9 @@ async function handleWelcomeOpenerButtonClick(
   buttonLabel: string,
   igBusinessId: string
 ) {
-  console.log(`[Webhook] Processing welcome opener button click for user:${senderId}, button:${buttonLabel}`);
+  console.log(`\n🖱 ═══════════════════════════════════════════════════════`);
+  console.log(`🖱 [CLICK] User ${senderId} selected button: "${buttonLabel}"`);
+  console.log(`🖱 ═══════════════════════════════════════════════════════`);
   
   const { data: igAccounts } = await supabaseAdmin
     .from("instagram_accounts")
@@ -366,7 +368,7 @@ async function handleWelcomeOpenerButtonClick(
 
   const igAccount = igAccounts?.[0] ?? null;
   if (!igAccount) {
-    console.error("[Webhook] No IG account found for business ID in welcome opener button click:", igBusinessId);
+    console.error("❌ [ERROR] No IG account found for button click:", igBusinessId);
     return;
   }
 
@@ -381,7 +383,13 @@ async function handleWelcomeOpenerButtonClick(
     replyText = "🎧 Our support team is online! Describe your issue or query, and our agent will jump into this chat in just a few minutes.";
   }
 
-  await sendInstagramDM({ id: senderId }, replyText, igAccount.access_token);
+  console.log(`📤 [SEND] Sending button response for "${buttonLabel}"...`);
+  const result = await sendInstagramDM({ id: senderId }, replyText, igAccount.access_token);
+  if (result.success) {
+    console.log(`✅ [SEND] Button response for "${buttonLabel}" sent successfully!`);
+  } else {
+    console.error(`❌ [SEND] Button response failed:`, result.error);
+  }
 }
 
 async function handleWelcomeOpenerMessage(
@@ -389,6 +397,12 @@ async function handleWelcomeOpenerMessage(
   messageText: string,
   igBusinessId: string
 ) {
+  console.log(`\n📥 ═══════════════════════════════════════════════════════`);
+  console.log(`📥 [WEBHOOK] Auto-Welcome DM event received`);
+  console.log(`👤 [USER] Sender ID: ${senderId}`);
+  console.log(`💬 [MESSAGE] Text: "${messageText}"`);
+  console.log(`📥 ═══════════════════════════════════════════════════════`);
+
   const { data: igAccounts } = await supabaseAdmin
     .from("instagram_accounts")
     .select("id, user_id, access_token, username")
@@ -397,8 +411,13 @@ async function handleWelcomeOpenerMessage(
     .limit(1);
 
   const igAccount = igAccounts?.[0] ?? null;
-  if (!igAccount) return;
+  if (!igAccount) {
+    console.error(`❌ [ERROR] No Instagram account found for business ID: ${igBusinessId}`);
+    return;
+  }
+  console.log(`🔗 [ACCOUNT] Instagram account found: @${igAccount.username}`);
 
+  // ── STEP 1: Check if Auto-Welcome DM is active ────────────────────────
   const { data: rules } = await supabaseAdmin
     .from("automation_rules")
     .select("*")
@@ -410,28 +429,36 @@ async function handleWelcomeOpenerMessage(
 
   const rule = rules?.[0] ?? null;
   if (!rule) {
-    console.log(`[Webhook] Auto-Welcome DM is OFF or not found for account ${igBusinessId}`);
+    console.log(`⚙️ [CHECK] Auto-Welcome DM status: OFF ❌`);
+    console.log(`⏹ [SKIP] Feature is disabled. No message sent.`);
     return;
   }
 
-  console.log(`[Webhook] Auto-Welcome DM is ON and active for account ${igBusinessId}`);
+  console.log(`⚙️ [CHECK] Auto-Welcome DM status: ACTIVE ✅`);
+  console.log(`📋 [CONFIG] Welcome message: "${(rule.dm_message || "").substring(0, 60)}..."`);
 
+  // ── STEP 2: Parse quick reply buttons ─────────────────────────────────
   let quickReplies: any[] = [];
   try {
     quickReplies = JSON.parse(rule.post_caption || "[]");
   } catch (e) {
-    console.error("[Webhook] Failed to parse quick replies JSON:", e);
+    console.error("❌ [ERROR] Failed to parse quick replies JSON:", e);
   }
+  const buttonNames = quickReplies.map((b: any) => b.label).join(" | ");
+  console.log(`🧩 [BUTTONS] Quick Replies loaded: ${buttonNames || "(none)"}`);
 
+  // ── STEP 3: Check if message matches a button label ───────────────────
   const matchedButton = quickReplies.find(
     (btn: any) => btn.label.toLowerCase() === messageText.toLowerCase()
   );
 
   if (matchedButton) {
+    console.log(`🎯 [MATCH] Message "${messageText}" matches button "${matchedButton.label}". Routing to button handler...`);
     await handleWelcomeOpenerButtonClick(senderId, matchedButton.label, igBusinessId);
     return;
   }
 
+  // ── STEP 4: Check for duplicate (already sent in last 24h) ────────────
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data: recentLogs } = await supabaseAdmin
     .from("automation_logs")
@@ -443,23 +470,32 @@ async function handleWelcomeOpenerMessage(
     .limit(1);
 
   if (recentLogs && recentLogs.length > 0) {
-    console.log(`[Webhook] Welcome Opener already sent to user ${senderId} in last 24h. Skipping duplicate.`);
+    console.log(`🔁 [DUPLICATE] Welcome Opener already sent to user ${senderId} in last 24h. Skipping.`);
     return;
   }
+  console.log(`✅ [CHECK] No duplicate found. Proceeding to send...`);
 
+  // ── STEP 5: Fetch user profile for personalization ────────────────────
   const profile = await getInstagramUserProfile(senderId, igAccount.access_token);
   const recipientUsername = profile?.username ? `@${profile.username}` : "there";
   const recipientFirstName = profile?.name ? profile.name.split(" ")[0] : "friend";
   const recipientFullName = profile?.name || "Friend";
+  console.log(`👤 [PROFILE] Resolved: username=${recipientUsername}, name=${recipientFullName}`);
 
+  // ── STEP 6: Build personalized welcome message ────────────────────────
   let welcomeText = (rule.dm_message || "").toString();
   welcomeText = welcomeText
     .replace(/{{username}}/g, recipientUsername)
     .replace(/{{first_name}}/g, recipientFirstName)
     .replace(/{{full_name}}/g, recipientFullName);
 
-  if (!welcomeText) return;
+  if (!welcomeText) {
+    console.warn(`⚠️ [SKIP] Welcome message is empty after variable substitution. Aborting.`);
+    return;
+  }
+  console.log(`📝 [MESSAGE] Personalized welcome: "${welcomeText.substring(0, 80)}..."`);
 
+  // ── STEP 7: Send welcome message ──────────────────────────────────────
   const buttons = quickReplies.slice(0, 3).map((btn: any) => ({
     type: "postback",
     title: btn.label,
@@ -468,29 +504,40 @@ async function handleWelcomeOpenerMessage(
 
   let result;
   if (buttons.length > 0) {
-    console.log(`[Webhook] Sending Welcome Opener text message first...`);
+    console.log(`📤 [SEND] Sending welcome text message first...`);
     const textResult = await sendInstagramDM({ id: senderId }, welcomeText, igAccount.access_token);
     result = textResult;
     
     if (textResult.success) {
-      console.log(`[Webhook] Sending Welcome Opener quick reply buttons...`);
+      console.log(`✅ [SEND] Welcome text message sent successfully!`);
+
+      // ── STEP 8: Send quick reply buttons ────────────────────────────────
+      console.log(`📤 [SEND] Sending quick reply buttons: ${buttonNames}...`);
       const buttonsResult = await sendInstagramDM(
         { id: senderId },
         "Choose an option below:",
         igAccount.access_token,
         buttons
       );
-      if (!buttonsResult.success) {
-        console.error(`[Webhook] ⚠️ Failed to send quick reply buttons:`, buttonsResult.error);
+      if (buttonsResult.success) {
+        console.log(`✅ [SEND] Quick reply buttons sent successfully!`);
+      } else {
+        console.error(`⚠️ [SEND] Quick reply buttons failed:`, buttonsResult.error);
       }
     } else {
-      console.error(`[Webhook] ❌ Failed to send Welcome Opener text:`, textResult.error);
+      console.error(`❌ [SEND] Welcome text message failed:`, textResult.error);
     }
   } else {
-    console.log(`[Webhook] Sending Welcome Opener text without buttons...`);
+    console.log(`📤 [SEND] Sending welcome text (no buttons configured)...`);
     result = await sendInstagramDM({ id: senderId }, welcomeText, igAccount.access_token);
+    if (result.success) {
+      console.log(`✅ [SEND] Welcome text message sent successfully!`);
+    } else {
+      console.error(`❌ [SEND] Welcome text message failed:`, result.error);
+    }
   }
 
+  // ── STEP 9: Log result to database ────────────────────────────────────
   await supabaseAdmin.from("automation_logs").insert({
     automation_id: rule.id,
     instagram_user_id: senderId,
@@ -501,7 +548,7 @@ async function handleWelcomeOpenerMessage(
   });
 
   if (result.success) {
-    console.log(`[Webhook] ✅ Welcome Opener sent to user ${senderId}`);
+    console.log(`📊 [LOG] Execution logged. Updating stats...`);
     await supabaseAdmin
       .from("automation_rules")
       .update({
@@ -510,8 +557,17 @@ async function handleWelcomeOpenerMessage(
         last_execution: new Date().toISOString(),
       })
       .eq("id", rule.id);
+    console.log(`\n🏁 ═══════════════════════════════════════════════════════`);
+    console.log(`🏁 [DONE] Auto-Welcome DM complete for user ${senderId}`);
+    console.log(`🏁   ✔ Welcome message: SENT`);
+    console.log(`🏁   ✔ Quick reply buttons: ${buttons.length > 0 ? "SENT" : "NONE"}`);
+    console.log(`🏁   ✔ Total DMs sent: ${(rule.total_dms_sent || 0) + 1}`);
+    console.log(`🏁 ═══════════════════════════════════════════════════════\n`);
   } else {
-    console.error(`[Webhook] ❌ Welcome Opener DM failed for ${senderId}:`, result.error);
+    console.error(`\n❌ ═══════════════════════════════════════════════════════`);
+    console.error(`❌ [FAILED] Auto-Welcome DM failed for user ${senderId}`);
+    console.error(`❌ Error: ${result.error}`);
+    console.error(`❌ ═══════════════════════════════════════════════════════\n`);
   }
 }
 
@@ -555,18 +611,20 @@ export async function POST(req: Request) {
           .limit(1);
         const igAccount = igAccounts?.[0] ?? null;
         if (accError || !igAccount) {
-          console.error("[Webhook] ❌ No IG account in DB for DM handling:", igBusinessId);
+          console.error("❌ [ERROR] No IG account in DB for DM handling:", igBusinessId);
           continue;
         }
         if (await isRateLimited(igAccount.id)) {
-          console.warn("[Webhook] ⚠️ Rate limit hit for account (DM):", igAccount.username);
+          console.warn("⚠️ [RATE LIMIT] 200/hr limit hit for @" + igAccount.username + ". Skipping.");
           continue;
         }
 
         if (msg.message?.text) {
+          console.log(`\n📩 [DM] Incoming message from user:${senderId}: "${msg.message.text}"`);
           await handleWelcomeOpenerMessage(senderId, msg.message.text, igBusinessId);
         } else if (msg.postback?.payload) {
           const payload = msg.postback.payload;
+          console.log(`\n📮 [POSTBACK] Received from ${senderId}: payload="${payload}"`);
           if (payload.startsWith("welcome_opener_click:")) {
             const label = payload.split(":")[1];
             await handleWelcomeOpenerButtonClick(senderId, label, igBusinessId);
