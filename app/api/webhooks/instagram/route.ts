@@ -282,11 +282,12 @@ async function handleFollowPostback(
       error_message: "Follow verification failed: User is not following the business account.",
     });
 
-    // Send a reminder with the two buttons again
+    // Send the follow-gate message with the two buttons again
+    const followGateMsg = rule.follow_gate_message || "Hey! Follow me first and I'll send you the link 🙌";
     const profileUrl = `https://instagram.com/${igAccount.username}`;
     await sendInstagramDM(
       { id: senderId },
-      "Oops! It seems you are not following us yet. Please follow us first, then click \"I'm Following\" to get the link! 🙌",
+      followGateMsg,
       tokenToUse,
       [
         { type: "web_url", url: profileUrl, title: "Visit Profile" },
