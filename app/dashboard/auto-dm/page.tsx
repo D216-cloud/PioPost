@@ -114,17 +114,17 @@ export default function ReelsPage() {
   const [requireFollow, setRequireFollow] = useState(false);
   const [followGateMessage, setFollowGateMessage] = useState("Hey! Follow me first and I'll send you the link 🙌");
   const [previewTab, setPreviewTab] = useState<"dm" | "comment">("dm");
-  const [simStep, setSimStep] = useState<"load-data" | "user-typing" | "user-sent" | "creator-typing" | "creator-sent">("creator-sent");
+  const [simStep, setSimStep] = useState<"load-data" | "user-typing" | "user-sent" | "creator-typing" | "creator-sent" | "user-verifying" | "creator-verifying" | "creator-verified">("creator-sent");
   const [dmType, setDmType] = useState<"message_only" | "comment_only">("message_only");
 
   useEffect(() => {
     if (!isAutomationModalOpen) return;
     if (!automationActive) {
-      setSimStep("creator-sent");
+      setSimStep(requireFollow ? "creator-verified" : "creator-sent");
       return;
     }
     
-    let t0: any, t1: any, t2: any, t3: any, t4: any;
+    let t0: any, t1: any, t2: any, t3: any, t4: any, t5: any, t6: any, t7: any;
 
     const runSequence = () => {
       setSimStep("load-data");
@@ -140,6 +140,20 @@ export default function ReelsPage() {
             
             t3 = setTimeout(() => {
               setSimStep("creator-sent");
+              
+              if (requireFollow) {
+                t5 = setTimeout(() => {
+                  setSimStep("user-verifying");
+                  
+                  t6 = setTimeout(() => {
+                    setSimStep("creator-verifying");
+                    
+                    t7 = setTimeout(() => {
+                      setSimStep("creator-verified");
+                    }, 2000);
+                  }, 1200);
+                }, 3000);
+              }
             }, 1800);
           }, 800);
         }, 1500);
@@ -147,13 +161,16 @@ export default function ReelsPage() {
     };
 
     runSequence();
-    t4 = setInterval(runSequence, 10000);
+    t4 = setInterval(runSequence, requireFollow ? 18000 : 10000);
 
     return () => {
       clearTimeout(t0);
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
+      clearTimeout(t5);
+      clearTimeout(t6);
+      clearTimeout(t7);
       clearInterval(t4);
     };
   }, [isAutomationModalOpen, automationActive, previewTab, automationMessage, commentReplyText, requireFollow]);
@@ -1573,42 +1590,87 @@ export default function ReelsPage() {
                               </div>
                             )}
 
-                            {/* Creator message sent state (Main automated response + optional follow gate) */}
-                            {simStep === "creator-sent" && (
-                              <div className="space-y-2.5 animate-in fade-in duration-300">
-                                {/* Creator Follow Gate Message */}
+                            {/* Creator message sent state: if follow gate is on, only show follow gate message. If follow gate is off, show main message directly. */}
+                            {(simStep === "creator-sent" || simStep === "user-verifying" || simStep === "creator-verifying" || simStep === "creator-verified") && (
+                              <div className="space-y-3.5 animate-in fade-in duration-300">
+                                
+                                {/* 1. Creator Follow Gate Message (Only if requireFollow is enabled) */}
                                 {requireFollow && (
-                                  <div className="flex items-start gap-1.5 animate-in slide-in-from-bottom-2 duration-300">
-                                    <div className="w-5 h-5 rounded-full overflow-hidden bg-slate-800 shrink-0 ring-1 ring-[#1f2347]">
-                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <div className="space-y-2">
+                                    <div className="flex items-start gap-1.5 animate-in slide-in-from-bottom-2 duration-300">
+                                      <div className="w-5 h-5 rounded-full overflow-hidden bg-slate-800 shrink-0 ring-1 ring-zinc-800">
+                                        <img 
+                                          src={selectedAccount.profile_picture_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedAccount.username}`} 
+                                          alt="avatar" 
+                                          className="w-full h-full object-cover" 
+                                        />
+                                      </div>
+                                      <div className="bg-[#131633] border border-zinc-800 text-white text-[10px] py-1.5 px-2.5 rounded-2xl rounded-tl-xs max-w-[80%] leading-relaxed font-medium break-words">
+                                        {followGateMessage.replace(/{first_name}/g, "John") || "Hey! Follow me first and I'll send you the link 🙌"}
+                                      </div>
+                                    </div>
+                                    {/* Action Buttons for Follow Gate (Only visible in early states before verified) */}
+                                    {(simStep === "creator-sent" || simStep === "user-verifying") && (
+                                      <div className="pl-6.5 flex gap-2 select-none">
+                                        <div className="px-2.5 py-1 bg-zinc-900 border border-zinc-800 rounded-lg text-[9px] text-zinc-350 font-bold">
+                                          Visit Profile
+                                        </div>
+                                        <div className={`px-2.5 py-1 border rounded-lg text-[9px] font-bold flex items-center gap-1 ${
+                                          simStep === "user-verifying"
+                                            ? "bg-white text-zinc-950 border-white scale-95"
+                                            : "bg-zinc-900 border-zinc-800 text-zinc-350"
+                                        }`}>
+                                          I'm Following
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* 2. User Click postback message (Simulated tap on "I'm Following") */}
+                                {requireFollow && (simStep === "user-verifying" || simStep === "creator-verifying" || simStep === "creator-verified") && (
+                                  <div className="flex flex-col items-end space-y-1 animate-in slide-in-from-bottom-1 duration-300">
+                                    <div className="bg-zinc-900 border border-zinc-800 text-white text-[10px] py-1.5 px-2.5 rounded-2xl rounded-tr-xs max-w-[80%] leading-relaxed font-semibold break-words">
+                                      I'm Following
+                                    </div>
+                                    <span className="text-[6.5px] text-zinc-500 mr-1.5 font-bold uppercase tracking-wider">Tapped I'm Following</span>
+                                  </div>
+                                )}
+
+                                {/* 3. Creator checking follow status message */}
+                                {requireFollow && (simStep === "creator-verifying" || simStep === "creator-verified") && (
+                                  <div className="flex items-start gap-1.5 animate-in slide-in-from-bottom-1 duration-300">
+                                    <div className="w-5 h-5 rounded-full overflow-hidden bg-slate-800 shrink-0 ring-1 ring-zinc-800">
                                       <img 
                                         src={selectedAccount.profile_picture_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedAccount.username}`} 
                                         alt="avatar" 
                                         className="w-full h-full object-cover" 
                                       />
                                     </div>
-                                    <div className="bg-[#131633] border border-[#1f2347] text-white text-[10px] py-1.5 px-2.5 rounded-2xl rounded-tl-xs max-w-[80%] leading-relaxed font-medium break-words">
-                                      {followGateMessage.replace(/{first_name}/g, "John") || "Hey! Follow me first and I'll send you the link 🙌"}
+                                    <div className="bg-[#131633] border border-zinc-800 text-zinc-300 text-[10px] py-1.5 px-2.5 rounded-2xl rounded-tl-xs max-w-[80%] leading-relaxed font-medium break-words">
+                                      Checking your follow status... ⏳
                                     </div>
                                   </div>
                                 )}
 
-                                {/* Creator Main Automated DM */}
-                                <div className="flex items-start gap-1.5 animate-in slide-in-from-bottom-2 duration-500">
-                                  <div className="w-5 h-5 rounded-full overflow-hidden bg-slate-800 shrink-0 ring-1 ring-[#1f2347]">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img 
-                                      src={selectedAccount.profile_picture_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedAccount.username}`} 
-                                      alt="avatar" 
-                                      className="w-full h-full object-cover" 
-                                    />
+                                {/* 4. Creator Main Automated DM (Shown instantly if requireFollow is false, or after verified if requireFollow is true) */}
+                                {(!requireFollow || simStep === "creator-verified") && (
+                                  <div className="flex items-start gap-1.5 animate-in slide-in-from-bottom-2 duration-500">
+                                    <div className="w-5 h-5 rounded-full overflow-hidden bg-slate-800 shrink-0 ring-1 ring-zinc-800">
+                                      <img 
+                                        src={selectedAccount.profile_picture_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedAccount.username}`} 
+                                        alt="avatar" 
+                                        className="w-full h-full object-cover" 
+                                      />
+                                    </div>
+                                    <div className="bg-gradient-to-tr from-[#3b82f6] via-[#8b5cf6] to-[#ec4899] text-white text-[10.5px] py-2 px-3 rounded-2xl rounded-tl-xs max-w-[80%] leading-relaxed font-semibold shadow-none break-words">
+                                      {automationMessage
+                                        ? automationMessage.replace(/{first_name}/g, "John").replace(/{link}/g, "piopost.com/get-link 🔗")
+                                        : "Hey there! Thanks for your comment. Here is your link... 🚀"}
+                                    </div>
                                   </div>
-                                  <div className="bg-gradient-to-tr from-[#3b82f6] via-[#8b5cf6] to-[#ec4899] text-white text-[10.5px] py-2 px-3 rounded-2xl rounded-tl-xs max-w-[80%] leading-relaxed font-semibold shadow-xs break-words">
-                                    {automationMessage
-                                      ? automationMessage.replace(/{first_name}/g, "John").replace(/{link}/g, "piopost.com/get-link 🔗")
-                                      : "Hey there! Thanks for your comment. Here is your link... 🚀"}
-                                  </div>
-                                </div>
+                                )}
+
                               </div>
                             )}
 
