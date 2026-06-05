@@ -743,40 +743,18 @@ export async function POST(req: Request) {
 
           if (shouldAskFollow && !isFollowing) {
             const followGateMsg = rule.follow_gate_message || "Hey! Follow me first and I'll send you the link 🙌";
-            console.log(`[Webhook] User ${commenterId} is not following. Sending plain text follow-gate message to comment_id: ${commentId} first...`);
+            console.log(`[Webhook] User ${commenterId} is not following. Sending follow-gate template with buttons directly to comment_id: ${commentId}...`);
             
-            // 1. Send the follow-gate message (plain text) to comment_id to open the window
-            const initialResult = await sendInstagramDM(
+            const profileUrl = `https://instagram.com/${igAccount.username}`;
+            const dmResult = await sendInstagramDM(
               { comment_id: commentId },
               followGateMsg,
-              tokenToUse
+              tokenToUse,
+              [
+                { type: "web_url", url: profileUrl, title: "Visit Profile" },
+                { type: "postback", title: "I'm Following", payload: `check_follow:${rule.id}:${commentId}` }
+              ]
             );
-
-            let dmResult = initialResult;
-
-            if (initialResult.success) {
-              console.log(`[Webhook] Conversation opened with user ${commenterId}. Sending "Visit Profile" and "I'm Following" buttons...`);
-              // 2. Send the button template to the user's ID
-              const profileUrl = `https://instagram.com/${igAccount.username}`;
-              const buttonsResult = await sendInstagramDM(
-                { id: commenterId },
-                followGateMsg,
-                tokenToUse,
-                [
-                  { type: "web_url", url: profileUrl, title: "Visit Profile" },
-                  { type: "postback", title: "I'm Following", payload: `check_follow:${rule.id}:${commentId}` }
-                ]
-              );
-              if (!buttonsResult.success) {
-                console.error(`[Webhook] ⚠️ Failed to send buttons to ${commenterId} (but initial text message succeeded):`, buttonsResult.error);
-                dmResult = buttonsResult;
-              } else {
-                console.log(`[Webhook] ✅ Successfully sent buttons to user ${commenterId}`);
-                dmResult = buttonsResult;
-              }
-            } else {
-              console.error(`[Webhook] ❌ Failed to send plain text follow-gate message to comment_id ${commentId}:`, initialResult.error);
-            }
 
             // ── Log result for follow gate message ───────────────────────────
             await supabaseAdmin.from("automation_logs").insert({
