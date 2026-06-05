@@ -4,6 +4,19 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
 
+const SCHEMA_FIELD_PATTERN = /Could not find the '([^']+)' column of 'automation_rules' in the schema cache/;
+
+function stripUnsupportedField(body: Record<string, any>, field: string) {
+  const nextBody = { ...body };
+  delete nextBody[field];
+  return nextBody;
+}
+
+function getUnsupportedFieldFromSchemaError(message?: string) {
+  return message?.match(SCHEMA_FIELD_PATTERN)?.[1];
+}
+
+
 // GET — List all rules for the current user
 export async function GET(req: Request) {
   try {
@@ -87,37 +100,57 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Instagram account not found" }, { status: 404 });
     }
 
-    const { data, error } = await supabaseAdmin
-      .from("automation_rules")
-      .insert({
-        user_id: session.user.id,
-        instagram_account_id,
-        post_id,
-        post_type: post_type || "POST",
-        post_thumbnail_url,
-        post_caption,
-        post_permalink,
-        keyword_mode: keyword_mode || "specific",
-        keywords: keywords || [],
-        dm_message: dm_message || "",
-        dm_button_label,
-        dm_button_url,
-        auto_reply_comment: auto_reply_comment || false,
-        comment_reply_text,
-        require_follow: require_follow || false,
-        follow_gate_message,
-        rule_name,
-        activation_delay_days: Number.isFinite(Number(activation_delay_days))
-          ? Math.max(0, Math.floor(Number(activation_delay_days)))
-          : 0,
-        dm_type: dm_type || "message_only",
-        active: true,
-        deleted: false,
-      })
-      .select()
-      .single();
+    let currentPayload: Record<string, any> = {
+      user_id: session.user.id,
+      instagram_account_id,
+      post_id,
+      post_type: post_type || "POST",
+      post_thumbnail_url,
+      post_caption,
+      post_permalink,
+      keyword_mode: keyword_mode || "specific",
+      keywords: keywords || [],
+      dm_message: dm_message || "",
+      dm_button_label,
+      dm_button_url,
+      auto_reply_comment: auto_reply_comment || false,
+      comment_reply_text,
+      require_follow: require_follow || false,
+      follow_gate_message,
+      rule_name,
+      activation_delay_days: Number.isFinite(Number(activation_delay_days))
+        ? Math.max(0, Math.floor(Number(activation_delay_days)))
+        : 0,
+      dm_type: dm_type || "message_only",
+      active: true,
+      deleted: false,
+    };
 
-    if (error) throw error;
+    let data = null;
+    let lastError = null;
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const { data: resData, error } = await supabaseAdmin
+        .from("automation_rules")
+        .insert(currentPayload)
+        .select()
+        .single();
+
+      if (!error) {
+        data = resData;
+        lastError = null;
+        break;
+      }
+
+      lastError = error;
+      const unsupportedField = getUnsupportedFieldFromSchemaError(error.message);
+      if (!unsupportedField || !(unsupportedField in currentPayload)) {
+        break;
+      }
+      currentPayload = stripUnsupportedField(currentPayload, unsupportedField);
+    }
+
+    if (lastError) throw lastError;
 
     return NextResponse.json({ data }, { status: 201 });
   } catch (err: any) {
@@ -146,14 +179,33 @@ export async function PATCH(req: Request) {
 
     if (!rule) return NextResponse.json({ error: "Rule not found" }, { status: 404 });
 
-    const { data, error } = await supabaseAdmin
-      .from("automation_rules")
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq("id", id)
-      .select()
-      .single();
+    let currentPayload: Record<string, any> = { ...updates, updated_at: new Date().toISOString() };
+    let data = null;
+    let lastError = null;
 
-    if (error) throw error;
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const { data: resData, error } = await supabaseAdmin
+        .from("automation_rules")
+        .update(currentPayload)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (!error) {
+        data = resData;
+        lastError = null;
+        break;
+      }
+
+      lastError = error;
+      const unsupportedField = getUnsupportedFieldFromSchemaError(error.message);
+      if (!unsupportedField || !(unsupportedField in currentPayload)) {
+        break;
+      }
+      currentPayload = stripUnsupportedField(currentPayload, unsupportedField);
+    }
+
+    if (lastError) throw lastError;
 
     return NextResponse.json({ data });
   } catch (err: any) {

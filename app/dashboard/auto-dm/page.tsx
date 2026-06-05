@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useTheme } from "next-themes";
 import {
   Film,
   Play,
@@ -28,6 +29,9 @@ import {
   ChevronDown,
   ChevronRight,
   CheckCircle2,
+  Moon,
+  Sun,
+  Gift,
 } from "lucide-react";
 import { InstagramIcon as Instagram } from "@/components/icons";
 import { toast } from "sonner";
@@ -87,6 +91,9 @@ const AUTOMATION_PRESETS = [
 
 export default function ReelsPage() {
   const { data: session } = useSession();
+  const { resolvedTheme, setTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const [accounts, setAccounts] = useState<InstagramAccount[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<InstagramAccount | null>(null);
@@ -441,103 +448,159 @@ export default function ReelsPage() {
   ];
 
   return (
-    <div className="relative mx-auto max-w-7xl px-6 md:px-8 pt-8 md:pt-24 pb-20 animate-in fade-in duration-700">
-      {/* Ambient glows */}
-      <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 right-1/4 h-80 w-80 rounded-full bg-violet-100/30 blur-[120px]" />
-        <div className="absolute bottom-10 left-1/4 h-80 w-80 rounded-full bg-pink-100/20 blur-[120px]" />
-      </div>
+    <div className="min-h-full bg-[#03040b] text-slate-100 p-4 md:p-8 flex flex-col gap-6 font-sans relative">
+      {/* ── Header Row ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        
+        {/* Instagram Account Dropdown */}
+        <div className="relative">
+          <div 
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+            className="flex items-center gap-3.5 px-4 h-[46px] bg-[#0e1026] border border-[#1f2347] hover:border-[#2b306b] rounded-2xl cursor-pointer transition-all duration-150 active:scale-98 select-none shrink-0"
+          >
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600 flex items-center justify-center shadow-md shrink-0">
+              <Instagram size={18} className="text-white" />
+            </div>
+            <div className="flex flex-col text-left leading-none">
+              <span className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase">Instagram Account</span>
+              <span className="text-sm font-bold text-white mt-1">
+                {selectedAccount ? `@${selectedAccount.username}` : "Select Account"}
+              </span>
+            </div>
+            <ChevronDown size={14} className={`text-slate-400 ml-1.5 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`} />
+          </div>
 
-      {/* Header */}
-      <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between mb-10">
-        <div className="space-y-3">
-          <h1 className="text-[32px] md:text-[52px] font-normal tracking-tight text-slate-900 leading-none">
-            Instagram <span className="text-[#a855f7] font-medium">Reels</span>
-          </h1>
-          <p className="text-[14.5px] md:text-[16px] text-slate-500 font-medium max-w-xl leading-relaxed">
-            Browse, preview and manage all media from your connected Instagram account.
-          </p>
+          {/* Dynamic Dropdown Menu */}
+          {dropdownOpen && (
+            <div className="absolute left-0 mt-2 w-56 rounded-xl bg-[#0e1026] border border-[#1f2347] shadow-xl z-50 overflow-hidden py-1.5 animate-in fade-in slide-in-from-top-1 duration-150">
+              <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Select Account</div>
+              {accounts.map((acc) => (
+                <div 
+                  key={acc.id}
+                  onClick={() => {
+                    setSelectedAccount(acc);
+                    setDropdownOpen(false);
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 hover:bg-[#131633] cursor-pointer text-sm text-white font-medium"
+                >
+                  {acc.profile_picture_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={acc.profile_picture_url} className="w-4.5 h-4.5 rounded-full object-cover shrink-0" alt="" />
+                  ) : (
+                    <Instagram size={14} className="text-pink-500" />
+                  )}
+                  <span>@{acc.username}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Account switcher + refresh */}
-        <div className="flex items-center gap-3 flex-shrink-0">
-          {accounts.length > 1 && (
-            <select
-              value={selectedAccount?.id ?? ""}
-              onChange={(e) => {
-                const acc = accounts.find((a) => a.id === e.target.value);
-                if (acc) setSelectedAccount(acc);
-              }}
-              className="h-10 rounded-full border border-slate-200 bg-white px-4 text-[13px] font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#a855f7]/20"
-            >
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>@{a.username}</option>
-              ))}
-            </select>
-          )}
+        {/* Right side buttons */}
+        <div className="flex items-center gap-3 sm:self-end">
+          
+          {/* Refresh Button */}
           <button
             onClick={() => selectedAccount && fetchMedia(selectedAccount.id, true)}
             disabled={refreshing || loading}
-            className="w-10 h-10 rounded-full border border-slate-200 bg-white flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-all disabled:opacity-50"
-            title="Refresh"
+            className="w-[46px] h-[46px] rounded-xl bg-[#0e1026] border border-[#1f2347] hover:bg-[#131633] flex items-center justify-center text-slate-400 hover:text-white transition-all duration-150 active:scale-95 cursor-pointer disabled:opacity-50"
+            title="Refresh Media"
           >
             <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} />
           </button>
+
+          {/* What's New */}
+          <button className="relative flex items-center gap-2 px-4 h-[46px] bg-[#0e1026] border border-[#1f2347] hover:bg-[#131633] text-white text-xs font-semibold rounded-xl transition-all duration-150 active:scale-95 cursor-pointer">
+            <Gift size={16} className="text-[#a855f7]" />
+            <span>What's New</span>
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#a855f7] rounded-full animate-pulse" />
+          </button>
+
+          {/* Theme Toggle */}
+          <button 
+            onClick={() => setTheme(isDark ? "light" : "dark")}
+            className="w-[46px] h-[46px] rounded-xl bg-[#0e1026] border border-[#1f2347] hover:bg-[#131633] flex items-center justify-center text-slate-400 hover:text-white transition-all duration-150 active:scale-95 cursor-pointer"
+            title="Toggle theme"
+          >
+            {isDark ? <Sun size={16} className="text-amber-400" /> : <Moon size={16} />}
+          </button>
+
+          {/* User profile dropdown selector */}
+          <div className="flex items-center gap-1.5 pl-1.5 h-[46px]">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#6366f1] to-[#a855f7] flex items-center justify-center text-white text-sm font-bold shadow-md cursor-pointer select-none">
+              {session?.user?.name
+                ? session.user.name.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase()
+                : "IB"}
+            </div>
+            <ChevronDown size={14} className="text-slate-400 cursor-pointer hover:text-white transition-colors" />
+          </div>
+
         </div>
+
+      </div>
+
+      {/* Title section */}
+      <div className="space-y-1.5 text-left mb-2">
+        <h1 className="text-2xl md:text-[28px] font-bold text-white tracking-tight animate-in slide-in-from-top-1 duration-300">
+          Auto Reply Settings
+        </h1>
+        <p className="text-[13.5px] text-slate-450 font-medium leading-normal">
+          Browse, preview, and manage automated DM replies for your Instagram Reels and posts.
+        </p>
       </div>
 
       {/* Connected account banner */}
       {selectedAccount && (
-        <div className="bg-white rounded-[24px] border border-[#e4e4e7] p-5 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex items-center gap-4 mb-8">
+        <div className="bg-[#070913] rounded-[24px] border border-[#161930] p-5 shadow-[0_12px_40px_rgba(0,0,0,0.5)] flex items-center gap-4 mb-4">
           {selectedAccount.profile_picture_url ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={selectedAccount.profile_picture_url} alt="avatar" className="w-11 h-11 rounded-full object-cover ring-2 ring-[#a855f7]/20 flex-shrink-0" />
+            <img src={selectedAccount.profile_picture_url} alt="avatar" className="w-11 h-11 rounded-full object-cover ring-2 ring-[#7c3aed]/30 flex-shrink-0" />
           ) : (
             <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#7c3aed] to-[#d946ef] flex items-center justify-center text-white text-[14px] font-black flex-shrink-0">
               {selectedAccount.username.charAt(0).toUpperCase()}
             </div>
           )}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 text-left">
             <div className="flex items-center gap-2">
-              <span className="text-[15px] font-bold text-slate-900">@{selectedAccount.username}</span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 rounded-full border border-emerald-100">
+              <span className="text-[15px] font-bold text-white">@{selectedAccount.username}</span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-500/10 rounded-full border border-emerald-500/20">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[9px] font-black text-emerald-600 uppercase tracking-wider">Live</span>
+                <span className="text-[9px] font-black text-emerald-450 uppercase tracking-wider">Live</span>
               </span>
             </div>
-            <p className="text-[12px] text-slate-400 mt-0.5">Showing real-time media from your Instagram account.</p>
+            <p className="text-[12px] text-slate-450 mt-0.5">Showing real-time media from your connected Instagram profile.</p>
           </div>
 
           {/* Stat chips */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-6">
             {[
               { label: "Total DMs", count: rules.length },
               { label: "Active DMs", count: rules.filter((r) => r.active).length },
               { label: "Paused DMs", count: rules.filter((r) => !r.active).length },
             ].map(({ label, count }) => (
               <div key={label} className="text-center">
-                <p className="text-[20px] font-bold text-slate-900 leading-none">{loading ? "–" : count}</p>
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mt-0.5">{label}</p>
+                <p className="text-[20px] font-bold text-white leading-none">{loading ? "–" : count}</p>
+                <p className="text-[9px] font-black text-slate-450 uppercase tracking-wider mt-1">{label}</p>
               </div>
             ))}
-            <div className="h-[1px] w-px h-10 bg-slate-100 mx-1" />
+            <div className="w-px h-10 bg-[#161930] mx-1" />
           </div>
         </div>
       )}
 
       {/* Just-connected success banner */}
       {justConnected && (
-        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-5 flex items-center gap-4 mb-8 animate-in slide-in-from-top-2 duration-500">
+        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-5 flex items-center gap-4 mb-4 animate-in slide-in-from-top-2 duration-500">
           <div className="w-9 h-9 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
             <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <div className="flex-1">
-            <p className="text-[14px] font-bold text-emerald-800">Instagram connected successfully! 🎉</p>
-            <p className="text-[12px] text-emerald-600 font-medium">Your account is live. Media is loading below.</p>
+          <div className="flex-1 text-left">
+            <p className="text-[14px] font-bold text-emerald-450">Instagram connected successfully! 🎉</p>
+            <p className="text-[12px] text-emerald-500/80 font-medium">Your account is live. Media is loading below.</p>
           </div>
-          <button onClick={() => setJustConnected(false)} className="text-emerald-400 hover:text-emerald-700 transition-colors">
+          <button onClick={() => setJustConnected(false)} className="text-emerald-400 hover:text-emerald-600 transition-colors">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
@@ -545,13 +608,13 @@ export default function ReelsPage() {
 
       {/* Not connected */}
       {!loading && !selectedAccount && (
-        <div className="bg-white rounded-[24px] border border-[#e4e4e7] p-16 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col items-center gap-6 text-center">
-          <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center">
-            <Camera size={28} className="text-slate-300" />
+        <div className="bg-[#070913] rounded-[24px] border border-[#161930] p-16 shadow-[0_12px_40px_rgba(0,0,0,0.5)] flex flex-col items-center gap-6 text-center">
+          <div className="w-16 h-16 rounded-full bg-[#0e1026] border border-[#1f2347] flex items-center justify-center">
+            <Camera size={28} className="text-slate-400" />
           </div>
           <div>
-            <h3 className="text-[18px] font-bold text-slate-900 mb-1">No Instagram Account Connected</h3>
-            <p className="text-[13.5px] text-slate-500 max-w-xs mx-auto">Connect your Instagram account to view and manage your media here.</p>
+            <h3 className="text-[18px] font-bold text-white mb-1">No Instagram Account Connected</h3>
+            <p className="text-[13.5px] text-slate-450 max-w-xs mx-auto">Connect your Instagram account to view and manage your media here.</p>
           </div>
           <a href="/api/auth/instagram/link" className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#e84c9f] via-[#b656e3] to-[#5a60f6] text-white text-[13.5px] font-bold rounded-full shadow-[0_8px_20px_-4px_rgba(182,86,227,0.25)] transition-all hover:scale-[1.01]">
             Connect Instagram
@@ -562,17 +625,17 @@ export default function ReelsPage() {
       {selectedAccount && (
         <>
           {/* Toolbar: search + filter tabs + view toggle */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
             {/* Filter pills */}
-            <div className="flex items-center gap-1.5 p-1 bg-slate-55/60 backdrop-blur-md border border-slate-200/60 rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.015)]">
+            <div className="flex items-center gap-1.5 p-1 bg-[#0e1026] border border-[#1f2347] rounded-full shadow-lg">
               {FILTERS.map((f) => (
                 <button
                   key={f.value}
                   onClick={() => setFilter(f.value)}
                   className={`px-4.5 py-1.5 rounded-full text-[12.5px] font-extrabold transition-all duration-300 cursor-pointer ${
                     filter === f.value
-                      ? "bg-slate-900 text-white shadow-sm"
-                      : "text-slate-550 hover:text-slate-800 hover:bg-slate-100/50"
+                      ? "bg-[#7c3aed] text-white shadow-[0_4px_12px_rgba(124,58,237,0.3)]"
+                      : "text-slate-400 hover:text-white hover:bg-[#131633]/50"
                   }`}
                 >
                   {f.label}
@@ -584,27 +647,27 @@ export default function ReelsPage() {
             <div className="flex items-center gap-3 ml-auto w-full sm:w-auto justify-between sm:justify-end">
               {/* Search */}
               <div className="relative">
-                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-450" />
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search captions..."
-                  className="h-9.5 pl-9 pr-4 rounded-full border border-slate-200 bg-white text-[12.5px] font-semibold text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-violet-500/10 focus:border-violet-400 transition-all w-44 sm:w-48"
+                  className="h-9.5 pl-9 pr-4 rounded-full border border-[#1f2347] bg-[#0e1026] text-[12.5px] font-semibold text-white placeholder:text-slate-500 focus:outline-none focus:ring-4 focus:ring-[#7c3aed]/10 focus:border-[#7c3aed] transition-all w-44 sm:w-48"
                 />
               </div>
 
               {/* View toggle */}
               {filter === "ALL" && (
-                <div className="flex items-center gap-0.5 p-1 bg-slate-55/60 border border-slate-200/60 rounded-full shrink-0">
+                <div className="flex items-center gap-0.5 p-1 bg-[#0e1026] border border-[#1f2347] rounded-full shrink-0">
                   <button
                     onClick={() => setViewMode("grid")}
-                    className={`w-7.5 h-7.5 rounded-full flex items-center justify-center transition-all cursor-pointer ${viewMode === "grid" ? "bg-slate-900 text-white shadow-xs" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100/40"}`}
+                    className={`w-7.5 h-7.5 rounded-full flex items-center justify-center transition-all cursor-pointer ${viewMode === "grid" ? "bg-[#7c3aed] text-white shadow-md" : "text-slate-500 hover:text-slate-200 hover:bg-[#131633]/30"}`}
                   >
                     <Grid3x3 size={13} />
                   </button>
                   <button
                     onClick={() => setViewMode("list")}
-                    className={`w-7.5 h-7.5 rounded-full flex items-center justify-center transition-all cursor-pointer ${viewMode === "list" ? "bg-slate-900 text-white shadow-xs" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100/40"}`}
+                    className={`w-7.5 h-7.5 rounded-full flex items-center justify-center transition-all cursor-pointer ${viewMode === "list" ? "bg-[#7c3aed] text-white shadow-md" : "text-slate-500 hover:text-slate-200 hover:bg-[#131633]/30"}`}
                   >
                     <List size={13} />
                   </button>
@@ -1016,7 +1079,7 @@ export default function ReelsPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsAutomationModalOpen(false)}
-              className="absolute inset-0 bg-slate-955/40 backdrop-blur-xs"
+              className="absolute inset-0 bg-black/75 backdrop-blur-sm"
             />
 
             {/* Modal Body */}
@@ -1025,30 +1088,25 @@ export default function ReelsPage() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
               transition={{ type: "spring", duration: 0.4 }}
-              className="relative w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-[32px] border border-slate-100 bg-white shadow-2xl p-6 md:p-8 z-10 [&::-webkit-scrollbar]:hidden"
+              className="relative w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-[32px] border border-zinc-800 bg-black shadow-2xl p-6 md:p-8 z-10 [&::-webkit-scrollbar]:hidden"
               style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
             >
-              {/* Premium background glows */}
-              <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none rounded-[32px]">
-                <div className="absolute -top-10 -right-10 h-72 w-72 rounded-full bg-violet-100/30 blur-3xl" />
-                <div className="absolute -bottom-10 -left-10 h-72 w-72 rounded-full bg-pink-105/20 blur-3xl" />
-              </div>
 
               {/* Header */}
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-6 bg-transparent">
+              <div className="flex items-center justify-between pb-4 border-b border-zinc-800 mb-6 bg-transparent">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center text-violet-600 shadow-sm shadow-violet-100/50">
+                  <div className="w-9 h-9 rounded-xl bg-zinc-900 flex items-center justify-center text-zinc-400 shadow-sm">
                     <Sparkles size={18} strokeWidth={2.5} />
                   </div>
-                  <div>
-                    <h3 className="font-extrabold text-slate-900 text-[18px] md:text-[20px] tracking-tight">Automation Setup & Live Preview</h3>
-                    <p className="text-[11px] text-slate-400 font-semibold mt-0.5">Configure your trigger rules and preview responses instantly.</p>
+                  <div className="text-left">
+                    <h3 className="font-extrabold text-white text-[18px] md:text-[20px] tracking-tight">Automation Setup & Live Preview</h3>
+                    <p className="text-[11px] text-zinc-400 font-semibold mt-0.5">Configure your trigger rules and preview responses instantly.</p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsAutomationModalOpen(false)}
-                  className="rounded-full p-2 text-slate-400 hover:bg-slate-50 hover:text-slate-705 transition-all cursor-pointer hover:scale-105"
+                  className="rounded-full p-2 text-zinc-400 hover:bg-zinc-900 hover:text-white transition-all cursor-pointer hover:scale-105"
                 >
                   <X size={20} />
                 </button>
@@ -1060,11 +1118,11 @@ export default function ReelsPage() {
                 <div className="lg:col-span-6 space-y-6">
                   
                   {/* 1. Account Header Card */}
-                  <div className="p-4 bg-slate-50/50 backdrop-blur-md border border-slate-200/60 rounded-2xl flex items-center justify-between gap-4 shadow-[0_2px_12px_rgba(0,0,0,0.01)]">
-                    <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="p-6 bg-zinc-950 border border-zinc-800 rounded-2xl flex flex-col items-center justify-center text-center gap-4 shadow-none">
+                    <div className="flex flex-col items-center gap-3.5 w-full">
                       <div className="relative shrink-0">
-                        <div className="w-13 h-13 rounded-full p-0.5 bg-linear-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7]">
-                          <div className="w-full h-full rounded-full border-2 border-white overflow-hidden bg-slate-50">
+                        <div className="w-16 h-16 rounded-full p-0.5 bg-linear-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7]">
+                          <div className="w-full h-full rounded-full border-2 border-zinc-950 overflow-hidden bg-zinc-900">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img 
                               src={selectedAccount.profile_picture_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedAccount.username}`} 
@@ -1073,35 +1131,37 @@ export default function ReelsPage() {
                             />
                           </div>
                         </div>
-                        <div className="absolute -bottom-1 -right-1 w-5.5 h-5.5 bg-white rounded-full flex items-center justify-center shadow-md border border-slate-100">
-                          <Instagram size={10} className="text-[#ee2a7b]" />
+                        <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-zinc-950 rounded-full flex items-center justify-center shadow-md border border-zinc-800">
+                          <Instagram size={11} className="text-[#ee2a7b]" />
                         </div>
                       </div>
                       
-                      <div className="flex flex-col min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <h4 className="text-[14px] font-extrabold text-slate-805 truncate">@{selectedAccount.username}</h4>
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 rounded-full border border-emerald-100/50 shrink-0">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className="text-[8px] font-black text-emerald-600 uppercase tracking-wider">Connected</span>
+                      <div className="flex flex-col items-center min-w-0">
+                        <div className="flex items-center gap-2 mb-1 justify-center">
+                          <h4 className="text-[15px] font-extrabold text-white truncate">@{selectedAccount.username}</h4>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 rounded-full border border-emerald-500/20 shrink-0">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            <span className="text-[8px] font-black text-emerald-400 uppercase tracking-wider">Connected</span>
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-400 font-bold">Instagram Business Account</p>
+                        <p className="text-[11px] text-zinc-400 font-bold">Instagram Business Account</p>
                       </div>
                     </div>
                     
+                    <div className="w-full h-px bg-zinc-800/60 my-0.5" />
+
                     {/* Status toggle inside card */}
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                        {automationActive ? "Active" : "Paused"}
+                    <div className="flex items-center gap-2.5 justify-center">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400">
+                        Automation: {automationActive ? "Active" : "Paused"}
                       </span>
                       <button
                         type="button"
                         onClick={() => setAutomationActive(!automationActive)}
                         className={`w-10 h-5.5 rounded-full relative transition-all duration-300 flex-shrink-0 cursor-pointer ${
                           automationActive 
-                            ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 shadow-[0_2px_8px_rgba(124,58,237,0.25)]" 
-                            : "bg-slate-205"
+                            ? "bg-violet-600" 
+                            : "bg-zinc-850"
                         }`}
                       >
                         <div className={`absolute top-0.5 w-4.5 h-4.5 rounded-full bg-white shadow-md transition-all duration-300 ${
@@ -1112,11 +1172,11 @@ export default function ReelsPage() {
                   </div>
 
                   {/* 2. Choose Template Preset */}
-                  <div className="space-y-3">
+                  <div className="space-y-3 text-left">
                     <div className="flex items-center justify-between">
-                      <label className="text-[11px] font-black uppercase tracking-wider text-slate-400 block">Choose Template Preset</label>
+                      <label className="text-[11px] font-black uppercase tracking-wider text-zinc-400 block">Choose Template Preset</label>
                       {activePresetIndex > 0 && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-55 border border-violet-100 text-violet-600 text-[10px] font-black uppercase tracking-wider">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 text-[10px] font-black uppercase tracking-wider">
                           Preset loaded
                         </span>
                       )}
@@ -1136,18 +1196,18 @@ export default function ReelsPage() {
                             }}
                             className={`p-3 rounded-2xl border text-left transition-all duration-300 hover:scale-[1.01] flex flex-col justify-between cursor-pointer group ${
                               active
-                                ? "border-violet-600 bg-violet-50/40 shadow-[0_4px_20px_-4px_rgba(168,85,247,0.12)] text-slate-909"
-                                : "border-slate-200/80 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50/30"
+                                ? "border-zinc-500 bg-zinc-900 text-white"
+                                : "border-zinc-800 bg-zinc-950 text-zinc-300 hover:border-zinc-700 hover:bg-zinc-900"
                             }`}
                           >
-                            <div>
+                            <div className="min-w-0 w-full">
                               <div className="flex items-center gap-2">
-                                <span className={`text-base p-1.5 rounded-xl transition-colors duration-350 ${
-                                  active ? "bg-violet-100 text-violet-600" : "bg-slate-100 text-slate-600 group-hover:bg-slate-200/60"
+                                <span className={`text-base p-1.5 rounded-xl transition-colors duration-350 shrink-0 ${
+                                  active ? "bg-zinc-800 text-white" : "bg-zinc-900 text-zinc-400 group-hover:bg-zinc-800"
                                 }`}>{preset.icon}</span>
                                 <span className="text-[12px] font-extrabold truncate leading-none">{preset.name.replace(" Preset", "")}</span>
                               </div>
-                              <p className="text-[10px] text-slate-400 mt-2 line-clamp-2 leading-relaxed font-semibold">{preset.desc}</p>
+                              <p className="text-[10px] text-zinc-450 mt-2 line-clamp-2 leading-relaxed font-semibold">{preset.desc}</p>
                             </div>
                           </button>
                         );
@@ -1156,42 +1216,42 @@ export default function ReelsPage() {
                   </div>
 
                   {/* 3. Trigger Setting */}
-                  <div className="space-y-3.5 p-5 bg-white border border-slate-200 rounded-2xl shadow-xs">
+                  <div className="space-y-3.5 p-5 bg-zinc-950 border border-zinc-800 rounded-2xl shadow-none text-left">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-[13px] font-extrabold text-slate-805">Trigger on Any Comment</p>
-                        <p className="text-[11px] text-slate-400 font-semibold mt-0.5">Send Auto-DM to any comment or restrict by keywords</p>
+                        <p className="text-[13px] font-extrabold text-white">Trigger on Any Comment</p>
+                        <p className="text-[11px] text-zinc-450 font-semibold mt-0.5">Send Auto-DM to any comment or restrict by keywords</p>
                       </div>
                       <button
                         type="button"
                         onClick={() => setAutomationKeywordMode(automationKeywordMode === "any" ? "specific" : "any")}
                         className={`w-10 h-5.5 rounded-full relative transition-all duration-300 flex-shrink-0 cursor-pointer ${
                           automationKeywordMode === "any" 
-                            ? "bg-slate-900 shadow-sm" 
-                            : "bg-slate-200"
+                            ? "bg-white" 
+                            : "bg-zinc-800"
                         }`}
                       >
-                        <div className={`absolute top-0.5 w-4.5 h-4.5 rounded-full bg-white shadow-md transition-all duration-300 ${
-                          automationKeywordMode === "any" ? "right-0.5" : "left-0.5"
+                        <div className={`absolute top-0.5 w-4.5 h-4.5 rounded-full shadow-md transition-all duration-300 ${
+                          automationKeywordMode === "any" ? "right-0.5 bg-zinc-950" : "left-0.5 bg-white"
                         }`} />
                       </button>
                     </div>
 
                     {automationKeywordMode === "specific" && (
-                      <div className="pt-4 border-t border-slate-100 space-y-3 animate-in fade-in slide-in-from-top-1 duration-300">
-                        <label className="text-[11px] font-black uppercase tracking-wider text-slate-400 block">Keywords to Watch</label>
+                      <div className="pt-4 border-t border-zinc-800 space-y-3 animate-in fade-in slide-in-from-top-1 duration-300">
+                        <label className="text-[11px] font-black uppercase tracking-wider text-zinc-400 block">Keywords to Watch</label>
                         <div className="flex gap-2">
                           <input
                             value={keywordInput}
                             onChange={(e) => setKeywordInput(e.target.value.toUpperCase())}
                             onKeyDown={(e) => e.key === "Enter" && addKeyword()}
                             placeholder="e.g. YES, LINK, GETIT"
-                            className="flex-1 h-10 rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-[12.5px] font-medium text-slate-800 placeholder-slate-405 focus:outline-none focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all shadow-2xs"
+                            className="flex-1 h-10 rounded-xl border border-zinc-800 bg-black px-3.5 py-1.5 text-[12.5px] font-medium text-white placeholder-zinc-650 focus:outline-none focus:border-zinc-500 transition-all"
                           />
                           <button
                             type="button"
                             onClick={addKeyword}
-                            className="h-10 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-[12.5px] flex items-center justify-center transition-colors shadow-sm cursor-pointer"
+                            className="h-10 px-4 rounded-xl bg-white hover:bg-zinc-200 text-zinc-900 font-bold text-[12.5px] flex items-center justify-center transition-colors shadow-sm cursor-pointer"
                           >
                             <Plus size={15} strokeWidth={2.5} />
                           </button>
@@ -1202,13 +1262,13 @@ export default function ReelsPage() {
                             {automationKeywords.map((kw) => (
                               <span
                                 key={kw}
-                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-50 border border-slate-200 text-slate-650 font-bold text-[11.5px] shadow-2xs"
+                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-200 font-bold text-[11.5px] shadow-none"
                               >
                                 {kw}
                                 <button
                                   type="button"
                                   onClick={() => removeKeyword(kw)}
-                                  className="text-slate-400 hover:text-slate-650 transition-colors cursor-pointer"
+                                  className="text-zinc-550 hover:text-zinc-300 transition-colors cursor-pointer"
                                 >
                                   <X size={11} strokeWidth={2.5} />
                                 </button>
@@ -1216,15 +1276,15 @@ export default function ReelsPage() {
                             ))}
                           </div>
                         ) : (
-                          <p className="text-[10.5px] text-amber-600 font-semibold italic">Please add at least one keyword to trigger the DM.</p>
+                          <p className="text-[10.5px] text-amber-500 font-semibold italic">Please add at least one keyword to trigger the DM.</p>
                         )}
                       </div>
                     )}
                   </div>
 
                   {/* 4. Custom DM Message */}
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-black uppercase tracking-wider text-slate-400 block">Custom DM Message</label>
+                  <div className="space-y-2 text-left">
+                    <label className="text-[11px] font-black uppercase tracking-wider text-zinc-400 block">Custom DM Message</label>
                     <textarea
                       value={automationMessage}
                       onChange={(e) => {
@@ -1233,99 +1293,99 @@ export default function ReelsPage() {
                       }}
                       placeholder="Hey! Thanks for commenting. Here is the link you requested... 🚀"
                       rows={4}
-                      className="w-full resize-none rounded-2xl border border-slate-200 bg-white p-4 text-[13px] font-medium text-slate-850 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 leading-relaxed shadow-sm transition-all"
+                      className="w-full resize-none rounded-2xl border border-zinc-800 bg-zinc-950 p-4 text-[13px] font-medium text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500 leading-relaxed shadow-none transition-all"
                     />
-                    <div className="flex items-center gap-1.5 p-3 rounded-xl bg-violet-50/50 border border-violet-100/50 text-violet-650 text-[10.5px] font-bold leading-normal">
-                      <Sparkles size={14} className="shrink-0" />
+                    <div className="flex items-center gap-1.5 p-3 rounded-xl bg-zinc-900/60 border border-zinc-800 text-zinc-300 text-[10.5px] font-bold leading-normal">
+                      <Sparkles size={14} className="shrink-0 text-zinc-400" />
                       <span>
-                        💡 Tip: Keep it short, conversational, and direct. You can use <code className="bg-violet-100/50 px-1 py-0.5 rounded text-[10px] font-bold text-violet-700">{`{first_name}`}</code> and <code className="bg-violet-100/50 px-1 py-0.5 rounded text-[10px] font-bold text-violet-700">{`{link}`}</code>.
+                        💡 Tip: Keep it short, conversational, and direct. You can use <code className="bg-zinc-800 px-1 py-0.5 rounded text-[10px] font-bold text-zinc-300">{`{first_name}`}</code> and <code className="bg-zinc-800 px-1 py-0.5 rounded text-[10px] font-bold text-zinc-300">{`{link}`}</code>.
                       </span>
                     </div>
                   </div>
 
                   {/* 5. Comment Reply */}
-                  <div className="space-y-3.5 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-300">
+                  <div className="space-y-3.5 rounded-2xl border border-zinc-800 bg-zinc-950 p-5 shadow-none transition-all duration-300 text-left">
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <p className="text-[13px] font-extrabold text-slate-800">Reply in comments too</p>
-                        <p className="text-[11px] text-slate-400 font-semibold mt-0.5">Show a public comment reply when the automation triggers.</p>
+                        <p className="text-[13px] font-extrabold text-white">Reply in comments too</p>
+                        <p className="text-[11px] text-zinc-450 font-semibold mt-0.5">Show a public comment reply when the automation triggers.</p>
                       </div>
                       <button
                         type="button"
                         onClick={() => setAutoReplyComment(!autoReplyComment)}
                         className={`w-10 h-5.5 rounded-full relative transition-all duration-300 flex-shrink-0 cursor-pointer ${
                           autoReplyComment
-                            ? "bg-slate-900"
-                            : "bg-slate-200"
+                            ? "bg-white"
+                            : "bg-zinc-800"
                         }`}
                       >
                         <div
-                          className={`absolute top-0.5 w-4.5 h-4.5 rounded-full bg-white shadow-md transition-all duration-300 ${
-                            autoReplyComment ? "right-0.5" : "left-0.5"
+                          className={`absolute top-0.5 w-4.5 h-4.5 rounded-full shadow-md transition-all duration-300 ${
+                            autoReplyComment ? "right-0.5 bg-zinc-950" : "left-0.5 bg-white"
                           }`}
                         />
                       </button>
                     </div>
 
                     {autoReplyComment ? (
-                      <div className="space-y-3.5 pt-3.5 border-t border-slate-100 animate-in fade-in slide-in-from-top-1 duration-300">
-                        <label className="text-[11px] font-black uppercase tracking-wider text-slate-400 block">Comment Reply Text</label>
+                      <div className="space-y-3.5 pt-3.5 border-t border-zinc-800 animate-in fade-in slide-in-from-top-1 duration-300">
+                        <label className="text-[11px] font-black uppercase tracking-wider text-zinc-400 block">Comment Reply Text</label>
                         <textarea
                           value={commentReplyText}
                           onChange={(e) => setCommentReplyText(e.target.value)}
                           placeholder="Thanks! You can find the link in my bio 📩"
                           rows={3}
-                          className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50/50 p-4.5 text-[13px] font-medium text-slate-850 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 leading-relaxed shadow-sm transition-all"
+                          className="w-full resize-none rounded-2xl border border-zinc-800 bg-zinc-950 p-4.5 text-[13px] font-medium text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500 leading-relaxed shadow-none transition-all"
                         />
-                        <p className="text-[10px] text-slate-400 leading-tight font-semibold">
+                        <p className="text-[10px] text-zinc-450 leading-tight font-semibold">
                           This reply will post publicly in the comment thread alongside the DM.
                         </p>
                       </div>
                     ) : (
-                      <p className="text-[10.5px] text-slate-400 font-semibold italic pt-2 border-t border-slate-100/50">Comment reply is off. Turn it on to reply publicly and send the DM together.</p>
+                      <p className="text-[10.5px] text-zinc-500 font-semibold italic pt-2 border-t border-zinc-800">Comment reply is off. Turn it on to reply publicly and send the DM together.</p>
                     )}
                   </div>
 
                   {/* 6. Ask to Follow First (Follow Gate) */}
-                  <div className="space-y-3.5 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-300">
+                  <div className="space-y-3.5 rounded-2xl border border-zinc-800 bg-zinc-950 p-5 shadow-none transition-all duration-300 text-left">
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <p className="text-[13px] font-extrabold text-slate-800">Ask to follow first</p>
-                        <p className="text-[11px] text-slate-400 font-semibold mt-0.5">Require the user to follow you to get the DM link.</p>
+                        <p className="text-[13px] font-extrabold text-white">Ask to follow first</p>
+                        <p className="text-[11px] text-zinc-450 font-semibold mt-0.5">Require the user to follow you to get the DM link.</p>
                       </div>
                       <button
                         type="button"
                         onClick={() => setRequireFollow(!requireFollow)}
                         className={`w-10 h-5.5 rounded-full relative transition-all duration-300 flex-shrink-0 cursor-pointer ${
                           requireFollow
-                            ? "bg-slate-900"
-                            : "bg-slate-200"
+                            ? "bg-white"
+                            : "bg-zinc-800"
                         }`}
                       >
                         <div
-                          className={`absolute top-0.5 w-4.5 h-4.5 rounded-full bg-white shadow-md transition-all duration-300 ${
-                            requireFollow ? "right-0.5" : "left-0.5"
+                          className={`absolute top-0.5 w-4.5 h-4.5 rounded-full shadow-md transition-all duration-300 ${
+                            requireFollow ? "right-0.5 bg-zinc-950" : "left-0.5 bg-white"
                           }`}
                         />
                       </button>
                     </div>
 
                     {requireFollow ? (
-                      <div className="space-y-3.5 pt-3.5 border-t border-slate-100 animate-in fade-in slide-in-from-top-1 duration-300">
-                        <label className="text-[11px] font-black uppercase tracking-wider text-slate-400 block">Follow Gate Message</label>
+                      <div className="space-y-3.5 pt-3.5 border-t border-zinc-800 animate-in fade-in slide-in-from-top-1 duration-300">
+                        <label className="text-[11px] font-black uppercase tracking-wider text-zinc-400 block">Follow Gate Message</label>
                         <textarea
                           value={followGateMessage}
                           onChange={(e) => setFollowGateMessage(e.target.value)}
                           placeholder="Hey! Follow me first and I'll send you the link 🙌"
                           rows={3}
-                          className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50/50 p-4.5 text-[13px] font-medium text-slate-850 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 leading-relaxed shadow-sm transition-all"
+                          className="w-full resize-none rounded-2xl border border-zinc-800 bg-zinc-950 p-4.5 text-[13px] font-medium text-white placeholder-zinc-650 focus:outline-none focus:border-zinc-500 leading-relaxed shadow-none transition-all"
                         />
-                        <p className="text-[10px] text-slate-400 leading-tight font-semibold">
+                        <p className="text-[10px] text-zinc-450 leading-tight font-semibold">
                           This message will be sent first, requesting a follow before delivering the main content.
                         </p>
                       </div>
                     ) : (
-                      <p className="text-[10.5px] text-slate-400 font-semibold italic pt-2 border-t border-slate-100/50">Follow gate is off. Anyone commenting will receive the main DM immediately.</p>
+                      <p className="text-[10.5px] text-zinc-500 font-semibold italic pt-2 border-t border-zinc-800">Follow gate is off. Anyone commenting will receive the main DM immediately.</p>
                     )}
                   </div>
 
@@ -1335,34 +1395,34 @@ export default function ReelsPage() {
                 <div className="lg:col-span-6 space-y-4 flex flex-col items-center justify-start">
                   
                   {/* Selected Reel Preview Card */}
-                  <div className="w-full p-3 bg-white border border-slate-200 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.01)] flex gap-3 items-start text-left shrink-0">
-                    <div className="relative w-12 h-16 shrink-0 overflow-hidden rounded-xl bg-slate-105 border border-slate-200/50">
+                  <div className="w-full p-3 bg-zinc-950 border border-zinc-800 rounded-xl shadow-none flex gap-3 items-start text-left shrink-0">
+                    <div className="relative w-12 h-16 shrink-0 overflow-hidden rounded-xl bg-zinc-900 border border-zinc-800">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={getThumb(selectedItemForAutomation)} alt="" className="w-full h-full object-cover" />
-                      <span className="absolute bottom-0 inset-x-0 bg-slate-950/70 py-0.5 text-center text-[7px] font-black uppercase text-white tracking-wider">
+                      <span className="absolute bottom-0 inset-x-0 bg-black/75 py-0.5 text-center text-[7px] font-black uppercase text-white tracking-wider">
                         {selectedItemForAutomation.media_type === "VIDEO" ? "REEL" : "POST"}
                       </span>
                     </div>
                     <div className="min-w-0 flex-1">
-                      <span className="text-[8px] font-extrabold uppercase tracking-widest text-slate-500">Target Post</span>
-                      <p className="line-clamp-2 text-[12px] leading-relaxed text-slate-650 font-semibold mt-0.5">
-                        {selectedItemForAutomation.caption || <span className="italic text-slate-400">No caption</span>}
+                      <span className="text-[8px] font-extrabold uppercase tracking-widest text-zinc-400">Target Post</span>
+                      <p className="line-clamp-2 text-[12px] leading-relaxed text-slate-200 font-semibold mt-0.5">
+                        {selectedItemForAutomation.caption || <span className="italic text-slate-550">No caption</span>}
                       </p>
-                      <span className="block text-[10px] text-slate-400 mt-1">
+                      <span className="block text-[10px] text-zinc-455 mt-1">
                         Published: {formatDate(selectedItemForAutomation.timestamp)}
                       </span>
                     </div>
                   </div>
 
                   {/* Segmented Control Selector */}
-                  <div className="flex p-1 bg-slate-150/60 rounded-full w-full max-w-[280px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.03)] border border-slate-200/40 shrink-0">
+                  <div className="flex p-1 bg-zinc-955 rounded-full w-full max-w-[280px] border border-zinc-800 shrink-0">
                     <button
                       type="button"
                       onClick={() => setPreviewTab("dm")}
                       className={`flex-1 py-1.5 rounded-full text-[11px] font-bold transition-all duration-300 cursor-pointer ${
                         previewTab === "dm"
-                          ? "bg-white text-slate-900 shadow-xs"
-                          : "text-slate-450 hover:text-slate-700"
+                          ? "bg-zinc-850 text-white shadow-none"
+                          : "text-zinc-400 hover:text-white"
                       }`}
                     >
                       💬 Direct Message
@@ -1372,8 +1432,8 @@ export default function ReelsPage() {
                       onClick={() => setPreviewTab("comment")}
                       className={`flex-1 py-1.5 rounded-full text-[11px] font-bold transition-all duration-300 cursor-pointer ${
                         previewTab === "comment"
-                          ? "bg-white text-slate-900 shadow-xs"
-                          : "text-slate-450 hover:text-slate-700"
+                          ? "bg-zinc-850 text-white shadow-none"
+                          : "text-zinc-400 hover:text-white"
                       }`}
                     >
                       📝 Post Comments
@@ -1381,30 +1441,30 @@ export default function ReelsPage() {
                   </div>
 
                   {/* Clean Dashboard Live Preview Panel */}
-                  <div className="w-full flex-1 h-[460px] min-h-[420px] rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden flex flex-col text-left transition-all duration-300">
+                  <div className="w-full flex-1 h-[460px] min-h-[420px] rounded-2xl border border-zinc-800 bg-zinc-950 shadow-none overflow-hidden flex flex-col text-left transition-all duration-300">
                     
                     {/* Header bar of preview */}
-                    <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between shrink-0 select-none">
+                    <div className="px-4 py-3 bg-zinc-955 border-b border-zinc-800 flex items-center justify-between shrink-0 select-none">
                       <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-violet-600 animate-pulse" />
-                        <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 font-sans">Live Simulator Preview</span>
+                        <div className="w-2 h-2 rounded-full bg-zinc-500 animate-pulse" />
+                        <span className="text-[11px] font-black uppercase tracking-wider text-zinc-300 font-sans">Live Simulator Preview</span>
                       </div>
-                      <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Active Mode</span>
+                      <span className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">Active Mode</span>
                     </div>
 
                     {/* Screen Content Wrapper */}
-                    <div className="flex-1 flex flex-col bg-white overflow-hidden relative">
+                    <div className="flex-1 flex flex-col bg-[#03040b] overflow-hidden relative">
                       
                       {/* Glassmorphic Pause Overlay (No Layout shifts) */}
                       {!automationActive && (
-                        <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[3px] z-40 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
-                          <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center mb-4 shadow-xl">
+                        <div className="absolute inset-0 bg-[#03040b]/90 backdrop-blur-[3px] z-40 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
+                          <div className="w-14 h-14 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-4 shadow-xl">
                             <svg className="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 24 24">
                               <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
                             </svg>
                           </div>
                           <span className="text-[14px] font-black uppercase tracking-wider text-white drop-shadow-sm">Automation Paused</span>
-                          <p className="text-[11px] text-white/80 font-semibold mt-2 max-w-[200px] leading-relaxed">
+                          <p className="text-[11px] text-slate-400 font-semibold mt-2 max-w-[200px] leading-relaxed">
                             Turn the toggle ON at the left card to see the live typing & message simulator.
                           </p>
                         </div>
@@ -1412,14 +1472,14 @@ export default function ReelsPage() {
 
                       {previewTab === "dm" ? (
                         /* DYNAMIC DIRECT MESSAGE STREAM */
-                        <div className="flex-1 flex flex-col h-full bg-white animate-in fade-in duration-300">
+                        <div className="flex-1 flex flex-col h-full bg-[#03040b] animate-in fade-in duration-300">
                           {/* IG Chat Header */}
-                          <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
+                          <div className="px-3 py-2 border-b border-[#1f2347] flex items-center justify-between shrink-0 bg-[#0e1026]">
                             <div className="flex items-center gap-1.5">
-                              <svg className="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                              <svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
                               </svg>
-                              <div className="w-6 h-6 rounded-full overflow-hidden bg-slate-100 relative ring-1 ring-slate-200">
+                              <div className="w-6 h-6 rounded-full overflow-hidden bg-slate-800 relative ring-1 ring-[#1f2347]">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img 
                                   src={selectedAccount.profile_picture_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedAccount.username}`} 
@@ -1427,9 +1487,9 @@ export default function ReelsPage() {
                                   className="w-full h-full object-cover" 
                                 />
                               </div>
-                              <div className="min-w-0">
+                              <div className="min-w-0 text-left">
                                 <div className="flex items-center gap-0.5">
-                                  <p className="text-[10px] font-bold text-slate-800 leading-tight truncate max-w-24">@{selectedAccount.username}</p>
+                                  <p className="text-[10px] font-bold text-white leading-tight truncate max-w-24">@{selectedAccount.username}</p>
                                   <svg className="w-2.5 h-2.5 text-blue-500 fill-current shrink-0" viewBox="0 0 24 24">
                                     <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
                                   </svg>
@@ -1437,13 +1497,13 @@ export default function ReelsPage() {
                                 <p className="text-[7px] text-slate-400 leading-none font-bold">Instagram</p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2 text-slate-600">
+                            <div className="flex items-center gap-2 text-slate-400">
                               <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
                             </div>
                           </div>
 
                           {/* Chat Message Scroll Pane */}
-                          <div className="flex-1 p-3 overflow-y-auto space-y-3 bg-slate-50/20 flex flex-col justify-end no-scrollbar">
+                          <div className="flex-1 p-3 overflow-y-auto space-y-3 bg-[#03040b] flex flex-col justify-end no-scrollbar">
                             
                             {/* Real-time sync loader */}
                             {simStep === "load-data" && (
@@ -1451,11 +1511,11 @@ export default function ReelsPage() {
                                 <div className="relative">
                                   <div className="w-10 h-10 border-3 border-violet-500/20 border-t-violet-500 rounded-full animate-spin" />
                                   <div className="absolute inset-0 flex items-center justify-center">
-                                    <Instagram size={14} className="text-violet-500" />
+                                    <Instagram size={14} className="text-violet-400" />
                                   </div>
                                 </div>
                                 <div className="text-center space-y-1">
-                                  <span className="block text-[10px] font-extrabold text-violet-505 uppercase tracking-widest font-black">PioPost AI Sync</span>
+                                  <span className="block text-[10px] font-extrabold text-violet-405 uppercase tracking-widest font-black">PioPost AI Sync</span>
                                   <span className="block text-[8px] text-slate-400 font-bold">Simulating message stream...</span>
                                 </div>
                               </div>
@@ -1464,7 +1524,7 @@ export default function ReelsPage() {
                             {/* User typing state */}
                             {simStep === "user-typing" && (
                               <div className="flex flex-col items-end space-y-1 align-right animate-in fade-in duration-300">
-                                <div className="flex items-center gap-1 bg-slate-100 py-1.5 px-3 rounded-2xl w-10 justify-center">
+                                <div className="flex items-center gap-1 bg-[#131633] border border-[#1f2347] py-1.5 px-3 rounded-2xl w-10 justify-center">
                                   <div className="w-1 h-1 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
                                   <div className="w-1 h-1 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
                                   <div className="w-1 h-1 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
@@ -1476,7 +1536,7 @@ export default function ReelsPage() {
                             {/* User message sent state */}
                             {(simStep === "user-sent" || simStep === "creator-typing" || simStep === "creator-sent") && (
                               <div className="flex flex-col items-end space-y-1 animate-in fade-in duration-300">
-                                <div className="bg-slate-100 border border-slate-200/50 text-slate-800 text-[10.5px] py-2 px-3 rounded-2xl rounded-tr-xs max-w-[80%] leading-relaxed font-semibold">
+                                <div className="bg-[#131633] border border-[#1f2347] text-white text-[10.5px] py-2 px-3 rounded-2xl rounded-tr-xs max-w-[80%] leading-relaxed font-semibold break-words">
                                   {automationKeywordMode === "specific" && automationKeywords.length > 0 
                                     ? automationKeywords[0] 
                                     : "How can I get the link?"}
@@ -1488,16 +1548,16 @@ export default function ReelsPage() {
                             {/* Divider indicating DM trigger */}
                             {(simStep === "creator-typing" || simStep === "creator-sent") && (
                               <div className="flex items-center gap-1.5 justify-center py-1 animate-in fade-in duration-350">
-                                <div className="h-px bg-slate-200 flex-1" />
+                                <div className="h-px bg-[#1f2347] flex-1" />
                                 <span className="text-[6.5px] text-slate-400 font-extrabold uppercase tracking-widest leading-none select-none">Direct Message Sent</span>
-                                <div className="h-px bg-slate-200 flex-1" />
+                                <div className="h-px bg-[#1f2347] flex-1" />
                               </div>
                             )}
 
                             {/* Creator typing state */}
                             {simStep === "creator-typing" && (
                               <div className="flex items-start gap-1.5 animate-in fade-in duration-300">
-                                <div className="w-5 h-5 rounded-full overflow-hidden bg-slate-105 shrink-0 ring-1 ring-slate-150">
+                                <div className="w-5 h-5 rounded-full overflow-hidden bg-slate-800 shrink-0 ring-1 ring-[#1f2347]">
                                   {/* eslint-disable-next-line @next/next/no-img-element */}
                                   <img 
                                     src={selectedAccount.profile_picture_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedAccount.username}`} 
@@ -1505,7 +1565,7 @@ export default function ReelsPage() {
                                     className="w-full h-full object-cover" 
                                   />
                                 </div>
-                                <div className="flex items-center gap-1 bg-slate-100 py-1.5 px-3 rounded-2xl w-10 justify-center">
+                                <div className="flex items-center gap-1 bg-[#131633] border border-[#1f2347] py-1.5 px-3 rounded-2xl w-10 justify-center">
                                   <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
                                   <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
                                   <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
@@ -1519,7 +1579,7 @@ export default function ReelsPage() {
                                 {/* Creator Follow Gate Message */}
                                 {requireFollow && (
                                   <div className="flex items-start gap-1.5 animate-in slide-in-from-bottom-2 duration-300">
-                                    <div className="w-5 h-5 rounded-full overflow-hidden bg-slate-105 shrink-0 ring-1 ring-slate-150">
+                                    <div className="w-5 h-5 rounded-full overflow-hidden bg-slate-800 shrink-0 ring-1 ring-[#1f2347]">
                                       {/* eslint-disable-next-line @next/next/no-img-element */}
                                       <img 
                                         src={selectedAccount.profile_picture_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedAccount.username}`} 
@@ -1527,7 +1587,7 @@ export default function ReelsPage() {
                                         className="w-full h-full object-cover" 
                                       />
                                     </div>
-                                    <div className="bg-slate-100 text-slate-800 text-[10px] py-1.5 px-2.5 rounded-2xl rounded-tl-xs max-w-[80%] leading-relaxed font-medium break-words">
+                                    <div className="bg-[#131633] border border-[#1f2347] text-white text-[10px] py-1.5 px-2.5 rounded-2xl rounded-tl-xs max-w-[80%] leading-relaxed font-medium break-words">
                                       {followGateMessage.replace(/{first_name}/g, "John") || "Hey! Follow me first and I'll send you the link 🙌"}
                                     </div>
                                   </div>
@@ -1535,7 +1595,7 @@ export default function ReelsPage() {
 
                                 {/* Creator Main Automated DM */}
                                 <div className="flex items-start gap-1.5 animate-in slide-in-from-bottom-2 duration-500">
-                                  <div className="w-5 h-5 rounded-full overflow-hidden bg-slate-105 shrink-0 ring-1 ring-slate-150">
+                                  <div className="w-5 h-5 rounded-full overflow-hidden bg-slate-800 shrink-0 ring-1 ring-[#1f2347]">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img 
                                       src={selectedAccount.profile_picture_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedAccount.username}`} 
@@ -1555,30 +1615,30 @@ export default function ReelsPage() {
                           </div>
 
                           {/* Chat Footer Input */}
-                          <div className="px-3 py-2 bg-white border-t border-slate-150 flex items-center justify-between shrink-0 select-none pointer-events-none">
-                            <div className="h-6.5 flex-1 bg-slate-50 border border-slate-200 rounded-full px-3 flex items-center text-[10px] text-slate-400 font-semibold">
+                          <div className="px-3 py-2 bg-[#0e1026] border-t border-[#1f2347] flex items-center justify-between shrink-0 select-none pointer-events-none">
+                            <div className="h-6.5 flex-1 bg-[#03040b] border border-[#1f2347] rounded-full px-3 flex items-center text-[10px] text-slate-505 font-semibold">
                               Message...
                             </div>
                           </div>
                         </div>
                       ) : (
                         /* DYNAMIC INSTAGRAM COMMENTS STREAM */
-                        <div className="flex-1 flex flex-col h-full bg-white animate-in fade-in duration-300">
+                        <div className="flex-1 flex flex-col h-full bg-[#03040b] animate-in fade-in duration-300">
                           {/* IG Comments Header */}
-                          <div className="px-3 py-2 border-b border-slate-150 flex items-center justify-between shrink-0 bg-white">
+                          <div className="px-3 py-2 border-b border-[#1f2347] flex items-center justify-between shrink-0 bg-[#0e1026]">
                             <div className="flex items-center gap-1.5">
-                              <svg className="w-3.5 h-3.5 text-slate-700" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                              <svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
                               </svg>
-                              <p className="text-[10.5px] font-extrabold text-slate-900 leading-tight">Comments</p>
+                              <p className="text-[10.5px] font-extrabold text-white leading-tight">Comments</p>
                             </div>
-                            <svg className="w-3.5 h-3.5 text-slate-705" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L18 12M6 6L18 18M6 18L18 6" />
                             </svg>
                           </div>
 
                           {/* Comments list */}
-                          <div className="flex-1 p-3 overflow-y-auto space-y-3.5 bg-white flex flex-col justify-end no-scrollbar">
+                          <div className="flex-1 p-3 overflow-y-auto space-y-3.5 bg-[#03040b] flex flex-col justify-end no-scrollbar">
                             
                             {/* Real-time sync loader */}
                             {simStep === "load-data" && (
@@ -1600,7 +1660,7 @@ export default function ReelsPage() {
                               <>
                                 {/* Author caption block at top */}
                                 <div className="flex items-start gap-2 text-left">
-                                  <div className="w-6.5 h-6.5 rounded-full overflow-hidden bg-slate-105 shrink-0 ring-1 ring-slate-200">
+                                  <div className="w-6.5 h-6.5 rounded-full overflow-hidden bg-slate-800 shrink-0 ring-1 ring-[#1f2347]">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img 
                                       src={selectedAccount.profile_picture_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedAccount.username}`} 
@@ -1610,32 +1670,32 @@ export default function ReelsPage() {
                                   </div>
                                   <div className="min-w-0">
                                     <div className="flex items-center gap-0.5">
-                                      <span className="text-[10px] font-black text-slate-900">@{selectedAccount.username}</span>
+                                      <span className="text-[10px] font-black text-white">@{selectedAccount.username}</span>
                                       <svg className="w-2.5 h-2.5 text-blue-500 fill-current shrink-0" viewBox="0 0 24 24">
                                         <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
                                       </svg>
                                     </div>
-                                    <p className="text-[9.5px] text-slate-550 leading-relaxed font-semibold mt-0.5">
+                                    <p className="text-[9.5px] text-slate-300 leading-relaxed font-semibold mt-0.5">
                                       {selectedItemForAutomation.caption || "Check out our latest update! Drop comments below."}
                                     </p>
                                   </div>
                                 </div>
 
-                                <div className="h-[1px] bg-slate-100 w-full" />
+                                <div className="h-[1px] bg-[#1f2347] w-full" />
                               </>
                             )}
 
                             {/* User typing state */}
                             {simStep === "user-typing" && (
-                              <div className="flex items-start gap-2 animate-in fade-in duration-300">
-                                <div className="w-6.5 h-6.5 rounded-full bg-slate-250 border border-slate-350 flex items-center justify-center font-bold text-[9px] text-slate-400 shrink-0 select-none">
+                              <div className="flex items-start gap-2 animate-in fade-in duration-300 text-left">
+                                <div className="w-6.5 h-6.5 rounded-full bg-[#131633] border border-[#1f2347] flex items-center justify-center font-bold text-[9px] text-slate-400 shrink-0 select-none">
                                   U
                                 </div>
                                 <div className="flex-1 min-w-0 flex flex-col space-y-1">
                                   <div className="flex items-center gap-1.5">
-                                    <span className="text-[9.5px] font-black text-slate-900">test_user_ig</span>
+                                    <span className="text-[9.5px] font-black text-white">test_user_ig</span>
                                   </div>
-                                  <div className="flex items-center gap-1 bg-slate-100 py-1.5 px-3 rounded-2xl w-10 justify-center shadow-xs">
+                                  <div className="flex items-center gap-1 bg-[#131633] border border-[#1f2347] py-1.5 px-3 rounded-2xl w-10 justify-center shadow-xs">
                                     <div className="w-1 h-1 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
                                     <div className="w-1 h-1 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
                                     <div className="w-1 h-1 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
@@ -1647,15 +1707,15 @@ export default function ReelsPage() {
                             {/* User comment block (Step 2 onwards) */}
                             {simStep !== "load-data" && (simStep === "user-sent" || simStep === "creator-typing" || simStep === "creator-sent") && (
                               <div className="flex items-start gap-2 animate-in fade-in duration-300 text-left">
-                                <div className="w-6.5 h-6.5 rounded-full bg-slate-205 border border-slate-355 flex items-center justify-center font-bold text-[9px] text-slate-500 shrink-0">
+                                <div className="w-6.5 h-6.5 rounded-full bg-[#131633] border border-[#1f2347] flex items-center justify-center font-bold text-[9px] text-slate-350 shrink-0">
                                   U
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1.5">
-                                    <span className="text-[10px] font-black text-slate-900">test_user_ig</span>
-                                    <span className="text-[8px] text-slate-450 font-bold">12s</span>
+                                    <span className="text-[10px] font-black text-white">test_user_ig</span>
+                                    <span className="text-[8px] text-slate-400 font-bold">12s</span>
                                   </div>
-                                  <p className="text-[10.5px] text-slate-700 leading-normal mt-0.5">
+                                  <p className="text-[10.5px] text-slate-205 leading-normal mt-0.5">
                                     {automationKeywordMode === "specific" && automationKeywords.length > 0 
                                       ? automationKeywords[0] 
                                       : "Amazing! Link please!"}
@@ -1663,9 +1723,9 @@ export default function ReelsPage() {
 
                                   {/* Creator typing indicator inside comments thread */}
                                   {simStep === "creator-typing" && autoReplyComment && (
-                                    <div className="mt-2.5 pl-3 border-l border-slate-200 flex items-start gap-1.5 animate-in fade-in duration-300">
+                                    <div className="mt-2.5 pl-3 border-l border-[#1f2347] flex items-start gap-1.5 animate-in fade-in duration-300">
                                       <div className="w-5 h-5 rounded-full bg-linear-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] p-0.25 shrink-0">
-                                        <div className="w-full h-full rounded-full border border-white overflow-hidden bg-slate-50">
+                                        <div className="w-full h-full rounded-full border border-white overflow-hidden bg-slate-800">
                                           {/* eslint-disable-next-line @next/next/no-img-element */}
                                           <img 
                                             src={selectedAccount.profile_picture_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedAccount.username}`} 
@@ -1674,7 +1734,7 @@ export default function ReelsPage() {
                                           />
                                         </div>
                                       </div>
-                                      <div className="flex items-center gap-1 bg-slate-100 py-1.5 px-3 rounded-2xl w-10 justify-center shadow-xs">
+                                      <div className="flex items-center gap-1 bg-[#131633] border border-[#1f2347] py-1.5 px-3 rounded-2xl w-10 justify-center shadow-xs">
                                         <div className="w-1 h-1 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
                                         <div className="w-1 h-1 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
                                         <div className="w-1 h-1 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
@@ -1686,9 +1746,9 @@ export default function ReelsPage() {
                                   {simStep === "creator-sent" && (
                                     <>
                                       {autoReplyComment ? (
-                                        <div className="mt-2.5 pl-3 border-l border-slate-200 flex items-start gap-1.5 animate-in slide-in-from-bottom-1 duration-300">
+                                        <div className="mt-2.5 pl-3 border-l border-[#1f2347] flex items-start gap-1.5 animate-in slide-in-from-bottom-1 duration-300">
                                           <div className="w-5 h-5 rounded-full bg-linear-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] p-0.25 shrink-0">
-                                            <div className="w-full h-full rounded-full border border-white overflow-hidden bg-slate-50">
+                                            <div className="w-full h-full rounded-full border border-white overflow-hidden bg-slate-800">
                                               {/* eslint-disable-next-line @next/next/no-img-element */}
                                               <img 
                                                 src={selectedAccount.profile_picture_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedAccount.username}`} 
@@ -1699,19 +1759,19 @@ export default function ReelsPage() {
                                           </div>
                                           <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-0.5">
-                                              <span className="text-[9.5px] font-bold text-slate-900">@{selectedAccount.username}</span>
+                                              <span className="text-[9.5px] font-bold text-white">@{selectedAccount.username}</span>
                                               <svg className="w-2.5 h-2.5 text-blue-500 fill-current shrink-0" viewBox="0 0 24 24">
                                                 <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
                                               </svg>
-                                              <span className="text-[6.5px] font-extrabold uppercase bg-slate-50 text-slate-450 px-1 rounded-sm border border-slate-100 scale-90 select-none">AutoReply</span>
+                                              <span className="text-[6.5px] font-extrabold uppercase bg-[#1f2347] text-violet-400 px-1 rounded-sm border border-[#1f2347] scale-90 select-none">AutoReply</span>
                                             </div>
-                                            <p className="text-[9.5px] text-slate-700 leading-relaxed mt-0.5 break-words">
-                                              <span className="text-blue-600 font-semibold">@test_user_ig</span> {commentReplyText ? commentReplyText.replace(/{first_name}/g, "John") : "Thanks! Check your DM 📩"}
+                                            <p className="text-[9.5px] text-slate-205 leading-relaxed mt-0.5 break-words">
+                                              <span className="text-blue-400 font-semibold">@test_user_ig</span> {commentReplyText ? commentReplyText.replace(/{first_name}/g, "John") : "Thanks! Check your DM 📩"}
                                             </p>
                                           </div>
                                         </div>
                                       ) : (
-                                        <p className="text-[7.5px] text-slate-450 font-bold italic mt-2.5 animate-in fade-in duration-300">
+                                        <p className="text-[7.5px] text-slate-400 font-bold italic mt-2.5 animate-in fade-in duration-300">
                                           No comment reply configured. (Toggled off)
                                         </p>
                                       )}
@@ -1724,8 +1784,8 @@ export default function ReelsPage() {
                           </div>
 
                           {/* Comments footer input */}
-                          <div className="px-3 py-2 bg-white border-t border-slate-150 flex items-center justify-between shrink-0 select-none pointer-events-none">
-                            <div className="h-6.5 flex-1 bg-slate-50 border border-slate-205 rounded-full px-3 flex items-center text-[10px] text-slate-400 font-semibold">
+                          <div className="px-3 py-2 bg-[#0e1026] border-t border-[#1f2347] flex items-center justify-between shrink-0 select-none pointer-events-none">
+                            <div className="h-6.5 flex-1 bg-[#03040b] border border-[#1f2347] rounded-full px-3 flex items-center text-[10px] text-slate-500 font-semibold">
                               Add a comment...
                             </div>
                           </div>
@@ -1735,11 +1795,11 @@ export default function ReelsPage() {
                     </div>
                   </div>
 
-                </div>
               </div>
+            </div>
 
-              {/* Footer */}
-              <div className="border-t border-slate-100 bg-white pt-6 mt-8 flex items-center justify-between">
+            {/* Footer */}
+              <div className="border-t border-[#1f2347] pt-6 mt-8 flex items-center justify-between">
                 {(() => {
                   const existingRule = rules.find((r) => r.post_id === selectedItemForAutomation.id);
                   if (existingRule) {
@@ -1748,7 +1808,7 @@ export default function ReelsPage() {
                         type="button"
                         onClick={() => handleDeleteAutomation(existingRule.id)}
                         disabled={savingAutomation}
-                        className="h-10 px-4 rounded-xl border border-red-100 bg-red-50 hover:bg-red-100 text-red-600 text-[12.5px] font-bold transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 shrink-0"
+                        className="h-10 px-4 rounded-xl border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-[12.5px] font-bold transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 shrink-0 cursor-pointer"
                         title="Delete Automation"
                       >
                         <Trash2 size={14} />
@@ -1763,7 +1823,7 @@ export default function ReelsPage() {
                   <button
                     type="button"
                     onClick={() => setIsAutomationModalOpen(false)}
-                    className="h-10 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 text-[12.5px] font-bold transition-colors"
+                    className="h-10 px-4 rounded-xl border border-[#1f2347] hover:bg-[#131633] text-slate-300 text-[12.5px] font-bold transition-colors cursor-pointer"
                   >
                     Cancel
                   </button>
@@ -1771,7 +1831,7 @@ export default function ReelsPage() {
                     type="button"
                     onClick={handleSaveAutomation}
                     disabled={savingAutomation || (automationKeywordMode === "specific" && automationKeywords.length === 0) || !automationMessage.trim()}
-                    className="h-10 px-5 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-750 hover:to-fuchsia-750 text-white text-[12.5px] font-bold shadow-[0_4px_12px_rgba(124,58,237,0.25)] hover:shadow-[0_6px_16px_rgba(124,58,237,0.35)] transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer hover:scale-102 active:scale-98"
+                    className="h-10 px-5 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white text-[12.5px] font-bold shadow-[0_4px_12px_rgba(124,58,237,0.25)] hover:shadow-[0_6px_16px_rgba(124,58,237,0.35)] transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer hover:scale-102 active:scale-98"
                   >
                     {savingAutomation ? (
                       <>
