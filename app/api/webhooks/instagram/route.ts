@@ -754,7 +754,7 @@ export async function POST(req: Request) {
               const profileUrl = `https://instagram.com/${igAccount.username}`;
               const buttonsResult = await sendInstagramDM(
                 { id: commenterId },
-                "Visit our profile to follow and then tap 'I'm Following' below to verify:",
+                followGateMsg,
                 tokenToUse,
                 [
                   { type: "web_url", url: profileUrl, title: "Visit Profile" },

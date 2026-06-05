@@ -28,6 +28,9 @@ import {
   ChevronDown,
   ChevronRight,
   CheckCircle2,
+  ChevronLeft,
+  Phone,
+  Video,
 } from "lucide-react";
 import { InstagramIcon as Instagram } from "@/components/icons";
 import { toast } from "sonner";
@@ -102,6 +105,7 @@ export default function ReelsPage() {
   const [automationKeywords, setAutomationKeywords] = useState<string[]>([]);
   const [keywordInput, setKeywordInput] = useState("");
   const [activePresetIndex, setActivePresetIndex] = useState(0);
+  const [showPresets, setShowPresets] = useState(false);
   const [autoReplyComment, setAutoReplyComment] = useState(false);
   const [commentReplyText, setCommentReplyText] = useState("Thanks for the comment! Link is in bio 📩");
   const [requireFollow, setRequireFollow] = useState(false);
@@ -110,46 +114,16 @@ export default function ReelsPage() {
   const [simStep, setSimStep] = useState<"load-data" | "user-typing" | "user-sent" | "creator-typing" | "creator-sent">("creator-sent");
   const [dmType, setDmType] = useState<"message_only" | "comment_only">("message_only");
 
+  const [simFollowVerified, setSimFollowVerified] = useState(false);
+  const [simCheckingFollow, setSimCheckingFollow] = useState(false);
+
+  // Reset simulator states when requireFollow setting toggles
   useEffect(() => {
-    if (!isAutomationModalOpen) return;
-    if (!automationActive) {
-      setSimStep("creator-sent");
-      return;
-    }
-    
-    let t0: any, t1: any, t2: any, t3: any, t4: any;
+    setSimFollowVerified(false);
+    setSimCheckingFollow(false);
+  }, [requireFollow]);
 
-    const runSequence = () => {
-      setSimStep("load-data");
-      
-      t0 = setTimeout(() => {
-        setSimStep("user-typing");
-        
-        t1 = setTimeout(() => {
-          setSimStep("user-sent");
-          
-          t2 = setTimeout(() => {
-            setSimStep("creator-typing");
-            
-            t3 = setTimeout(() => {
-              setSimStep("creator-sent");
-            }, 1800);
-          }, 800);
-        }, 1500);
-      }, 1200);
-    };
 
-    runSequence();
-    t4 = setInterval(runSequence, 10000);
-
-    return () => {
-      clearTimeout(t0);
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      clearInterval(t4);
-    };
-  }, [isAutomationModalOpen, automationActive, previewTab, automationMessage, commentReplyText, requireFollow]);
 
   const [savingAutomation, setSavingAutomation] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -1057,13 +1031,13 @@ export default function ReelsPage() {
               {/* Grid Content */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* Left Column: Form Settings */}
-                <div className="lg:col-span-6 space-y-6">
+                <div className="lg:col-span-7 space-y-6">
                   
-                  {/* 1. Account Header Card */}
-                  <div className="p-4 bg-slate-50/50 backdrop-blur-md border border-slate-200/60 rounded-2xl flex items-center justify-between gap-4 shadow-[0_2px_12px_rgba(0,0,0,0.01)]">
-                    <div className="flex items-center gap-3.5 min-w-0">
+                  {/* 1. Account Header Card (Redesigned & Height Increased) */}
+                  <div className="p-6 bg-linear-to-br from-violet-50/10 via-white to-slate-50/50 backdrop-blur-md border border-slate-200/80 rounded-3xl flex items-center justify-between gap-5 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(124,58,237,0.04)] transition-all duration-300">
+                    <div className="flex items-center gap-4.5 min-w-0">
                       <div className="relative shrink-0">
-                        <div className="w-13 h-13 rounded-full p-0.5 bg-linear-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7]">
+                        <div className="w-16 h-16 rounded-full p-0.5 bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] shadow-sm">
                           <div className="w-full h-full rounded-full border-2 border-white overflow-hidden bg-slate-50">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img 
@@ -1073,39 +1047,39 @@ export default function ReelsPage() {
                             />
                           </div>
                         </div>
-                        <div className="absolute -bottom-1 -right-1 w-5.5 h-5.5 bg-white rounded-full flex items-center justify-center shadow-md border border-slate-100">
-                          <Instagram size={10} className="text-[#ee2a7b]" />
+                        <div className="absolute -bottom-1.5 -right-1.5 w-6.5 h-6.5 bg-white rounded-full flex items-center justify-center shadow-md border border-slate-105">
+                          <Instagram size={12} className="text-[#ee2a7b]" />
                         </div>
                       </div>
                       
-                      <div className="flex flex-col min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <h4 className="text-[14px] font-extrabold text-slate-805 truncate">@{selectedAccount.username}</h4>
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 rounded-full border border-emerald-100/50 shrink-0">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className="text-[8px] font-black text-emerald-600 uppercase tracking-wider">Connected</span>
+                      <div className="flex flex-col min-w-0 gap-1.5">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-[16px] font-black text-slate-850 truncate leading-none">@{selectedAccount.username}</h4>
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.75 bg-emerald-50 rounded-full border border-emerald-100 shrink-0">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-505 animate-pulse" />
+                            <span className="text-[8.5px] font-black text-emerald-600 uppercase tracking-wider leading-none">Connected</span>
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-400 font-bold">Instagram Business Account</p>
+                        <p className="text-[12px] text-slate-450 font-bold leading-none">Instagram Business Account</p>
                       </div>
                     </div>
                     
                     {/* Status toggle inside card */}
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                    <div className="flex flex-col items-end gap-1.5 shrink-0 bg-slate-50/50 p-2.5 rounded-2xl border border-slate-100">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-slate-450">
                         {automationActive ? "Active" : "Paused"}
                       </span>
                       <button
                         type="button"
                         onClick={() => setAutomationActive(!automationActive)}
-                        className={`w-10 h-5.5 rounded-full relative transition-all duration-300 flex-shrink-0 cursor-pointer ${
+                        className={`w-11 h-6 rounded-full relative transition-all duration-300 flex-shrink-0 cursor-pointer ${
                           automationActive 
                             ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 shadow-[0_2px_8px_rgba(124,58,237,0.25)]" 
-                            : "bg-slate-205"
+                            : "bg-slate-200"
                         }`}
                       >
-                        <div className={`absolute top-0.5 w-4.5 h-4.5 rounded-full bg-white shadow-md transition-all duration-300 ${
-                          automationActive ? "left-[19px]" : "left-0.5"
+                        <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-all duration-300 ${
+                          automationActive ? "left-[21px]" : "left-0.5"
                         }`} />
                       </button>
                     </div>
@@ -1116,43 +1090,72 @@ export default function ReelsPage() {
                     <div className="flex items-center justify-between">
                       <label className="text-[11px] font-black uppercase tracking-wider text-slate-400 block">Choose Template Preset</label>
                       {activePresetIndex > 0 && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-55 border border-violet-100 text-violet-600 text-[10px] font-black uppercase tracking-wider">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-50 border border-violet-100 text-violet-600 text-[10px] font-black uppercase tracking-wider">
                           Preset loaded
                         </span>
                       )}
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                      {AUTOMATION_PRESETS.map((preset, idx) => {
-                        const active = activePresetIndex === idx;
-                        return (
-                          <button
-                            key={preset.name}
-                            type="button"
-                            onClick={() => {
-                              setActivePresetIndex(idx);
-                              if (idx > 0) {
-                                setAutomationMessage(preset.message);
-                              }
-                            }}
-                            className={`p-3 rounded-2xl border text-left transition-all duration-300 hover:scale-[1.01] flex flex-col justify-between cursor-pointer group ${
-                              active
-                                ? "border-violet-600 bg-violet-50/40 shadow-[0_4px_20px_-4px_rgba(168,85,247,0.12)] text-slate-909"
-                                : "border-slate-200/80 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50/30"
-                            }`}
-                          >
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className={`text-base p-1.5 rounded-xl transition-colors duration-350 ${
-                                  active ? "bg-violet-100 text-violet-600" : "bg-slate-100 text-slate-600 group-hover:bg-slate-200/60"
-                                }`}>{preset.icon}</span>
-                                <span className="text-[12px] font-extrabold truncate leading-none">{preset.name.replace(" Preset", "")}</span>
-                              </div>
-                              <p className="text-[10px] text-slate-400 mt-2 line-clamp-2 leading-relaxed font-semibold">{preset.desc}</p>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
+                    
+                    {/* Toggle Button */}
+                    <button
+                      type="button"
+                      onClick={() => setShowPresets(!showPresets)}
+                      className="w-full flex items-center justify-between px-4 py-3 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-2xl transition-all cursor-pointer shadow-xs"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="text-base">{AUTOMATION_PRESETS[activePresetIndex].icon}</span>
+                        <span className="text-[12.5px] font-bold text-slate-750">
+                          {AUTOMATION_PRESETS[activePresetIndex].name}
+                        </span>
+                      </span>
+                      <ChevronDown size={16} className={`text-slate-400 transition-transform duration-300 ${showPresets ? "rotate-180" : ""}`} />
+                    </button>
+
+                    <AnimatePresence>
+                      {showPresets && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.25 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
+                            {AUTOMATION_PRESETS.map((preset, idx) => {
+                              const active = activePresetIndex === idx;
+                              return (
+                                <button
+                                  key={preset.name}
+                                  type="button"
+                                  onClick={() => {
+                                    setActivePresetIndex(idx);
+                                    if (idx > 0) {
+                                      setAutomationMessage(preset.message);
+                                    }
+                                    setShowPresets(false);
+                                  }}
+                                  className={`p-3 rounded-2xl border text-left transition-all duration-300 hover:scale-[1.01] flex flex-col justify-between cursor-pointer group ${
+                                    active
+                                      ? "border-violet-600 bg-violet-50/40 shadow-[0_4px_20px_-4px_rgba(168,85,247,0.12)] text-slate-900"
+                                      : "border-slate-200/80 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50/30"
+                                  }`}
+                                >
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <span className={`text-base p-1.5 rounded-xl transition-colors duration-355 ${
+                                        active ? "bg-violet-100 text-violet-600" : "bg-slate-100 text-slate-600 group-hover:bg-slate-200/60"
+                                      }`}>{preset.icon}</span>
+                                      <span className="text-[12px] font-extrabold truncate leading-none">{preset.name.replace(" Preset", "")}</span>
+                                    </div>
+                                    <p className="text-[10px] text-slate-400 mt-2 line-clamp-2 leading-relaxed font-semibold">{preset.desc}</p>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
 
                   {/* 3. Trigger Setting */}
@@ -1332,25 +1335,48 @@ export default function ReelsPage() {
                 </div>
 
                 {/* Right Column: Preview & Target Post */}
-                <div className="lg:col-span-6 space-y-4 flex flex-col items-center justify-start">
+                <div className="lg:col-span-5 space-y-4 flex flex-col items-center justify-start">
                   
-                  {/* Selected Reel Preview Card */}
-                  <div className="w-full p-3 bg-white border border-slate-200 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.01)] flex gap-3 items-start text-left shrink-0">
-                    <div className="relative w-12 h-16 shrink-0 overflow-hidden rounded-xl bg-slate-105 border border-slate-200/50">
+                  {/* Selected Reel Preview Card (Redesigned & Height Increased) */}
+                  <div className="w-full p-5 bg-linear-to-br from-violet-50/30 via-white to-fuchsia-50/20 border border-slate-200/80 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.02)] flex gap-4.5 items-start text-left shrink-0 hover:shadow-[0_8px_24px_rgba(124,58,237,0.08)] transition-all duration-300">
+                    <div className="relative w-26 h-36 shrink-0 overflow-hidden rounded-xl bg-slate-100 border border-slate-200/60 shadow-sm group">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={getThumb(selectedItemForAutomation)} alt="" className="w-full h-full object-cover" />
-                      <span className="absolute bottom-0 inset-x-0 bg-slate-950/70 py-0.5 text-center text-[7px] font-black uppercase text-white tracking-wider">
+                      <img src={getThumb(selectedItemForAutomation)} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300" />
+                      <span className="absolute bottom-0 inset-x-0 bg-slate-950/70 py-1.5 text-center text-[8.5px] font-black uppercase text-white tracking-widest leading-none">
                         {selectedItemForAutomation.media_type === "VIDEO" ? "REEL" : "POST"}
                       </span>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <span className="text-[8px] font-extrabold uppercase tracking-widest text-slate-500">Target Post</span>
-                      <p className="line-clamp-2 text-[12px] leading-relaxed text-slate-650 font-semibold mt-0.5">
-                        {selectedItemForAutomation.caption || <span className="italic text-slate-400">No caption</span>}
-                      </p>
-                      <span className="block text-[10px] text-slate-400 mt-1">
-                        Published: {formatDate(selectedItemForAutomation.timestamp)}
-                      </span>
+                    <div className="min-w-0 flex-1 flex flex-col justify-between h-36 py-0.5">
+                      <div>
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <div className="w-5.5 h-5.5 rounded-full overflow-hidden bg-slate-100 border border-slate-200">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img 
+                              src={selectedAccount.profile_picture_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedAccount.username}`} 
+                              alt="" 
+                              className="w-full h-full object-cover" 
+                            />
+                          </div>
+                          <span className="text-[12px] font-extrabold text-slate-800">@{selectedAccount.username}</span>
+                        </div>
+                        <p className="line-clamp-4 text-[13px] leading-relaxed text-slate-655 font-semibold">
+                          {selectedItemForAutomation.caption || <span className="italic text-slate-400 font-medium">No caption text available.</span>}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                        <span className="text-[10.5px] text-slate-450 font-bold flex items-center gap-1">
+                          <Clock size={12} className="text-slate-400" />
+                          {formatDate(selectedItemForAutomation.timestamp)}
+                        </span>
+                        <a
+                          href={selectedItemForAutomation.permalink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] font-black text-violet-600 hover:text-violet-755 hover:underline transition-colors"
+                        >
+                          View on IG <ExternalLink size={11} />
+                        </a>
+                      </div>
                     </div>
                   </div>
 
@@ -1380,20 +1406,16 @@ export default function ReelsPage() {
                     </button>
                   </div>
 
-                  {/* Clean Dashboard Live Preview Panel */}
-                  <div className="w-full flex-1 h-[460px] min-h-[420px] rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden flex flex-col text-left transition-all duration-300">
+                  {/* iPhone Simulator Wrapper */}
+                  <div className="w-full max-w-[340px] aspect-[9/19.5] bg-slate-900 rounded-[50px] p-3 shadow-2xl relative border-4 border-slate-800 shrink-0">
                     
-                    {/* Header bar of preview */}
-                    <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between shrink-0 select-none">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-violet-600 animate-pulse" />
-                        <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 font-sans">Live Simulator Preview</span>
-                      </div>
-                      <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Active Mode</span>
+                    {/* iPhone camera island */}
+                    <div className="absolute top-5 left-1/2 -translate-x-1/2 w-28 h-6 bg-black rounded-full z-20 flex items-center justify-center">
+                      <div className="w-3 h-3 rounded-full bg-slate-900 border border-slate-800 ml-10" />
                     </div>
 
-                    {/* Screen Content Wrapper */}
-                    <div className="flex-1 flex flex-col bg-white overflow-hidden relative">
+                    {/* iPhone screen area */}
+                    <div className="w-full h-full bg-white rounded-[40px] overflow-hidden flex flex-col relative select-none">
                       
                       {/* Glassmorphic Pause Overlay (No Layout shifts) */}
                       {!automationActive && (
@@ -1414,31 +1436,41 @@ export default function ReelsPage() {
                         /* DYNAMIC DIRECT MESSAGE STREAM */
                         <div className="flex-1 flex flex-col h-full bg-white animate-in fade-in duration-300">
                           {/* IG Chat Header */}
-                          <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
-                            <div className="flex items-center gap-1.5">
-                              <svg className="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                              </svg>
-                              <div className="w-6 h-6 rounded-full overflow-hidden bg-slate-100 relative ring-1 ring-slate-200">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img 
-                                  src={selectedAccount.profile_picture_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedAccount.username}`} 
-                                  alt="avatar" 
-                                  className="w-full h-full object-cover" 
-                                />
+                          <div className="pt-8 pb-3 px-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80 shrink-0 select-none">
+                            <div className="flex items-center gap-2.5">
+                              <ChevronLeft size={20} className="text-slate-700 cursor-pointer" />
+                              
+                              <div className="relative">
+                                {selectedAccount.profile_picture_url ? (
+                                  <img
+                                    src={selectedAccount.profile_picture_url}
+                                    alt="preview avatar"
+                                    className="w-8 h-8 rounded-full object-cover border border-slate-200"
+                                  />
+                                ) : (
+                                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white text-[11px] font-black">
+                                    {selectedAccount.username.charAt(0).toUpperCase()}
+                                  </div>
+                                )}
+                                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white" />
                               </div>
-                              <div className="min-w-0">
+
+                              <div className="text-left">
                                 <div className="flex items-center gap-0.5">
-                                  <p className="text-[10px] font-bold text-slate-800 leading-tight truncate max-w-24">@{selectedAccount.username}</p>
+                                  <p className="text-xs font-bold text-slate-800 max-w-[120px] truncate leading-tight">
+                                    @{selectedAccount.username}
+                                  </p>
                                   <svg className="w-2.5 h-2.5 text-blue-500 fill-current shrink-0" viewBox="0 0 24 24">
                                     <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
                                   </svg>
                                 </div>
-                                <p className="text-[7px] text-slate-400 leading-none font-bold">Instagram</p>
+                                <span className="text-[9px] text-slate-400 font-bold block leading-none">Active now</span>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2 text-slate-600">
-                              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+
+                            <div className="flex items-center gap-3 text-slate-600">
+                              <Phone size={14} />
+                              <Video size={15} />
                             </div>
                           </div>
 
@@ -1527,28 +1559,81 @@ export default function ReelsPage() {
                                         className="w-full h-full object-cover" 
                                       />
                                     </div>
-                                    <div className="bg-slate-100 text-slate-800 text-[10px] py-1.5 px-2.5 rounded-2xl rounded-tl-xs max-w-[80%] leading-relaxed font-medium break-words">
-                                      {followGateMessage.replace(/{first_name}/g, "John") || "Hey! Follow me first and I'll send you the link 🙌"}
+                                    <div className="flex flex-col bg-slate-105 border border-slate-200/80 text-slate-800 text-[10px] rounded-2xl rounded-tl-xs max-w-[80%] overflow-hidden shadow-xs">
+                                      {/* Text block */}
+                                      <div className="py-2 px-3 leading-relaxed font-medium break-words">
+                                        {followGateMessage.replace(/{first_name}/g, "John") || "Hey! Follow me first and I'll send you the link 🙌"}
+                                      </div>
+                                      {/* Buttons block */}
+                                      <div className="border-t border-slate-200/60 flex flex-col divide-y divide-slate-200/60 bg-white">
+                                        <a 
+                                          href={`https://instagram.com/${selectedAccount.username}`}
+                                          target="_blank" 
+                                          rel="noopener noreferrer"
+                                          className="py-1.5 text-center text-blue-500 font-extrabold hover:bg-slate-50 transition-colors text-[9.5px] cursor-pointer"
+                                        >
+                                          Visit Profile
+                                        </a>
+                                        <button 
+                                          type="button"
+                                          onClick={() => {
+                                            if (simCheckingFollow || simFollowVerified) return;
+                                            setSimCheckingFollow(true);
+                                            setTimeout(() => {
+                                              setSimCheckingFollow(false);
+                                              setSimFollowVerified(true);
+                                            }, 1200);
+                                          }}
+                                          disabled={simCheckingFollow || simFollowVerified}
+                                          className={`py-1.5 text-center font-extrabold transition-colors text-[9.5px] cursor-pointer ${
+                                            simFollowVerified 
+                                              ? "text-emerald-600 bg-emerald-50/20" 
+                                              : "text-blue-505 hover:bg-slate-50"
+                                          }`}
+                                        >
+                                          {simFollowVerified ? "Verified ✓" : "I'm Following"}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Simulating Check Progress */}
+                                {simCheckingFollow && (
+                                  <div className="flex items-start gap-1.5 animate-in slide-in-from-bottom-1 duration-200">
+                                    <div className="w-5 h-5 rounded-full overflow-hidden bg-slate-105 shrink-0 ring-1 ring-slate-150">
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img 
+                                        src={selectedAccount.profile_picture_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedAccount.username}`} 
+                                        alt="avatar" 
+                                        className="w-full h-full object-cover" 
+                                      />
+                                    </div>
+                                    <div className="bg-slate-100 text-slate-500 text-[10px] py-1.5 px-2.5 rounded-2xl rounded-tl-xs max-w-[80%] leading-relaxed font-semibold italic flex items-center gap-1.5">
+                                      <div className="w-2.5 h-2.5 border border-slate-400 border-t-transparent rounded-full animate-spin" />
+                                      Checking your follow status... ⏳
                                     </div>
                                   </div>
                                 )}
 
                                 {/* Creator Main Automated DM */}
-                                <div className="flex items-start gap-1.5 animate-in slide-in-from-bottom-2 duration-500">
-                                  <div className="w-5 h-5 rounded-full overflow-hidden bg-slate-105 shrink-0 ring-1 ring-slate-150">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img 
-                                      src={selectedAccount.profile_picture_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedAccount.username}`} 
-                                      alt="avatar" 
-                                      className="w-full h-full object-cover" 
-                                    />
+                                {(!requireFollow || simFollowVerified) && (
+                                  <div className="flex items-start gap-1.5 animate-in slide-in-from-bottom-2 duration-500">
+                                    <div className="w-5 h-5 rounded-full overflow-hidden bg-slate-105 shrink-0 ring-1 ring-slate-150">
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img 
+                                        src={selectedAccount.profile_picture_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedAccount.username}`} 
+                                        alt="avatar" 
+                                        className="w-full h-full object-cover" 
+                                      />
+                                    </div>
+                                    <div className="bg-gradient-to-tr from-[#3b82f6] via-[#8b5cf6] to-[#ec4899] text-white text-[10.5px] py-2 px-3 rounded-2xl rounded-tl-xs max-w-[80%] leading-relaxed font-semibold shadow-xs break-words">
+                                      {automationMessage
+                                        ? automationMessage.replace(/{first_name}/g, "John").replace(/{link}/g, "piopost.com/get-link 🔗")
+                                        : "Hey there! Thanks for your comment. Here is your link... 🚀"}
+                                    </div>
                                   </div>
-                                  <div className="bg-gradient-to-tr from-[#3b82f6] via-[#8b5cf6] to-[#ec4899] text-white text-[10.5px] py-2 px-3 rounded-2xl rounded-tl-xs max-w-[80%] leading-relaxed font-semibold shadow-xs break-words">
-                                    {automationMessage
-                                      ? automationMessage.replace(/{first_name}/g, "John").replace(/{link}/g, "piopost.com/get-link 🔗")
-                                      : "Hey there! Thanks for your comment. Here is your link... 🚀"}
-                                  </div>
-                                </div>
+                                )}
                               </div>
                             )}
 
@@ -1565,16 +1650,12 @@ export default function ReelsPage() {
                         /* DYNAMIC INSTAGRAM COMMENTS STREAM */
                         <div className="flex-1 flex flex-col h-full bg-white animate-in fade-in duration-300">
                           {/* IG Comments Header */}
-                          <div className="px-3 py-2 border-b border-slate-150 flex items-center justify-between shrink-0 bg-white">
-                            <div className="flex items-center gap-1.5">
-                              <svg className="w-3.5 h-3.5 text-slate-700" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                              </svg>
-                              <p className="text-[10.5px] font-extrabold text-slate-900 leading-tight">Comments</p>
+                          <div className="pt-8 pb-3 px-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80 shrink-0 select-none">
+                            <div className="flex items-center gap-2.5">
+                              <ChevronLeft size={20} className="text-slate-705 cursor-pointer" />
+                              <p className="text-xs font-bold text-slate-800 leading-tight">Comments</p>
                             </div>
-                            <svg className="w-3.5 h-3.5 text-slate-705" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L18 12M6 6L18 18M6 18L18 6" />
-                            </svg>
+                            <X size={16} className="text-slate-500 cursor-pointer" />
                           </div>
 
                           {/* Comments list */}
