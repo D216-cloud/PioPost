@@ -117,27 +117,46 @@ async function sendInstagramDM(
   let body: any = null;
 
   if (buttonsArray.length > 0) {
-    // Generic template message (since Button templates are not supported on Instagram)
-    // We truncate the title to 80 characters to comply with Instagram's API limit
-    const truncatedTitle = message.length > 80 ? message.substring(0, 77) + "..." : message;
-    body = {
-      recipient,
-      message: {
-        attachment: {
-          type: "template",
-          payload: {
-            template_type: "generic",
-            elements: [
-              {
-                title: truncatedTitle,
-                buttons: buttonsArray,
-              },
-            ],
+    // Check if these are Quick Replies (which are postbacks on Instagram without a URL)
+    const isQuickReply = buttonsArray.every(btn => btn.type === "postback" && !btn.url);
+
+    if (isQuickReply) {
+      // Native Instagram Quick Replies
+      body = {
+        recipient,
+        message: {
+          text: message,
+          quick_replies: buttonsArray.map(btn => ({
+            content_type: "text",
+            title: btn.title.substring(0, 20), // Instagram limits quick reply titles to 20 chars
+            payload: btn.payload,
+          })),
+        },
+        access_token: accessToken,
+      };
+    } else {
+      // Generic template message (since Button templates are not supported on Instagram)
+      // We truncate the title to 80 characters to comply with Instagram's API limit
+      const truncatedTitle = message.length > 80 ? message.substring(0, 77) + "..." : message;
+      body = {
+        recipient,
+        message: {
+          attachment: {
+            type: "template",
+            payload: {
+              template_type: "generic",
+              elements: [
+                {
+                  title: truncatedTitle,
+                  buttons: buttonsArray,
+                },
+              ],
+            },
           },
         },
-      },
-      access_token: accessToken,
-    };
+        access_token: accessToken,
+      };
+    }
   } else {
     // Plain text message
     body = {
@@ -504,28 +523,38 @@ async function handleWelcomeOpenerMessage(
 
   let result;
   if (buttons.length > 0) {
-    console.log(`📤 [SEND] Sending welcome text message first...`);
-    const textResult = await sendInstagramDM({ id: senderId }, welcomeText, igAccount.access_token);
-    result = textResult;
+    console.log(`📤 [SEND] Sending welcome text message with native quick replies in one message...`);
+    result = await sendInstagramDM(
+      { id: senderId },
+      welcomeText,
+      igAccount.access_token,
+      buttons
+    );
     
-    if (textResult.success) {
-      console.log(`✅ [SEND] Welcome text message sent successfully!`);
-
-      // ── STEP 8: Send quick reply buttons ────────────────────────────────
-      console.log(`📤 [SEND] Sending quick reply buttons: ${buttonNames}...`);
-      const buttonsResult = await sendInstagramDM(
-        { id: senderId },
-        "Choose an option below:",
-        igAccount.access_token,
-        buttons
-      );
-      if (buttonsResult.success) {
-        console.log(`✅ [SEND] Quick reply buttons sent successfully!`);
-      } else {
-        console.error(`⚠️ [SEND] Quick reply buttons failed:`, buttonsResult.error);
-      }
+    if (result.success) {
+      console.log(`✅ [SEND] Welcome message and quick replies sent successfully!`);
     } else {
-      console.error(`❌ [SEND] Welcome text message failed:`, textResult.error);
+      console.error(`❌ [SEND] Native welcome message with quick replies failed:`, result.error);
+      
+      // Fallback: Send plain text welcome message first, then send buttons as a separate message
+      console.log(`📤 [FALLBACK] Attempting fallback: sending text portion first...`);
+      const textResult = await sendInstagramDM({ id: senderId }, welcomeText, igAccount.access_token);
+      result = textResult;
+      
+      if (textResult.success) {
+        console.log(`✅ [FALLBACK] Welcome text sent. Sending quick reply buttons as follow-up...`);
+        const buttonsResult = await sendInstagramDM(
+          { id: senderId },
+          "Choose an option below:",
+          igAccount.access_token,
+          buttons
+        );
+        if (buttonsResult.success) {
+          console.log(`✅ [FALLBACK] Quick reply buttons sent successfully!`);
+        } else {
+          console.error(`⚠️ [FALLBACK] Failed to send quick replies:`, buttonsResult.error);
+        }
+      }
     }
   } else {
     console.log(`📤 [SEND] Sending welcome text (no buttons configured)...`);
