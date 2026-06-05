@@ -409,7 +409,12 @@ async function handleWelcomeOpenerMessage(
     .limit(1);
 
   const rule = rules?.[0] ?? null;
-  if (!rule) return;
+  if (!rule) {
+    console.log(`[Webhook] Auto-Welcome DM is OFF or not found for account ${igBusinessId}`);
+    return;
+  }
+
+  console.log(`[Webhook] Auto-Welcome DM is ON and active for account ${igBusinessId}`);
 
   let quickReplies: any[] = [];
   try {
@@ -461,12 +466,30 @@ async function handleWelcomeOpenerMessage(
     payload: `welcome_opener_click:${btn.label}`,
   }));
 
-  const result = await sendInstagramDM(
-    { id: senderId },
-    welcomeText,
-    igAccount.access_token,
-    buttons.length > 0 ? buttons : null
-  );
+  let result;
+  if (buttons.length > 0) {
+    console.log(`[Webhook] Sending Welcome Opener text message first...`);
+    const textResult = await sendInstagramDM({ id: senderId }, welcomeText, igAccount.access_token);
+    result = textResult;
+    
+    if (textResult.success) {
+      console.log(`[Webhook] Sending Welcome Opener quick reply buttons...`);
+      const buttonsResult = await sendInstagramDM(
+        { id: senderId },
+        "Choose an option below:",
+        igAccount.access_token,
+        buttons
+      );
+      if (!buttonsResult.success) {
+        console.error(`[Webhook] ⚠️ Failed to send quick reply buttons:`, buttonsResult.error);
+      }
+    } else {
+      console.error(`[Webhook] ❌ Failed to send Welcome Opener text:`, textResult.error);
+    }
+  } else {
+    console.log(`[Webhook] Sending Welcome Opener text without buttons...`);
+    result = await sendInstagramDM({ id: senderId }, welcomeText, igAccount.access_token);
+  }
 
   await supabaseAdmin.from("automation_logs").insert({
     automation_id: rule.id,
