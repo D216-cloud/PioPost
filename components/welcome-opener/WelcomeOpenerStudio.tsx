@@ -95,6 +95,7 @@ export function WelcomeOpenerStudio() {
   // Chat Preview States
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isTypingInPreview, setIsTypingInPreview] = useState(false);
+  const [simStep, setSimStep] = useState<"idle" | "bot-typing" | "sent">("sent");
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const variableDropdownRef = useRef<HTMLDivElement>(null);
@@ -191,7 +192,25 @@ export function WelcomeOpenerStudio() {
 
   // Sync Chat Preview Welcome Message
   useEffect(() => {
-    resetChat();
+    if (simStep === "sent") {
+      setChatMessages((prev) => {
+        const newMsgs = [...prev];
+        const botIndex = newMsgs.findIndex((m) => m.id === "welcome-bot");
+        if (botIndex !== -1) {
+          newMsgs[botIndex] = { ...newMsgs[botIndex], text: getProcessedWelcomeMessage() };
+        } else if (newMsgs.length === 0) {
+          return [
+            {
+              id: "welcome-bot",
+              sender: "bot",
+              text: getProcessedWelcomeMessage(),
+              timestamp: new Date(),
+            },
+          ];
+        }
+        return newMsgs;
+      });
+    }
   }, [welcomeMessage, quickReplies, selectedAccountId]);
 
   const loadDefaultSettings = () => {
@@ -394,6 +413,8 @@ export function WelcomeOpenerStudio() {
 
   // Reset chat preview
   const resetChat = () => {
+    setSimStep("sent");
+    setIsTypingInPreview(false);
     setChatMessages([
       {
         id: "welcome-bot",
@@ -402,6 +423,33 @@ export function WelcomeOpenerStudio() {
         timestamp: new Date(),
       },
     ]);
+  };
+
+  const handleSimulateFollow = () => {
+    // Clear chat
+    setChatMessages([]);
+    setSimStep("idle");
+    setIsTypingInPreview(false);
+
+    // After 0.5s, show "bot typing"
+    setTimeout(() => {
+      setSimStep("bot-typing");
+      setIsTypingInPreview(true);
+
+      // After 1.5s, send welcome message
+      setTimeout(() => {
+        setIsTypingInPreview(false);
+        setSimStep("sent");
+        setChatMessages([
+          {
+            id: "welcome-bot",
+            sender: "bot",
+            text: getProcessedWelcomeMessage(),
+            timestamp: new Date(),
+          },
+        ]);
+      }, 1500);
+    }, 500);
   };
 
   // Handle Quick Reply Click in simulator
@@ -799,6 +847,23 @@ export function WelcomeOpenerStudio() {
                     ℹ️ Tapping quick reply buttons simulates a live DM webhook response.
                   </div>
 
+                  {simStep !== "sent" && simStep !== "bot-typing" && chatMessages.length === 0 && (
+                    <div className="flex-1 flex items-center justify-center">
+                      <div className="text-center p-4 bg-white/50 rounded-2xl border border-slate-100">
+                        <Users size={24} className="mx-auto mb-2 text-slate-300" />
+                        <p className="text-xs font-semibold text-slate-400">Waiting for a new follower...</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {(simStep === "bot-typing" || simStep === "sent") && (
+                    <div className="text-center py-2">
+                      <span className="inline-block px-3 py-1 bg-slate-100 rounded-full text-[10px] font-bold text-slate-500">
+                        👤 @user started following you
+                      </span>
+                    </div>
+                  )}
+
                   {chatMessages.map((msg) => {
                     const isBot = msg.sender === "bot";
                     return (
@@ -835,8 +900,8 @@ export function WelcomeOpenerStudio() {
                 </div>
 
                 {/* Quick Reply Drawer (only shown if bot sent the last message) */}
-                {chatMessages[chatMessages.length - 1]?.sender === "bot" && (
-                  <div className="px-3 py-2 border-t border-slate-50 bg-white/95 backdrop-blur-xs flex flex-wrap gap-2 justify-center shrink-0">
+                {simStep === "sent" && chatMessages[chatMessages.length - 1]?.sender === "bot" && (
+                  <div className="px-3 py-2 border-t border-slate-50 bg-white/95 backdrop-blur-xs flex flex-wrap gap-2 justify-center shrink-0 shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
                     {quickReplies.map((btn) => (
                       <button
                         key={btn.id}
@@ -859,14 +924,15 @@ export function WelcomeOpenerStudio() {
                     <Send size={12} className="text-slate-400" />
                   </div>
                   
-                  {/* Reset trigger */}
+                  {/* Simulate Follow trigger */}
                   <button
                     type="button"
-                    onClick={resetChat}
-                    className="ml-2 w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
-                    title="Reset Preview Chat"
+                    onClick={handleSimulateFollow}
+                    className="ml-2 px-3 h-9 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 flex items-center justify-center transition-colors cursor-pointer text-[11px] font-bold whitespace-nowrap"
+                    title="Simulate New Follower"
                   >
-                    <RotateCcw size={13} />
+                    <Plus size={12} className="mr-1" />
+                    Simulate Follow
                   </button>
                 </div>
 
