@@ -117,16 +117,22 @@ async function sendInstagramDM(
   let body: any = null;
 
   if (buttonsArray.length > 0) {
-    // Button template message
+    // Generic template message (since Button templates are not supported on Instagram)
+    // We truncate the title to 80 characters to comply with Instagram's API limit
+    const truncatedTitle = message.length > 80 ? message.substring(0, 77) + "..." : message;
     body = {
       recipient,
       message: {
         attachment: {
           type: "template",
           payload: {
-            template_type: "button",
-            text: message,
-            buttons: buttonsArray,
+            template_type: "generic",
+            elements: [
+              {
+                title: truncatedTitle,
+                buttons: buttonsArray,
+              },
+            ],
           },
         },
       },
@@ -763,6 +769,7 @@ export async function POST(req: Request) {
               );
               if (!buttonsResult.success) {
                 console.error(`[Webhook] ⚠️ Failed to send buttons to ${commenterId} (but initial text message succeeded):`, buttonsResult.error);
+                dmResult = buttonsResult;
               } else {
                 console.log(`[Webhook] ✅ Successfully sent buttons to user ${commenterId}`);
                 dmResult = buttonsResult;
