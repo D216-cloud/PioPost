@@ -326,6 +326,165 @@ async function postCommentReply(
   }
 }
 
+async function getInstagramUserProfile(
+  userId: string,
+  accessToken: string
+): Promise<{ username?: string; name?: string } | null> {
+  try {
+    const url = `https://graph.instagram.com/v21.0/${userId}?fields=username,name&access_token=${accessToken}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data && !data.error) {
+      return data;
+    }
+  } catch (err) {
+    console.error("[Webhook] ❌ Exception fetching user profile:", err);
+  }
+  return null;
+}
+
+async function handleWelcomeOpenerButtonClick(
+  senderId: string,
+  buttonLabel: string,
+  igBusinessId: string
+) {
+  console.log(`[Webhook] Processing welcome opener button click for user:${senderId}, button:${buttonLabel}`);
+  
+  const { data: igAccounts } = await supabaseAdmin
+    .from("instagram_accounts")
+    .select("id, user_id, access_token, username")
+    .eq("instagram_business_id", igBusinessId.toString())
+    .order("updated_at", { ascending: false })
+    .limit(1);
+
+  const igAccount = igAccounts?.[0] ?? null;
+  if (!igAccount) {
+    console.error("[Webhook] No IG account found for business ID in welcome opener button click:", igBusinessId);
+    return;
+  }
+
+  let replyText = `Thanks for your interest in "${buttonLabel}"! Our team will get back to you directly soon.`;
+  const labelLower = buttonLabel.toLowerCase();
+  
+  if (labelLower === "pricing") {
+    replyText = "💰 Here is our pricing structure! We have the Starter plan for beginners, and the Pro plan for scaling creators. Check the pricing section in the sidebar to learn more!";
+  } else if (labelLower === "collab") {
+    replyText = "🤝 Awesome! We love partnerships. Drop us your media kit or email us at collab@reelflow.ai, and we will get back to you soon!";
+  } else if (labelLower === "support") {
+    replyText = "🎧 Our support team is online! Describe your issue or query, and our agent will jump into this chat in just a few minutes.";
+  }
+
+  await sendInstagramDM({ id: senderId }, replyText, igAccount.access_token);
+}
+
+async function handleWelcomeOpenerMessage(
+  senderId: string,
+  messageText: string,
+  igBusinessId: string
+) {
+  const { data: igAccounts } = await supabaseAdmin
+    .from("instagram_accounts")
+    .select("id, user_id, access_token, username")
+    .eq("instagram_business_id", igBusinessId.toString())
+    .order("updated_at", { ascending: false })
+    .limit(1);
+
+  const igAccount = igAccounts?.[0] ?? null;
+  if (!igAccount) return;
+
+  const { data: rules } = await supabaseAdmin
+    .from("automation_rules")
+    .select("*")
+    .eq("instagram_account_id", igAccount.id)
+    .eq("post_id", "welcome_opener")
+    .eq("active", true)
+    .eq("deleted", false)
+    .limit(1);
+
+  const rule = rules?.[0] ?? null;
+  if (!rule) return;
+
+  let quickReplies: any[] = [];
+  try {
+    quickReplies = JSON.parse(rule.post_caption || "[]");
+  } catch (e) {
+    console.error("[Webhook] Failed to parse quick replies JSON:", e);
+  }
+
+  const matchedButton = quickReplies.find(
+    (btn: any) => btn.label.toLowerCase() === messageText.toLowerCase()
+  );
+
+  if (matchedButton) {
+    await handleWelcomeOpenerButtonClick(senderId, matchedButton.label, igBusinessId);
+    return;
+  }
+
+  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { data: recentLogs } = await supabaseAdmin
+    .from("automation_logs")
+    .select("id")
+    .eq("automation_id", rule.id)
+    .eq("instagram_user_id", senderId)
+    .eq("comment_text", "[Welcome Opener]")
+    .gte("created_at", since24h)
+    .limit(1);
+
+  if (recentLogs && recentLogs.length > 0) {
+    console.log(`[Webhook] Welcome Opener already sent to user ${senderId} in last 24h. Skipping duplicate.`);
+    return;
+  }
+
+  const profile = await getInstagramUserProfile(senderId, igAccount.access_token);
+  const recipientUsername = profile?.username ? `@${profile.username}` : "there";
+  const recipientFirstName = profile?.name ? profile.name.split(" ")[0] : "friend";
+  const recipientFullName = profile?.name || "Friend";
+
+  let welcomeText = (rule.dm_message || "").toString();
+  welcomeText = welcomeText
+    .replace(/{{username}}/g, recipientUsername)
+    .replace(/{{first_name}}/g, recipientFirstName)
+    .replace(/{{full_name}}/g, recipientFullName);
+
+  if (!welcomeText) return;
+
+  const buttons = quickReplies.slice(0, 3).map((btn: any) => ({
+    type: "postback",
+    title: btn.label,
+    payload: `welcome_opener_click:${btn.label}`,
+  }));
+
+  const result = await sendInstagramDM(
+    { id: senderId },
+    welcomeText,
+    igAccount.access_token,
+    buttons.length > 0 ? buttons : null
+  );
+
+  await supabaseAdmin.from("automation_logs").insert({
+    automation_id: rule.id,
+    instagram_user_id: senderId,
+    comment_text: "[Welcome Opener]",
+    dm_sent: result.success,
+    dm_sent_at: result.success ? new Date().toISOString() : null,
+    error_message: result.error ?? null,
+  });
+
+  if (result.success) {
+    console.log(`[Webhook] ✅ Welcome Opener sent to user ${senderId}`);
+    await supabaseAdmin
+      .from("automation_rules")
+      .update({
+        total_dms_sent: (rule.total_dms_sent || 0) + 1,
+        executions: (rule.executions || 0) + 1,
+        last_execution: new Date().toISOString(),
+      })
+      .eq("id", rule.id);
+  } else {
+    console.error(`[Webhook] ❌ Welcome Opener DM failed for ${senderId}:`, result.error);
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // POST — Incoming Instagram events
 // ─────────────────────────────────────────────────────────────────────────────
@@ -349,6 +508,41 @@ export async function POST(req: Request) {
 
     for (const entry of body.entry ?? []) {
       const igBusinessId = entry.id;
+
+      // ── Direct Message (DM) events ───────────────────────────────────────
+      for (const msg of entry.messaging ?? []) {
+        const senderId = msg.sender?.id;
+        const recipientId = msg.recipient?.id;
+        // Ensure it's a DM sent to the business account
+        if (!senderId || recipientId !== igBusinessId) continue;
+
+        // Fetch IG account for rate limiting and token
+        const { data: igAccounts, error: accError } = await supabaseAdmin
+          .from("instagram_accounts")
+          .select("id, user_id, access_token, username")
+          .eq("instagram_business_id", igBusinessId.toString())
+          .order("updated_at", { ascending: false })
+          .limit(1);
+        const igAccount = igAccounts?.[0] ?? null;
+        if (accError || !igAccount) {
+          console.error("[Webhook] ❌ No IG account in DB for DM handling:", igBusinessId);
+          continue;
+        }
+        if (await isRateLimited(igAccount.id)) {
+          console.warn("[Webhook] ⚠️ Rate limit hit for account (DM):", igAccount.username);
+          continue;
+        }
+
+        if (msg.message?.text) {
+          await handleWelcomeOpenerMessage(senderId, msg.message.text, igBusinessId);
+        } else if (msg.postback?.payload) {
+          const payload = msg.postback.payload;
+          if (payload.startsWith("welcome_opener_click:")) {
+            const label = payload.split(":")[1];
+            await handleWelcomeOpenerButtonClick(senderId, label, igBusinessId);
+          }
+        }
+      }
 
       // ── Comment events ──────────────────────────────────────────────────
       for (const change of entry.changes ?? []) {
@@ -699,6 +893,9 @@ export async function POST(req: Request) {
             const ruleId = parts[1];
             const commentId = parts[2];
             await handleFollowPostback(senderId, ruleId, commentId, igBusinessId);
+          } else if (payload && payload.startsWith("welcome_opener_click:")) {
+            const buttonLabel = payload.replace("welcome_opener_click:", "");
+            await handleWelcomeOpenerButtonClick(senderId, buttonLabel, igBusinessId);
           }
           continue;
         }
@@ -731,6 +928,9 @@ export async function POST(req: Request) {
             } else {
               console.log(`[Webhook] ⚠️ No recent log found for user ${senderId} to match the follow verification request.`);
             }
+          } else {
+            // Welcome Opener DM handler
+            await handleWelcomeOpenerMessage(senderId, cleanText, igBusinessId);
           }
         }
       }
