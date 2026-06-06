@@ -615,6 +615,220 @@ async function handleWelcomeOpenerMessage(
   }
 }
 
+interface FlowButton {
+  id: string;
+  title: string;
+  payload: string;
+  response: string;
+}
+
+interface OpenerButton {
+  id: string;
+  label: string;
+  iconName: string;
+}
+
+async function handleWelcomeFlowButtonClick(
+  senderId: string,
+  buttonPayload: string,
+  igBusinessId: string
+) {
+  console.log(`\n🖱 ═══════════════════════════════════════════════════════`);
+  console.log(`🖱 [WELCOME FLOW CLICK] User ${senderId} selected payload: "${buttonPayload}"`);
+  console.log(`🖱 ═══════════════════════════════════════════════════════`);
+  
+  const { data: igAccounts } = await supabaseAdmin
+    .from("instagram_accounts")
+    .select("id, user_id, access_token, username")
+    .eq("instagram_business_id", igBusinessId.toString())
+    .order("updated_at", { ascending: false })
+    .limit(1);
+
+  const igAccount = igAccounts?.[0] ?? null;
+  if (!igAccount) {
+    console.error("❌ [ERROR] No IG account found for welcome flow click:", igBusinessId);
+    return;
+  }
+
+  // Load welcome flow settings to find the button response
+  const { data: welcomeSettings } = await supabaseAdmin
+    .from("welcome_flow_settings")
+    .select("*")
+    .eq("instagram_account_id", igAccount.id)
+    .limit(1);
+  const rule = welcomeSettings?.[0] ?? null;
+
+  if (!rule) {
+    console.error("❌ [ERROR] No welcome flow settings found for IG account:", igAccount.id);
+    return;
+  }
+
+  const buttons = (Array.isArray(rule.buttons) ? rule.buttons : []) as FlowButton[];
+  const matchedButton = buttons.find((btn) => btn.payload === buttonPayload);
+
+  if (!matchedButton) {
+    console.error(`❌ [ERROR] No button found in welcome flow settings with payload: "${buttonPayload}"`);
+    return;
+  }
+
+  const replyText = matchedButton.response || `Thanks for your interest in "${matchedButton.title}"!`;
+
+  console.log(`📤 [SEND] Sending Welcome Flow button response for "${matchedButton.title}"...`);
+  const result = await sendInstagramDM({ id: senderId }, replyText, igAccount.access_token);
+  if (result.success) {
+    console.log(`✅ [SEND] Welcome Flow button response sent successfully!`);
+  } else {
+    console.error(`❌ [SEND] Welcome Flow button response failed:`, result.error);
+  }
+
+  // Log the button click interaction
+  await supabaseAdmin.from("automation_logs").insert({
+    automation_id: rule.id,
+    instagram_user_id: senderId,
+    comment_text: `[Button Click] - ${matchedButton.title}`,
+    dm_sent: result.success,
+    dm_sent_at: result.success ? new Date().toISOString() : null,
+    error_message: result.error ?? null,
+  });
+}
+
+async function handleWelcomeFlowMessage(
+  senderId: string,
+  messageText: string,
+  igBusinessId: string
+) {
+  console.log(`\n📥 ═══════════════════════════════════════════════════════`);
+  console.log(`📥 [WEBHOOK] Welcome Flow event received`);
+  console.log(`👤 [USER] Sender ID: ${senderId}`);
+  console.log(`💬 [MESSAGE] Text: "${messageText}"`);
+  console.log(`📥 ═══════════════════════════════════════════════════════`);
+
+  const { data: igAccounts } = await supabaseAdmin
+    .from("instagram_accounts")
+    .select("id, user_id, access_token, username")
+    .eq("instagram_business_id", igBusinessId.toString())
+    .order("updated_at", { ascending: false })
+    .limit(1);
+
+  const igAccount = igAccounts?.[0] ?? null;
+  if (!igAccount) {
+    console.error(`❌ [ERROR] No Instagram account found for business ID: ${igBusinessId}`);
+    return;
+  }
+  console.log(`🔗 [ACCOUNT] Instagram account found: @${igAccount.username}`);
+
+  // Check if Welcome Flow is enabled
+  const { data: welcomeSettings } = await supabaseAdmin
+    .from("welcome_flow_settings")
+    .select("*")
+    .eq("instagram_account_id", igAccount.id)
+    .eq("enabled", true)
+    .limit(1);
+
+  const rule = welcomeSettings?.[0] ?? null;
+  if (!rule) {
+    console.log(`⚙️ [CHECK] Welcome Flow status: OFF ❌`);
+    return;
+  }
+
+  console.log(`⚙️ [CHECK] Welcome Flow status: ACTIVE ✅`);
+  console.log(`📋 [CONFIG] Welcome message: "${(rule.welcome_message || "").substring(0, 60)}..."`);
+
+  // Check for duplicate (already sent in last 24h) to avoid loops
+  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { data: recentLogs } = await supabaseAdmin
+    .from("automation_logs")
+    .select("id")
+    .eq("automation_id", rule.id)
+    .eq("instagram_user_id", senderId)
+    .eq("comment_text", "[Welcome Flow]")
+    .gte("created_at", since24h)
+    .limit(1);
+
+  if (recentLogs && recentLogs.length > 0) {
+    console.log(`🔁 [DUPLICATE] Welcome Flow already sent to user ${senderId} in last 24h. Skipping.`);
+    return;
+  }
+  console.log(`✅ [CHECK] No duplicate found. Proceeding to send...`);
+
+  // Fetch user profile for personalization
+  const profile = await getInstagramUserProfile(senderId, igAccount.access_token);
+  const recipientUsername = profile?.username ? `@${profile.username}` : "there";
+  const recipientFirstName = profile?.name ? profile.name.split(" ")[0] : "friend";
+  const recipientFullName = profile?.name || "Friend";
+
+  // Build personalized welcome message
+  let welcomeText = (rule.welcome_message || "").toString();
+  welcomeText = welcomeText
+    .replace(/{{username}}/g, recipientUsername)
+    .replace(/{{first_name}}/g, recipientFirstName)
+    .replace(/{{full_name}}/g, recipientFullName);
+
+  if (!welcomeText) {
+    console.warn(`⚠️ [SKIP] Welcome message is empty after variable substitution. Aborting.`);
+    return;
+  }
+
+  // Parse buttons
+  const dbButtons = (Array.isArray(rule.buttons) ? rule.buttons : []) as FlowButton[];
+  const buttons = dbButtons.map((btn) => ({
+    type: "postback",
+    title: btn.title,
+    payload: btn.payload,
+  }));
+
+  console.log(`📤 [SEND] Sending Welcome Flow message to ${senderId}...`);
+  let result;
+  if (buttons.length > 0) {
+    result = await sendInstagramDM(
+      { id: senderId },
+      welcomeText,
+      igAccount.access_token,
+      buttons
+    );
+    if (!result.success) {
+      console.log(`📤 [FALLBACK] Attempting fallback: sending text portion first...`);
+      const textResult = await sendInstagramDM({ id: senderId }, welcomeText, igAccount.access_token);
+      result = textResult;
+      if (textResult.success) {
+        console.log(`✅ [FALLBACK] Welcome text sent. Sending quick reply buttons as follow-up...`);
+        const buttonsResult = await sendInstagramDM(
+          { id: senderId },
+          "Choose an option below:",
+          igAccount.access_token,
+          buttons
+        );
+        if (!buttonsResult.success) {
+          console.error(`⚠️ [FALLBACK] Failed to send quick replies:`, buttonsResult.error);
+        }
+      }
+    }
+  } else {
+    result = await sendInstagramDM({ id: senderId }, welcomeText, igAccount.access_token);
+  }
+
+  // Log result to database
+  await supabaseAdmin.from("automation_logs").insert({
+    automation_id: rule.id,
+    instagram_user_id: senderId,
+    comment_text: "[Welcome Flow]",
+    dm_sent: result.success,
+    dm_sent_at: result.success ? new Date().toISOString() : null,
+    error_message: result.error ?? null,
+  });
+
+  if (result.success) {
+    await supabaseAdmin
+      .from("welcome_flow_settings")
+      .update({
+        total_dms_sent: (rule.total_dms_sent || 0) + 1,
+        executions: (rule.executions || 0) + 1,
+        last_execution: new Date().toISOString(),
+      })
+      .eq("id", rule.id);
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // POST — Incoming Instagram events
 // ─────────────────────────────────────────────────────────────────────────────
@@ -670,6 +884,8 @@ export async function POST(req: Request) {
           if (payload.startsWith("welcome_opener_click:")) {
             const label = payload.replace("welcome_opener_click:", "");
             await handleWelcomeOpenerButtonClick(senderId, label, igBusinessId);
+          } else if (payload.startsWith("welcome_flow_click:")) {
+            await handleWelcomeFlowButtonClick(senderId, payload, igBusinessId);
           } else if (payload.startsWith("check_follow:")) {
             const parts = payload.split(":");
             const ruleId = parts[1];
@@ -708,8 +924,66 @@ export async function POST(req: Request) {
               console.log(`[Webhook] ⚠️ No recent log found for user ${senderId} to match the follow verification request.`);
             }
           } else {
-            // Welcome Opener DM handler
-            await handleWelcomeOpenerMessage(senderId, rawMessageText, igBusinessId);
+            const { data: igAccounts } = await supabaseAdmin
+              .from("instagram_accounts")
+              .select("id")
+              .eq("instagram_business_id", igBusinessId.toString())
+              .limit(1);
+            
+            const igAccount = igAccounts?.[0] ?? null;
+            let routed = false;
+            
+            if (igAccount) {
+              const { data: openerData } = await supabaseAdmin
+                .from("welcome_opener_settings")
+                .select("active, quick_replies")
+                .eq("instagram_account_id", igAccount.id)
+                .limit(1)
+                .maybeSingle();
+
+              const { data: flowData } = await supabaseAdmin
+                .from("welcome_flow_settings")
+                .select("enabled, buttons")
+                .eq("instagram_account_id", igAccount.id)
+                .limit(1)
+                .maybeSingle();
+
+              const openerActive = openerData?.active ?? false;
+              const flowActive = flowData?.enabled ?? false;
+
+              const openerQuickReplies = (Array.isArray(openerData?.quick_replies) ? openerData.quick_replies : []) as OpenerButton[];
+              const matchedOpenerBtn = openerActive ? openerQuickReplies.find(
+                (btn) => btn.label?.toLowerCase() === rawMessageText.trim().toLowerCase()
+              ) : null;
+
+              const flowButtons = (Array.isArray(flowData?.buttons) ? flowData.buttons : []) as FlowButton[];
+              const matchedFlowBtn = flowActive ? flowButtons.find(
+                (btn) => btn.title?.toLowerCase() === rawMessageText.trim().toLowerCase()
+              ) : null;
+
+              if (matchedOpenerBtn) {
+                console.log(`🎯 [MATCH] Message "${rawMessageText}" matches Welcome Opener button. Routing to opener button handler...`);
+                await handleWelcomeOpenerButtonClick(senderId, matchedOpenerBtn.label, igBusinessId);
+                routed = true;
+              } else if (matchedFlowBtn) {
+                console.log(`🎯 [MATCH] Message "${rawMessageText}" matches Welcome Flow button. Routing to flow button handler...`);
+                await handleWelcomeFlowButtonClick(senderId, matchedFlowBtn.payload, igBusinessId);
+                routed = true;
+              } else if (openerActive) {
+                console.log(`⚙️ [ROUTE] Routing message to Welcome Opener handler...`);
+                await handleWelcomeOpenerMessage(senderId, rawMessageText, igBusinessId);
+                routed = true;
+              } else if (flowActive) {
+                console.log(`⚙️ [ROUTE] Routing message to Welcome Flow handler...`);
+                await handleWelcomeFlowMessage(senderId, rawMessageText, igBusinessId);
+                routed = true;
+              }
+            }
+            
+            if (!routed) {
+              // Fallback
+              await handleWelcomeOpenerMessage(senderId, rawMessageText, igBusinessId);
+            }
           }
         }
       }
