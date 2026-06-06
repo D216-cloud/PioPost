@@ -437,16 +437,14 @@ async function handleWelcomeOpenerMessage(
   console.log(`🔗 [ACCOUNT] Instagram account found: @${igAccount.username}`);
 
   // ── STEP 1: Check if Auto-Welcome DM is active ────────────────────────
-  const { data: rules } = await supabaseAdmin
-    .from("automation_rules")
+  const { data: welcomeSettings } = await supabaseAdmin
+    .from("welcome_opener_settings")
     .select("*")
     .eq("instagram_account_id", igAccount.id)
-    .eq("post_id", "welcome_opener")
     .eq("active", true)
-    .eq("deleted", false)
     .limit(1);
 
-  const rule = rules?.[0] ?? null;
+  const rule = welcomeSettings?.[0] ?? null;
   if (!rule) {
     console.log(`⚙️ [CHECK] Auto-Welcome DM status: OFF ❌`);
     console.log(`⏹ [SKIP] Feature is disabled. No message sent.`);
@@ -454,14 +452,12 @@ async function handleWelcomeOpenerMessage(
   }
 
   console.log(`⚙️ [CHECK] Auto-Welcome DM status: ACTIVE ✅`);
-  console.log(`📋 [CONFIG] Welcome message: "${(rule.dm_message || "").substring(0, 60)}..."`);
+  console.log(`📋 [CONFIG] Welcome message: "${(rule.welcome_message || "").substring(0, 60)}..."`);
 
   // ── STEP 2: Parse quick reply buttons ─────────────────────────────────
   let quickReplies: any[] = [];
-  try {
-    quickReplies = JSON.parse(rule.post_caption || "[]");
-  } catch (e) {
-    console.error("❌ [ERROR] Failed to parse quick replies JSON:", e);
+  if (rule && rule.quick_replies) {
+    quickReplies = Array.isArray(rule.quick_replies) ? rule.quick_replies : [];
   }
   const buttonNames = quickReplies.map((b: any) => b.label).join(" | ");
   console.log(`🧩 [BUTTONS] Quick Replies loaded: ${buttonNames || "(none)"}`);
@@ -502,7 +498,7 @@ async function handleWelcomeOpenerMessage(
   console.log(`👤 [PROFILE] Resolved: username=${recipientUsername}, name=${recipientFullName}`);
 
   // ── STEP 6: Build personalized welcome message ────────────────────────
-  let welcomeText = (rule.dm_message || "").toString();
+  let welcomeText = (rule.welcome_message || "").toString();
   welcomeText = welcomeText
     .replace(/{{username}}/g, recipientUsername)
     .replace(/{{first_name}}/g, recipientFirstName)
@@ -579,7 +575,7 @@ async function handleWelcomeOpenerMessage(
   if (result.success) {
     console.log(`📊 [LOG] Execution logged. Updating stats...`);
     await supabaseAdmin
-      .from("automation_rules")
+      .from("welcome_opener_settings")
       .update({
         total_dms_sent: (rule.total_dms_sent || 0) + 1,
         executions: (rule.executions || 0) + 1,

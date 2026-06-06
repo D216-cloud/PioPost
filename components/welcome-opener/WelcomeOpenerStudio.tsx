@@ -149,22 +149,14 @@ export function WelcomeOpenerStudio() {
 
     const loadSettings = async () => {
       try {
-        const res = await fetch(`/api/automation-rules?accountId=${encodeURIComponent(selectedAccountId)}`);
+        const res = await fetch(`/api/welcome-opener-settings?accountId=${encodeURIComponent(selectedAccountId)}`);
         const { data } = await res.json();
-        const rules = Array.isArray(data) ? data : [];
-        const openerRule = rules.find((rule: any) => rule.post_id === "welcome_opener" && !rule.deleted);
 
-        if (openerRule) {
-          setDbRuleId(openerRule.id);
-          setAutoWelcomeEnabled(openerRule.active ?? true);
-          setWelcomeMessage(openerRule.dm_message ?? "");
-          let parsedQuickReplies = [];
-          try {
-            parsedQuickReplies = JSON.parse(openerRule.post_caption || "[]");
-          } catch (e) {
-            console.error("Failed to parse quick replies JSON", e);
-          }
-          setQuickReplies(parsedQuickReplies);
+        if (data) {
+          setDbRuleId(data.id);
+          setAutoWelcomeEnabled(data.active ?? false);
+          setWelcomeMessage(data.welcome_message ?? "");
+          setQuickReplies(Array.isArray(data.quick_replies) ? data.quick_replies : []);
         } else {
           setDbRuleId(null);
           loadDefaultSettings();
@@ -344,6 +336,14 @@ export function WelcomeOpenerStudio() {
 
   // Save Settings
   const handleSaveSettings = async () => {
+    if (!selectedAccountId) {
+      toast.error("Please select an Instagram account first.");
+      return;
+    }
+    if (selectedAccountId === "mock-default") {
+      toast.error("Please connect a real Instagram account before saving.");
+      return;
+    }
     if (welcomeMessage.length > 500) {
       toast.error("Welcome message cannot exceed 500 characters.");
       return;
@@ -352,40 +352,43 @@ export function WelcomeOpenerStudio() {
     setIsSaving(true);
     try {
       if (dbRuleId) {
-        // PATCH update existing rule
-        const res = await fetch(`/api/automation-rules?id=${encodeURIComponent(dbRuleId)}`, {
+        // PATCH update existing settings
+        const res = await fetch(`/api/welcome-opener-settings?accountId=${encodeURIComponent(selectedAccountId)}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             active: autoWelcomeEnabled,
-            dm_message: welcomeMessage,
-            post_caption: JSON.stringify(quickReplies),
+            welcome_message: welcomeMessage,
+            quick_replies: quickReplies,
           }),
         });
-        const { error } = await res.json();
-        if (error) throw new Error(error);
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || `Server error ${res.status}`);
+        }
+        const result = await res.json().catch(() => ({}));
+        if (result.error) throw new Error(typeof result.error === "string" ? result.error : JSON.stringify(result.error));
         toast.success("Welcome Opener settings updated!");
       } else {
-        // POST create new rule
-        const res = await fetch("/api/automation-rules", {
+        // POST create new settings
+        const res = await fetch("/api/welcome-opener-settings", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             instagram_account_id: selectedAccountId,
-            post_id: "welcome_opener",
-            post_type: "WELCOME_OPENER",
             active: autoWelcomeEnabled,
-            dm_message: welcomeMessage,
-            post_caption: JSON.stringify(quickReplies),
-            rule_name: "Welcome Opener Settings",
-            keyword_mode: "any",
-            keywords: [],
+            welcome_message: welcomeMessage,
+            quick_replies: quickReplies,
           }),
         });
-        const { data, error } = await res.json();
-        if (error) throw new Error(error);
-        if (data?.id) {
-          setDbRuleId(data.id);
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || `Server error ${res.status}`);
+        }
+        const result = await res.json().catch(() => ({}));
+        if (result.error) throw new Error(typeof result.error === "string" ? result.error : JSON.stringify(result.error));
+        if (result.data?.id) {
+          setDbRuleId(result.data.id);
         }
         toast.success("Welcome Opener settings saved successfully!");
       }
@@ -396,9 +399,10 @@ export function WelcomeOpenerStudio() {
         quickReplies,
       };
       localStorage.setItem(`welcome_opener_settings_${selectedAccountId}`, JSON.stringify(payload));
-    } catch (e: any) {
-      console.error("Failed to save settings to DB:", e);
-      toast.error(e.message || "Failed to save settings to the database.");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("Failed to save settings to DB:", msg);
+      toast.error(msg || "Failed to save settings to the database.");
     } finally {
       setIsSaving(false);
     }
