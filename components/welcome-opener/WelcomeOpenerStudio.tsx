@@ -97,6 +97,7 @@ export function WelcomeOpenerStudio() {
   const [isTypingInPreview, setIsTypingInPreview] = useState(false);
   const [simStep, setSimStep] = useState<"idle" | "bot-typing" | "sent">("sent");
   const [simLogs, setSimLogs] = useState<{ emoji: string; text: string; time: string }[]>([]);
+  const [liveLogs, setLiveLogs] = useState<{ emoji: string; text: string; time: string }[]>([]);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
@@ -206,6 +207,112 @@ export function WelcomeOpenerStudio() {
       });
     }
   }, [welcomeMessage, quickReplies, selectedAccountId]);
+
+  // Fetch real-time logs from DB if dbRuleId exists
+  useEffect(() => {
+    if (!dbRuleId || selectedAccountId === "mock-default") {
+      setLiveLogs([]);
+      return;
+    }
+
+    const fetchLogs = async () => {
+      try {
+        const res = await fetch(`/api/automation-logs?automationId=${encodeURIComponent(dbRuleId)}&limit=15`);
+        const { data } = await res.json();
+        if (Array.isArray(data)) {
+          // Process logs in chronological order (data from API is descending, so reverse it)
+          const sortedData = [...data].reverse();
+          
+          const mappedLogs = sortedData.flatMap((log) => {
+            const time = new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            
+            if (log.comment_text.startsWith("[Button Click] - ")) {
+              const buttonLabel = log.comment_text.replace("[Button Click] - ", "");
+              return [
+                {
+                  emoji: "🖱",
+                  text: `User clicked button: "${buttonLabel}"`,
+                  time,
+                },
+                {
+                  emoji: "📤",
+                  text: `Sending response for "${buttonLabel}"...`,
+                  time,
+                },
+                {
+                  emoji: log.dm_sent ? "✅" : "❌",
+                  text: log.dm_sent ? `Response for "${buttonLabel}" sent!` : `Failed to send response: ${log.error_message || "Unknown error"}`,
+                  time,
+                }
+              ];
+            } else {
+              const btnNames = quickReplies.map((b) => b.label).join(" | ");
+              const steps = [
+                {
+                  emoji: "⚙️",
+                  text: "Auto-Welcome DM status: ACTIVE ✅",
+                  time,
+                },
+                {
+                  emoji: "👤",
+                  text: `@user started following you`,
+                  time,
+                },
+                {
+                  emoji: "📋",
+                  text: `Message: "${(welcomeMessage || "").substring(0, 60)}..."`,
+                  time,
+                },
+                {
+                  emoji: "🧩",
+                  text: `Buttons: ${btnNames || "(none)"}`,
+                  time,
+                },
+                {
+                  emoji: "📤",
+                  text: "Sending welcome text message...",
+                  time,
+                },
+                {
+                  emoji: log.dm_sent ? "✅" : "❌",
+                  text: log.dm_sent ? "Welcome message sent successfully!" : `Failed to send welcome message: ${log.error_message || "Unknown error"}`,
+                  time,
+                }
+              ];
+              
+              if (log.dm_sent) {
+                if (quickReplies.length > 0) {
+                  steps.push({
+                    emoji: "📤",
+                    text: `Sending quick reply buttons: ${btnNames}`,
+                    time,
+                  });
+                  steps.push({
+                    emoji: "✅",
+                    text: "Quick reply buttons sent!",
+                    time,
+                  });
+                }
+                steps.push({
+                  emoji: "🏁",
+                  text: "Auto-Welcome DM complete!",
+                  time,
+                });
+              }
+              return steps;
+            }
+          });
+          setLiveLogs(mappedLogs);
+        }
+      } catch (err) {
+        console.error("Error fetching live logs:", err);
+      }
+    };
+
+    void fetchLogs();
+    const interval = setInterval(fetchLogs, 5000);
+    return () => clearInterval(interval);
+  }, [dbRuleId, selectedAccountId, welcomeMessage, quickReplies]);
 
   const loadDefaultSettings = () => {
     setAutoWelcomeEnabled(true);
@@ -999,25 +1106,41 @@ export function WelcomeOpenerStudio() {
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                     <span className="text-xs font-bold text-slate-700">Live Activity Log</span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setSimLogs([])}
-                    className="text-[10px] font-bold text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-                  >
-                    Clear
-                  </button>
+                  {selectedAccountId === "mock-default" && (
+                    <button
+                      type="button"
+                      onClick={() => setSimLogs([])}
+                      className="text-[10px] font-bold text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  )}
                 </div>
                 <div className="max-h-[180px] overflow-y-auto p-3 space-y-1.5 no-scrollbar bg-slate-50/50">
-                  {simLogs.length === 0 ? (
-                    <p className="text-[11px] text-slate-400 text-center py-3 font-medium">Click &quot;Simulate Follow&quot; to see real-time logs</p>
+                  {selectedAccountId === "mock-default" ? (
+                    simLogs.length === 0 ? (
+                      <p className="text-[11px] text-slate-400 text-center py-3 font-medium">Click &quot;Simulate Follow&quot; to see real-time logs</p>
+                    ) : (
+                      simLogs.map((log, i) => (
+                        <div key={i} className="flex items-start gap-2 text-[11px]">
+                          <span className="shrink-0">{log.emoji}</span>
+                          <span className="text-slate-600 font-medium flex-1">{log.text}</span>
+                          <span className="text-[9px] text-slate-400 font-mono shrink-0">{log.time}</span>
+                        </div>
+                      ))
+                    )
                   ) : (
-                    simLogs.map((log, i) => (
-                      <div key={i} className="flex items-start gap-2 text-[11px]">
-                        <span className="shrink-0">{log.emoji}</span>
-                        <span className="text-slate-600 font-medium flex-1">{log.text}</span>
-                        <span className="text-[9px] text-slate-400 font-mono shrink-0">{log.time}</span>
-                      </div>
-                    ))
+                    liveLogs.length === 0 ? (
+                      <p className="text-[11px] text-slate-400 text-center py-3 font-medium">No live activity logged yet. Send a DM to your connected account to trigger.</p>
+                    ) : (
+                      liveLogs.map((log, i) => (
+                        <div key={i} className="flex items-start gap-2 text-[11px]">
+                          <span className="shrink-0">{log.emoji}</span>
+                          <span className="text-slate-600 font-medium flex-1">{log.text}</span>
+                          <span className="text-[9px] text-slate-400 font-mono shrink-0">{log.time}</span>
+                        </div>
+                      ))
+                    )
                   )}
                   <div ref={logEndRef} />
                 </div>

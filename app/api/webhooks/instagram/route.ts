@@ -409,6 +409,25 @@ async function handleWelcomeOpenerButtonClick(
   } else {
     console.error(`❌ [SEND] Button response failed:`, result.error);
   }
+
+  // Log the button click interaction
+  const { data: welcomeSettings } = await supabaseAdmin
+    .from("welcome_opener_settings")
+    .select("id")
+    .eq("instagram_account_id", igAccount.id)
+    .limit(1);
+  const rule = welcomeSettings?.[0] ?? null;
+
+  if (rule) {
+    await supabaseAdmin.from("automation_logs").insert({
+      automation_id: rule.id,
+      instagram_user_id: senderId,
+      comment_text: `[Button Click] - ${buttonLabel}`,
+      dm_sent: result.success,
+      dm_sent_at: result.success ? new Date().toISOString() : null,
+      error_message: result.error ?? null,
+    });
+  }
 }
 
 async function handleWelcomeOpenerMessage(
@@ -644,15 +663,53 @@ export async function POST(req: Request) {
           continue;
         }
 
-        if (msg.message?.text) {
-          console.log(`\n📩 [DM] Incoming message from user:${senderId}: "${msg.message.text}"`);
-          await handleWelcomeOpenerMessage(senderId, msg.message.text, igBusinessId);
-        } else if (msg.postback?.payload) {
+        // 1. Handle postback events
+        if (msg.postback?.payload) {
           const payload = msg.postback.payload;
           console.log(`\n📮 [POSTBACK] Received from ${senderId}: payload="${payload}"`);
           if (payload.startsWith("welcome_opener_click:")) {
-            const label = payload.split(":")[1];
+            const label = payload.replace("welcome_opener_click:", "");
             await handleWelcomeOpenerButtonClick(senderId, label, igBusinessId);
+          } else if (payload.startsWith("check_follow:")) {
+            const parts = payload.split(":");
+            const ruleId = parts[1];
+            const commentId = parts[2];
+            await handleFollowPostback(senderId, ruleId, commentId, igBusinessId);
+          }
+          continue;
+        }
+
+        // 2. Handle text messages
+        const rawMessageText = msg.message?.text;
+        if (rawMessageText) {
+          console.log(`\n📩 [DM] Incoming message from user:${senderId}: "${rawMessageText}"`);
+          const cleanText = rawMessageText.trim().toLowerCase();
+          
+          if (cleanText === "i am following" || cleanText === "i'm following" || cleanText === "im following" || cleanText === "following") {
+            console.log(`[Webhook] 🔍 User ${senderId} sent follow verification text. Searching database for recent follow-gate logs...`);
+            
+            // Query the most recent automation log for this user to find which rule/comment is active
+            const { data: recentLogs, error: recentLogsErr } = await supabaseAdmin
+              .from("automation_logs")
+              .select("automation_id, comment_id")
+              .eq("instagram_user_id", senderId)
+              .order("created_at", { ascending: false })
+              .limit(1);
+              
+            if (recentLogsErr) {
+              console.error(`[Webhook] ❌ Error searching recent logs for user ${senderId}:`, recentLogsErr.message);
+            } else if (recentLogs && recentLogs.length > 0) {
+              const ruleId = recentLogs[0].automation_id;
+              const commentId = recentLogs[0].comment_id;
+              console.log(`[Webhook] Found matching interaction in logs: ruleId=${ruleId}, commentId=${commentId}. Initiating follow status verification...`);
+              
+              await handleFollowPostback(senderId, ruleId, commentId, igBusinessId);
+            } else {
+              console.log(`[Webhook] ⚠️ No recent log found for user ${senderId} to match the follow verification request.`);
+            }
+          } else {
+            // Welcome Opener DM handler
+            await handleWelcomeOpenerMessage(senderId, rawMessageText, igBusinessId);
           }
         }
       }
@@ -971,61 +1028,7 @@ export async function POST(req: Request) {
         }
       }
 
-      // ── DM / messaging events ────────────────────────────────────────────
-      for (const messaging of entry.messaging ?? []) {
-        const senderId = messaging.sender?.id;
-        if (!senderId) continue;
-
-        // Handle postback (e.g. check follow status)
-        if (messaging.postback) {
-          const payload = messaging.postback.payload;
-          console.log(`[Webhook] 📮 Postback received from ${senderId}: payload="${payload}"`);
-          if (payload && payload.startsWith("check_follow:")) {
-            const parts = payload.split(":");
-            const ruleId = parts[1];
-            const commentId = parts[2];
-            await handleFollowPostback(senderId, ruleId, commentId, igBusinessId);
-          } else if (payload && payload.startsWith("welcome_opener_click:")) {
-            const buttonLabel = payload.replace("welcome_opener_click:", "");
-            await handleWelcomeOpenerButtonClick(senderId, buttonLabel, igBusinessId);
-          }
-          continue;
-        }
-
-        // Handle text message
-        const rawMessageText = messaging.message?.text;
-        if (rawMessageText) {
-          console.log(`[Webhook] 📩 DM received from user:${senderId}: "${rawMessageText}"`);
-          
-          const cleanText = rawMessageText.trim().toLowerCase();
-          if (cleanText === "i am following" || cleanText === "i'm following" || cleanText === "im following" || cleanText === "following") {
-            console.log(`[Webhook] 🔍 User ${senderId} sent follow verification text. Searching database for recent follow-gate logs...`);
-            
-            // Query the most recent automation log for this user to find which rule/comment is active
-            const { data: recentLogs, error: recentLogsErr } = await supabaseAdmin
-              .from("automation_logs")
-              .select("automation_id, comment_id")
-              .eq("instagram_user_id", senderId)
-              .order("created_at", { ascending: false })
-              .limit(1);
-              
-            if (recentLogsErr) {
-              console.error(`[Webhook] ❌ Error searching recent logs for user ${senderId}:`, recentLogsErr.message);
-            } else if (recentLogs && recentLogs.length > 0) {
-              const ruleId = recentLogs[0].automation_id;
-              const commentId = recentLogs[0].comment_id;
-              console.log(`[Webhook] Found matching interaction in logs: ruleId=${ruleId}, commentId=${commentId}. Initiating follow status verification...`);
-              
-              await handleFollowPostback(senderId, ruleId, commentId, igBusinessId);
-            } else {
-              console.log(`[Webhook] ⚠️ No recent log found for user ${senderId} to match the follow verification request.`);
-            }
-          } else {
-            // Welcome Opener DM handler
-            await handleWelcomeOpenerMessage(senderId, cleanText, igBusinessId);
-          }
-        }
-      }
+      // Messaging events are already processed in the DM events loop above
     }
 
     return NextResponse.json({ status: "ok" });
