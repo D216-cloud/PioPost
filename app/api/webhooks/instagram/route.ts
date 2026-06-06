@@ -690,6 +690,15 @@ async function handleWelcomeFlowButtonClick(
     dm_sent_at: result.success ? new Date().toISOString() : null,
     error_message: result.error ?? null,
   });
+
+  if (result.success) {
+    await supabaseAdmin
+      .from("welcome_flow_settings")
+      .update({
+        total_dms_sent: (rule.total_dms_sent || 0) + 1,
+      })
+      .eq("id", rule.id);
+  }
 }
 
 async function handleWelcomeFlowMessage(
