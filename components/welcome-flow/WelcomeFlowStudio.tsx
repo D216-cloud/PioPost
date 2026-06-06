@@ -217,6 +217,11 @@ export function WelcomeFlowStudio() {
               ];
             } else {
               const btnNames = buttons.map((b) => b.title).join(" | ");
+              let triggerText = "@user started following you / sent first DM";
+              if (log.comment_text.startsWith("[Welcome Flow] - Trigger: ")) {
+                const triggerVal = log.comment_text.replace("[Welcome Flow] - Trigger: ", "");
+                triggerText = `@user sent message: "${triggerVal}"`;
+              }
               const steps = [
                 {
                   emoji: "⚙️",
@@ -225,7 +230,7 @@ export function WelcomeFlowStudio() {
                 },
                 {
                   emoji: "👤",
-                  text: `@user started following you / sent first DM`,
+                  text: triggerText,
                   time,
                 },
                 {

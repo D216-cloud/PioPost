@@ -750,7 +750,7 @@ async function handleWelcomeFlowMessage(
     .select("id")
     .eq("automation_id", rule.id)
     .eq("instagram_user_id", senderId)
-    .eq("comment_text", "[Welcome Flow]")
+    .ilike("comment_text", "[Welcome Flow]%")
     .gte("created_at", since24h)
     .limit(1);
 
@@ -820,7 +820,7 @@ async function handleWelcomeFlowMessage(
   await supabaseAdmin.from("automation_logs").insert({
     automation_id: rule.id,
     instagram_user_id: senderId,
-    comment_text: "[Welcome Flow]",
+    comment_text: `[Welcome Flow] - Trigger: ${messageText}`,
     dm_sent: result.success,
     dm_sent_at: result.success ? new Date().toISOString() : null,
     error_message: result.error ?? null,
