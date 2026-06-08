@@ -18,9 +18,9 @@ export async function GET(req: Request) {
       .select('id')
       .eq('user_id', session.user.id);
 
-    const ruleIds = rules?.map((rule) => rule.id) || [];
+    if (!rules || rules.length === 0) return NextResponse.json({ data: [] });
 
-    if (ruleIds.length === 0) return NextResponse.json({ data: [] });
+    const ruleIds = rules.map((rule) => rule.id);
 
     let query = supabaseAdmin
       .from('automation_logs')

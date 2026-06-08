@@ -117,46 +117,27 @@ async function sendInstagramDM(
   let body: any = null;
 
   if (buttonsArray.length > 0) {
-    // Check if these are Quick Replies (which are postbacks on Instagram without a URL)
-    const isQuickReply = buttonsArray.every(btn => btn.type === "postback" && !btn.url);
-
-    if (isQuickReply) {
-      // Native Instagram Quick Replies
-      body = {
-        recipient,
-        message: {
-          text: message,
-          quick_replies: buttonsArray.map(btn => ({
-            content_type: "text",
-            title: btn.title.substring(0, 20), // Instagram limits quick reply titles to 20 chars
-            payload: btn.payload,
-          })),
-        },
-        access_token: accessToken,
-      };
-    } else {
-      // Generic template message (since Button templates are not supported on Instagram)
-      // We truncate the title to 80 characters to comply with Instagram's API limit
-      const truncatedTitle = message.length > 80 ? message.substring(0, 77) + "..." : message;
-      body = {
-        recipient,
-        message: {
-          attachment: {
-            type: "template",
-            payload: {
-              template_type: "generic",
-              elements: [
-                {
-                  title: truncatedTitle,
-                  buttons: buttonsArray,
-                },
-              ],
-            },
+    // Generic template message (since Button templates are not supported on Instagram)
+    // We truncate the title to 80 characters to comply with Instagram's API limit
+    const truncatedTitle = message.length > 80 ? message.substring(0, 77) + "..." : message;
+    body = {
+      recipient,
+      message: {
+        attachment: {
+          type: "template",
+          payload: {
+            template_type: "generic",
+            elements: [
+              {
+                title: truncatedTitle,
+                buttons: buttonsArray,
+              },
+            ],
           },
         },
-        access_token: accessToken,
-      };
-    }
+      },
+      access_token: accessToken,
+    };
   } else {
     // Plain text message
     body = {
@@ -192,11 +173,14 @@ async function handleFollowPostback(
   console.log(`[Webhook] Processing follow postback for user:${senderId}, rule:${ruleId}, comment:${commentId}`);
   
   // 1. Fetch the IG account from the business ID
-  const { data: igAccount } = await supabaseAdmin
+  const { data: igAccounts } = await supabaseAdmin
     .from("instagram_accounts")
     .select("id, user_id, access_token, username")
     .eq("instagram_business_id", igBusinessId.toString())
-    .maybeSingle();
+    .order("updated_at", { ascending: false })
+    .limit(1);
+
+  const igAccount = igAccounts?.[0] ?? null;
   if (!igAccount) {
     console.error("[Webhook] No IG account found for business ID in postback:", igBusinessId);
     return;
@@ -366,6 +350,148 @@ async function getInstagramUserProfile(
   return null;
 }
 
+async function handleWelcomeOpenerButtonClick(
+  senderId: string,
+  buttonLabel: string,
+  igBusinessId: string
+) {
+  console.log(`[Webhook] Processing welcome opener button click for user:${senderId}, button:${buttonLabel}`);
+  
+  const { data: igAccounts } = await supabaseAdmin
+    .from("instagram_accounts")
+    .select("id, user_id, access_token, username")
+    .eq("instagram_business_id", igBusinessId.toString())
+    .order("updated_at", { ascending: false })
+    .limit(1);
+
+  const igAccount = igAccounts?.[0] ?? null;
+  if (!igAccount) {
+    console.error("[Webhook] No IG account found for business ID in welcome opener button click:", igBusinessId);
+    return;
+  }
+
+  let replyText = `Thanks for your interest in "${buttonLabel}"! Our team will get back to you directly soon.`;
+  const labelLower = buttonLabel.toLowerCase();
+  
+  if (labelLower === "pricing") {
+    replyText = "💰 Here is our pricing structure! We have the Starter plan for beginners, and the Pro plan for scaling creators. Check the pricing section in the sidebar to learn more!";
+  } else if (labelLower === "collab") {
+    replyText = "🤝 Awesome! We love partnerships. Drop us your media kit or email us at collab@reelflow.ai, and we will get back to you soon!";
+  } else if (labelLower === "support") {
+    replyText = "🎧 Our support team is online! Describe your issue or query, and our agent will jump into this chat in just a few minutes.";
+  }
+
+  await sendInstagramDM({ id: senderId }, replyText, igAccount.access_token);
+}
+
+async function handleWelcomeOpenerMessage(
+  senderId: string,
+  messageText: string,
+  igBusinessId: string
+) {
+  const { data: igAccounts } = await supabaseAdmin
+    .from("instagram_accounts")
+    .select("id, user_id, access_token, username")
+    .eq("instagram_business_id", igBusinessId.toString())
+    .order("updated_at", { ascending: false })
+    .limit(1);
+
+  const igAccount = igAccounts?.[0] ?? null;
+  if (!igAccount) return;
+
+  const { data: rules } = await supabaseAdmin
+    .from("automation_rules")
+    .select("*")
+    .eq("instagram_account_id", igAccount.id)
+    .eq("post_id", "welcome_opener")
+    .eq("active", true)
+    .eq("deleted", false)
+    .limit(1);
+
+  const rule = rules?.[0] ?? null;
+  if (!rule) return;
+
+  let quickReplies: any[] = [];
+  try {
+    quickReplies = JSON.parse(rule.post_caption || "[]");
+  } catch (e) {
+    console.error("[Webhook] Failed to parse quick replies JSON:", e);
+  }
+
+  const matchedButton = quickReplies.find(
+    (btn: any) => btn.label.toLowerCase() === messageText.toLowerCase()
+  );
+
+  if (matchedButton) {
+    await handleWelcomeOpenerButtonClick(senderId, matchedButton.label, igBusinessId);
+    return;
+  }
+
+  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { data: recentLogs } = await supabaseAdmin
+    .from("automation_logs")
+    .select("id")
+    .eq("automation_id", rule.id)
+    .eq("instagram_user_id", senderId)
+    .eq("comment_text", "[Welcome Opener]")
+    .gte("created_at", since24h)
+    .limit(1);
+
+  if (recentLogs && recentLogs.length > 0) {
+    console.log(`[Webhook] Welcome Opener already sent to user ${senderId} in last 24h. Skipping duplicate.`);
+    return;
+  }
+
+  const profile = await getInstagramUserProfile(senderId, igAccount.access_token);
+  const recipientUsername = profile?.username ? `@${profile.username}` : "there";
+  const recipientFirstName = profile?.name ? profile.name.split(" ")[0] : "friend";
+  const recipientFullName = profile?.name || "Friend";
+
+  let welcomeText = (rule.dm_message || "").toString();
+  welcomeText = welcomeText
+    .replace(/{{username}}/g, recipientUsername)
+    .replace(/{{first_name}}/g, recipientFirstName)
+    .replace(/{{full_name}}/g, recipientFullName);
+
+  if (!welcomeText) return;
+
+  const buttons = quickReplies.slice(0, 3).map((btn: any) => ({
+    type: "postback",
+    title: btn.label,
+    payload: `welcome_opener_click:${btn.label}`,
+  }));
+
+  const result = await sendInstagramDM(
+    { id: senderId },
+    welcomeText,
+    igAccount.access_token,
+    buttons.length > 0 ? buttons : null
+  );
+
+  await supabaseAdmin.from("automation_logs").insert({
+    automation_id: rule.id,
+    instagram_user_id: senderId,
+    comment_text: "[Welcome Opener]",
+    dm_sent: result.success,
+    dm_sent_at: result.success ? new Date().toISOString() : null,
+    error_message: result.error ?? null,
+  });
+
+  if (result.success) {
+    console.log(`[Webhook] ✅ Welcome Opener sent to user ${senderId}`);
+    await supabaseAdmin
+      .from("automation_rules")
+      .update({
+        total_dms_sent: (rule.total_dms_sent || 0) + 1,
+        executions: (rule.executions || 0) + 1,
+        last_execution: new Date().toISOString(),
+      })
+      .eq("id", rule.id);
+  } else {
+    console.error(`[Webhook] ❌ Welcome Opener DM failed for ${senderId}:`, result.error);
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // POST — Incoming Instagram events
 // ─────────────────────────────────────────────────────────────────────────────
@@ -398,63 +524,29 @@ export async function POST(req: Request) {
         if (!senderId || recipientId !== igBusinessId) continue;
 
         // Fetch IG account for rate limiting and token
-        const { data: igAccount, error: accError } = await supabaseAdmin
+        const { data: igAccounts, error: accError } = await supabaseAdmin
           .from("instagram_accounts")
           .select("id, user_id, access_token, username")
           .eq("instagram_business_id", igBusinessId.toString())
-          .maybeSingle();
+          .order("updated_at", { ascending: false })
+          .limit(1);
+        const igAccount = igAccounts?.[0] ?? null;
         if (accError || !igAccount) {
-          console.error("❌ [ERROR] No IG account in DB for DM handling:", igBusinessId);
+          console.error("[Webhook] ❌ No IG account in DB for DM handling:", igBusinessId);
           continue;
         }
         if (await isRateLimited(igAccount.id)) {
-          console.warn("⚠️ [RATE LIMIT] 200/hr limit hit for @" + igAccount.username + ". Skipping.");
+          console.warn("[Webhook] ⚠️ Rate limit hit for account (DM):", igAccount.username);
           continue;
         }
 
-        // 1. Handle postback events
-        if (msg.postback?.payload) {
+        if (msg.message?.text) {
+          await handleWelcomeOpenerMessage(senderId, msg.message.text, igBusinessId);
+        } else if (msg.postback?.payload) {
           const payload = msg.postback.payload;
-          console.log(`\n📮 [POSTBACK] Received from ${senderId}: payload="${payload}"`);
-          if (payload.startsWith("check_follow:")) {
-            const parts = payload.split(":");
-            const ruleId = parts[1];
-            const commentId = parts[2];
-            await handleFollowPostback(senderId, ruleId, commentId, igBusinessId);
-          }
-          continue;
-        }
-
-        // 2. Handle text messages
-        const rawMessageText = msg.message?.text;
-        if (rawMessageText) {
-          console.log(`\n📩 [DM] Incoming message from user:${senderId}: "${rawMessageText}"`);
-          const cleanText = rawMessageText.trim().toLowerCase();
-          
-          if (cleanText === "i am following" || cleanText === "i'm following" || cleanText === "im following" || cleanText === "following") {
-            console.log(`[Webhook] 🔍 User ${senderId} sent follow verification text. Searching database for recent follow-gate logs...`);
-            
-            // Query the most recent automation log for this user to find which rule/comment is active
-            const { data: recentLogs, error: recentLogsErr } = await supabaseAdmin
-              .from("automation_logs")
-              .select("automation_id, comment_id")
-              .eq("instagram_user_id", senderId)
-              .order("created_at", { ascending: false })
-              .limit(1);
-              
-            if (recentLogsErr) {
-              console.error(`[Webhook] ❌ Error searching recent logs for user ${senderId}:`, recentLogsErr.message);
-            } else if (recentLogs && recentLogs.length > 0) {
-              const ruleId = recentLogs[0].automation_id;
-              const commentId = recentLogs[0].comment_id;
-              console.log(`[Webhook] Found matching interaction in logs: ruleId=${ruleId}, commentId=${commentId}. Initiating follow status verification...`);
-              
-              await handleFollowPostback(senderId, ruleId, commentId, igBusinessId);
-            } else {
-              console.log(`[Webhook] ⚠️ No recent log found for user ${senderId} to match the follow verification request.`);
-            }
-          } else {
-            console.log(`[Webhook] Incoming message "${rawMessageText}" from user:${senderId} is not a follow confirmation. Skipping routing.`);
+          if (payload.startsWith("welcome_opener_click:")) {
+            const label = payload.split(":")[1];
+            await handleWelcomeOpenerButtonClick(senderId, label, igBusinessId);
           }
         }
       }
@@ -477,11 +569,14 @@ export async function POST(req: Request) {
         console.log(`[Webhook] 💬 Comment: "${commentText}" from ${commenterId} on media ${mediaId}`);
 
         // Find the IG account in our DB
-        const { data: igAccount, error: accError } = await supabaseAdmin
+        const { data: igAccounts, error: accError } = await supabaseAdmin
           .from("instagram_accounts")
           .select("id, user_id, access_token, username")
           .eq("instagram_business_id", igBusinessId.toString())  // Convert to string
-          .maybeSingle();
+          .order("updated_at", { ascending: false })
+          .limit(1);
+
+        const igAccount = igAccounts?.[0] ?? null;
           
         if (accError || !igAccount) {
           console.error("[Webhook] ❌ No IG account in DB for business ID:", igBusinessId);
@@ -770,7 +865,61 @@ export async function POST(req: Request) {
         }
       }
 
-      // Messaging events are already processed in the DM events loop above
+      // ── DM / messaging events ────────────────────────────────────────────
+      for (const messaging of entry.messaging ?? []) {
+        const senderId = messaging.sender?.id;
+        if (!senderId) continue;
+
+        // Handle postback (e.g. check follow status)
+        if (messaging.postback) {
+          const payload = messaging.postback.payload;
+          console.log(`[Webhook] 📮 Postback received from ${senderId}: payload="${payload}"`);
+          if (payload && payload.startsWith("check_follow:")) {
+            const parts = payload.split(":");
+            const ruleId = parts[1];
+            const commentId = parts[2];
+            await handleFollowPostback(senderId, ruleId, commentId, igBusinessId);
+          } else if (payload && payload.startsWith("welcome_opener_click:")) {
+            const buttonLabel = payload.replace("welcome_opener_click:", "");
+            await handleWelcomeOpenerButtonClick(senderId, buttonLabel, igBusinessId);
+          }
+          continue;
+        }
+
+        // Handle text message
+        const rawMessageText = messaging.message?.text;
+        if (rawMessageText) {
+          console.log(`[Webhook] 📩 DM received from user:${senderId}: "${rawMessageText}"`);
+          
+          const cleanText = rawMessageText.trim().toLowerCase();
+          if (cleanText === "i am following" || cleanText === "i'm following" || cleanText === "im following" || cleanText === "following") {
+            console.log(`[Webhook] 🔍 User ${senderId} sent follow verification text. Searching database for recent follow-gate logs...`);
+            
+            // Query the most recent automation log for this user to find which rule/comment is active
+            const { data: recentLogs, error: recentLogsErr } = await supabaseAdmin
+              .from("automation_logs")
+              .select("automation_id, comment_id")
+              .eq("instagram_user_id", senderId)
+              .order("created_at", { ascending: false })
+              .limit(1);
+              
+            if (recentLogsErr) {
+              console.error(`[Webhook] ❌ Error searching recent logs for user ${senderId}:`, recentLogsErr.message);
+            } else if (recentLogs && recentLogs.length > 0) {
+              const ruleId = recentLogs[0].automation_id;
+              const commentId = recentLogs[0].comment_id;
+              console.log(`[Webhook] Found matching interaction in logs: ruleId=${ruleId}, commentId=${commentId}. Initiating follow status verification...`);
+              
+              await handleFollowPostback(senderId, ruleId, commentId, igBusinessId);
+            } else {
+              console.log(`[Webhook] ⚠️ No recent log found for user ${senderId} to match the follow verification request.`);
+            }
+          } else {
+            // Welcome Opener DM handler
+            await handleWelcomeOpenerMessage(senderId, cleanText, igBusinessId);
+          }
+        }
+      }
     }
 
     return NextResponse.json({ status: "ok" });
