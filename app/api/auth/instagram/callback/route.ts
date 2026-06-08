@@ -115,7 +115,7 @@ export async function GET(req: Request) {
         page_access_token: pageAccessToken,
         updated_at: new Date().toISOString(),
       }, {
-        onConflict: "user_id,instagram_business_id",
+        onConflict: "instagram_business_id",
       });
 
     if (upsertError) throw new Error(`DB upsert failed: ${upsertError.message}`);
