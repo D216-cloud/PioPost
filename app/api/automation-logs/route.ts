@@ -18,15 +18,7 @@ export async function GET(req: Request) {
       .select('id')
       .eq('user_id', session.user.id);
 
-    const { data: welcomeSettings } = await supabaseAdmin
-      .from('welcome_opener_settings')
-      .select('id')
-      .eq('user_id', session.user.id);
-
-    const ruleIds = [
-      ...(rules?.map((rule) => rule.id) || []),
-      ...(welcomeSettings?.map((w) => w.id) || [])
-    ];
+    const ruleIds = rules?.map((rule) => rule.id) || [];
 
     if (ruleIds.length === 0) return NextResponse.json({ data: [] });
 
