@@ -192,14 +192,11 @@ async function handleFollowPostback(
   console.log(`[Webhook] Processing follow postback for user:${senderId}, rule:${ruleId}, comment:${commentId}`);
   
   // 1. Fetch the IG account from the business ID
-  const { data: igAccounts } = await supabaseAdmin
+  const { data: igAccount } = await supabaseAdmin
     .from("instagram_accounts")
     .select("id, user_id, access_token, username")
     .eq("instagram_business_id", igBusinessId.toString())
-    .order("updated_at", { ascending: false })
-    .limit(1);
-
-  const igAccount = igAccounts?.[0] ?? null;
+    .maybeSingle();
   if (!igAccount) {
     console.error("[Webhook] No IG account found for business ID in postback:", igBusinessId);
     return;
@@ -378,14 +375,11 @@ async function handleWelcomeOpenerButtonClick(
   console.log(`🖱 [CLICK] User ${senderId} selected button: "${buttonLabel}"`);
   console.log(`🖱 ═══════════════════════════════════════════════════════`);
   
-  const { data: igAccounts } = await supabaseAdmin
+  const { data: igAccount } = await supabaseAdmin
     .from("instagram_accounts")
     .select("id, user_id, access_token, username")
     .eq("instagram_business_id", igBusinessId.toString())
-    .order("updated_at", { ascending: false })
-    .limit(1);
-
-  const igAccount = igAccounts?.[0] ?? null;
+    .maybeSingle();
   if (!igAccount) {
     console.error("❌ [ERROR] No IG account found for button click:", igBusinessId);
     return;
@@ -441,14 +435,11 @@ async function handleWelcomeOpenerMessage(
   console.log(`💬 [MESSAGE] Text: "${messageText}"`);
   console.log(`📥 ═══════════════════════════════════════════════════════`);
 
-  const { data: igAccounts } = await supabaseAdmin
+  const { data: igAccount } = await supabaseAdmin
     .from("instagram_accounts")
     .select("id, user_id, access_token, username")
     .eq("instagram_business_id", igBusinessId.toString())
-    .order("updated_at", { ascending: false })
-    .limit(1);
-
-  const igAccount = igAccounts?.[0] ?? null;
+    .maybeSingle();
   if (!igAccount) {
     console.error(`❌ [ERROR] No Instagram account found for business ID: ${igBusinessId}`);
     return;
@@ -500,6 +491,7 @@ async function handleWelcomeOpenerMessage(
     .eq("automation_id", rule.id)
     .eq("instagram_user_id", senderId)
     .eq("comment_text", "[Welcome Opener]")
+    .eq("dm_sent", true)
     .gte("created_at", since24h)
     .limit(1);
 
@@ -637,14 +629,11 @@ async function handleWelcomeFlowButtonClick(
   console.log(`🖱 [WELCOME FLOW CLICK] User ${senderId} selected payload: "${buttonPayload}"`);
   console.log(`🖱 ═══════════════════════════════════════════════════════`);
   
-  const { data: igAccounts } = await supabaseAdmin
+  const { data: igAccount } = await supabaseAdmin
     .from("instagram_accounts")
     .select("id, user_id, access_token, username")
     .eq("instagram_business_id", igBusinessId.toString())
-    .order("updated_at", { ascending: false })
-    .limit(1);
-
-  const igAccount = igAccounts?.[0] ?? null;
+    .maybeSingle();
   if (!igAccount) {
     console.error("❌ [ERROR] No IG account found for welcome flow click:", igBusinessId);
     return;
@@ -712,14 +701,11 @@ async function handleWelcomeFlowMessage(
   console.log(`💬 [MESSAGE] Text: "${messageText}"`);
   console.log(`📥 ═══════════════════════════════════════════════════════`);
 
-  const { data: igAccounts } = await supabaseAdmin
+  const { data: igAccount } = await supabaseAdmin
     .from("instagram_accounts")
     .select("id, user_id, access_token, username")
     .eq("instagram_business_id", igBusinessId.toString())
-    .order("updated_at", { ascending: false })
-    .limit(1);
-
-  const igAccount = igAccounts?.[0] ?? null;
+    .maybeSingle();
   if (!igAccount) {
     console.error(`❌ [ERROR] No Instagram account found for business ID: ${igBusinessId}`);
     return;
@@ -751,6 +737,7 @@ async function handleWelcomeFlowMessage(
     .eq("automation_id", rule.id)
     .eq("instagram_user_id", senderId)
     .ilike("comment_text", "[Welcome Flow]%")
+    .eq("dm_sent", true)
     .gte("created_at", since24h)
     .limit(1);
 
@@ -870,13 +857,11 @@ export async function POST(req: Request) {
         if (!senderId || recipientId !== igBusinessId) continue;
 
         // Fetch IG account for rate limiting and token
-        const { data: igAccounts, error: accError } = await supabaseAdmin
+        const { data: igAccount, error: accError } = await supabaseAdmin
           .from("instagram_accounts")
           .select("id, user_id, access_token, username")
           .eq("instagram_business_id", igBusinessId.toString())
-          .order("updated_at", { ascending: false })
-          .limit(1);
-        const igAccount = igAccounts?.[0] ?? null;
+          .maybeSingle();
         if (accError || !igAccount) {
           console.error("❌ [ERROR] No IG account in DB for DM handling:", igBusinessId);
           continue;
@@ -933,13 +918,11 @@ export async function POST(req: Request) {
               console.log(`[Webhook] ⚠️ No recent log found for user ${senderId} to match the follow verification request.`);
             }
           } else {
-            const { data: igAccounts } = await supabaseAdmin
+            const { data: igAccount } = await supabaseAdmin
               .from("instagram_accounts")
               .select("id")
               .eq("instagram_business_id", igBusinessId.toString())
-              .limit(1);
-            
-            const igAccount = igAccounts?.[0] ?? null;
+              .maybeSingle();
             let routed = false;
             
             if (igAccount) {
@@ -1015,14 +998,11 @@ export async function POST(req: Request) {
         console.log(`[Webhook] 💬 Comment: "${commentText}" from ${commenterId} on media ${mediaId}`);
 
         // Find the IG account in our DB
-        const { data: igAccounts, error: accError } = await supabaseAdmin
+        const { data: igAccount, error: accError } = await supabaseAdmin
           .from("instagram_accounts")
           .select("id, user_id, access_token, username")
           .eq("instagram_business_id", igBusinessId.toString())  // Convert to string
-          .order("updated_at", { ascending: false })
-          .limit(1);
-
-        const igAccount = igAccounts?.[0] ?? null;
+          .maybeSingle();
           
         if (accError || !igAccount) {
           console.error("[Webhook] ❌ No IG account in DB for business ID:", igBusinessId);

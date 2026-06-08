@@ -10,7 +10,6 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const code = searchParams.get("code");
   const error = searchParams.get("error");
-  const configuredBusinessId = process.env.INSTAGRAM_ACCOUNT_ID?.trim() || null;
 
   if (error || !code) {
     return NextResponse.redirect(`${origin}/instagram/connect?error=oauth_denied`);
@@ -56,46 +55,44 @@ export async function GET(req: Request) {
 
     if (!userData.id) throw new Error("Failed to get Instagram user info");
 
-    // Prefer the system-wide business account ID from env so every connect stores the same value.
-    let igBusinessId = configuredBusinessId || userData.id;
+    // Prefer the real business account ID if found, otherwise fall back to user ID.
+    let igBusinessId = userData.id;
     let pageId: string | null = null;
     let pageAccessToken: string | null = null;
 
-    if (!configuredBusinessId) {
-      try {
-        const bizRes = await fetch(
-          `https://graph.instagram.com/me?fields=id,instagram_business_account&access_token=${finalToken}`
+    try {
+      const bizRes = await fetch(
+        `https://graph.instagram.com/me?fields=id,instagram_business_account&access_token=${finalToken}`
+      );
+      const bizData = await bizRes.json();
+
+      if (bizData.instagram_business_account?.id) {
+        igBusinessId = bizData.instagram_business_account.id;
+        console.log("[OAuth] ✅ Got real business ID:", igBusinessId);
+      } else {
+        // Try Facebook Graph API
+        const fbRes = await fetch(
+          `https://graph.facebook.com/v21.0/me/accounts?access_token=${finalToken}`
         );
-        const bizData = await bizRes.json();
+        const fbData = await fbRes.json();
 
-        if (bizData.instagram_business_account?.id) {
-          igBusinessId = bizData.instagram_business_account.id;
-          console.log("[OAuth] ✅ Got real business ID:", igBusinessId);
-        } else {
-          // Try Facebook Graph API
-          const fbRes = await fetch(
-            `https://graph.facebook.com/v21.0/me/accounts?access_token=${finalToken}`
+        if (fbData.data?.[0]?.id) {
+          pageId = fbData.data[0].id;
+          pageAccessToken = fbData.data[0].access_token;
+
+          const igBizRes = await fetch(
+            `https://graph.facebook.com/v21.0/${pageId}?fields=instagram_business_account&access_token=${pageAccessToken}`
           );
-          const fbData = await fbRes.json();
+          const igBizData = await igBizRes.json();
 
-          if (fbData.data?.[0]?.id) {
-            pageId = fbData.data[0].id;
-            pageAccessToken = fbData.data[0].access_token;
-
-            const igBizRes = await fetch(
-              `https://graph.facebook.com/v21.0/${pageId}?fields=instagram_business_account&access_token=${pageAccessToken}`
-            );
-            const igBizData = await igBizRes.json();
-
-            if (igBizData.instagram_business_account?.id) {
-              igBusinessId = igBizData.instagram_business_account.id;
-              console.log("[OAuth] ✅ Got business ID via FB page:", igBusinessId);
-            }
+          if (igBizData.instagram_business_account?.id) {
+            igBusinessId = igBizData.instagram_business_account.id;
+            console.log("[OAuth] ✅ Got business ID via FB page:", igBusinessId);
           }
         }
-      } catch {
-        console.warn("[OAuth] Could not fetch business ID, using user ID");
       }
+    } catch {
+      console.warn("[OAuth] Could not fetch business ID, using user ID");
     }
 
     console.log("[DEBUG] Instagram returned ID:", userData.id);

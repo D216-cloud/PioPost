@@ -12,11 +12,22 @@ export async function GET(req: Request) {
     const accountId = searchParams.get('accountId');
     if (!accountId) return NextResponse.json({ error: 'Account ID required' }, { status: 400 });
 
+    // Verify ownership
+    const { data: account, error: accError } = await supabaseAdmin
+      .from('instagram_accounts')
+      .select('id')
+      .eq('id', accountId)
+      .eq('user_id', session.user.id)
+      .maybeSingle();
+
+    if (accError || !account) {
+      return NextResponse.json({ error: 'Unauthorized or account not found' }, { status: 403 });
+    }
+
     const { data, error } = await supabaseAdmin
       .from('welcome_flow_settings')
       .select('*')
       .eq('instagram_account_id', accountId)
-      .limit(1)
       .maybeSingle();
 
     if (error) throw error;
@@ -36,6 +47,18 @@ export async function POST(req: Request) {
 
     if (!instagram_account_id) {
       return NextResponse.json({ error: 'Instagram Account ID required' }, { status: 400 });
+    }
+
+    // Verify ownership
+    const { data: account, error: accError } = await supabaseAdmin
+      .from('instagram_accounts')
+      .select('id')
+      .eq('id', instagram_account_id)
+      .eq('user_id', session.user.id)
+      .maybeSingle();
+
+    if (accError || !account) {
+      return NextResponse.json({ error: 'Unauthorized or account not found' }, { status: 403 });
     }
 
     const { data, error } = await supabaseAdmin
@@ -70,6 +93,18 @@ export async function PATCH(req: Request) {
     const body = await req.json();
 
     if (!accountId) return NextResponse.json({ error: 'Account ID required' }, { status: 400 });
+
+    // Verify ownership
+    const { data: account, error: accError } = await supabaseAdmin
+      .from('instagram_accounts')
+      .select('id')
+      .eq('id', accountId)
+      .eq('user_id', session.user.id)
+      .maybeSingle();
+
+    if (accError || !account) {
+      return NextResponse.json({ error: 'Unauthorized or account not found' }, { status: 403 });
+    }
 
     const { data, error } = await supabaseAdmin
       .from('welcome_flow_settings')

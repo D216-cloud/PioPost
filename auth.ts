@@ -99,7 +99,6 @@ export const authOptions: NextAuthOptions = {
         }
       }
       return true;
-      return true;
     },
     async jwt({ token, user }) {
       // 1. Initial sign in - 'user' is available
