@@ -118,12 +118,12 @@ export async function GET(req: Request) {
         page_access_token: pageAccessToken,
         updated_at: new Date().toISOString(),
       }, {
-        onConflict: "user_id,instagram_business_id",
+        onConflict: "instagram_business_id",
       });
 
     if (upsertError) throw new Error(`DB upsert failed: ${upsertError.message}`);
 
-    return NextResponse.redirect(`${origin}/dashboard/automation?connected=true`);
+    return NextResponse.redirect(`${origin}/dashboard/auto-dm?connected=true`);
 
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : "Unknown error occurred";

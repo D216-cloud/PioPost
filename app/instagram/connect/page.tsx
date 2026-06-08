@@ -2,14 +2,20 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ShieldCheck, Link2, Webhook } from "lucide-react";
+import { ArrowLeft, ShieldCheck, Link2, Webhook, AlertCircle } from "lucide-react";
 import { InstagramIcon as Instagram } from "@/components/icons";
 
 export default function InstagramConnectPage() {
   const [origin, setOrigin] = useState("");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     setOrigin(window.location.origin);
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get("error");
+    if (err) {
+      setErrorMsg(decodeURIComponent(err));
+    }
   }, []);
 
   const callbackUrl = origin ? `${origin}/api/auth/instagram/callback` : "https://your-domain.com/api/auth/instagram/callback";
@@ -40,6 +46,20 @@ export default function InstagramConnectPage() {
               <h1 className="mt-1 text-[36px] font-black tracking-tight text-slate-900 md:text-[48px]">Open Instagram Login</h1>
             </div>
           </div>
+
+          {errorMsg && (
+            <div className="mt-6 rounded-3xl border border-rose-100 bg-rose-50 p-6 text-rose-900 animate-in fade-in duration-300">
+              <div className="flex items-start gap-3">
+                <AlertCircle size={20} className="mt-0.5 shrink-0 text-rose-500" />
+                <div className="space-y-1">
+                  <h3 className="text-[16px] font-bold text-rose-950">Connection Failed</h3>
+                  <p className="text-[14px] leading-relaxed text-rose-800/95 break-all">
+                    {errorMsg}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <p className="mt-6 max-w-2xl text-[16px] leading-relaxed text-slate-500">
             This page is the first step before Instagram login. It shows the exact callback URL your Meta app must
