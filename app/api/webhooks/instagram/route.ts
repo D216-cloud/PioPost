@@ -299,16 +299,17 @@ async function handleFollowPostback(
         error_message: "Follow verification failed: User is not following the business account.",
       });
 
-      // Send the follow-gate message with the two buttons again
+      // Resend the follow-gate message with Visit Profile button
+      // NOTE: Instagram does NOT support postback buttons (Messenger-only).
+      // We instruct the user to reply "I'm Following" as text instead.
       const followGateMsg = rule.follow_gate_message || "Hey! Follow me first and I'll send you the link 🙌";
       const profileUrl = `https://instagram.com/${igAccount.username}`;
       await sendInstagramDM(
         { id: senderId },
-        followGateMsg,
+        `${followGateMsg}\n\n👆 Tap below to visit my profile and follow me. Then reply \"I'm Following\" here!`,
         tokenToUse,
         [
-          { type: "web_url", url: profileUrl, title: "Visit Profile" },
-          { type: "postback", title: "I'm Following", payload: `check_follow:${ruleId}:${commentId}` }
+          { type: "web_url", url: profileUrl, title: "Visit Profile" }
         ]
       );
       console.log(`[Webhook] [DEBUG] Follow message resent to user: ${senderId}`);
@@ -805,18 +806,41 @@ export async function POST(req: Request) {
 
           if (shouldAskFollow && !isFollowing) {
             const followGateMsg = rule.follow_gate_message || "Hey! Follow me first and I'll send you the link 🙌";
-            console.log(`[Webhook] User ${commenterId} is not following. Sending follow-gate template with buttons directly to comment_id: ${commentId}...`);
+            console.log(`[Webhook] User ${commenterId} is not following. Opening DM window via comment_id, then sending follow-gate buttons to user ID...`);
             
             const profileUrl = `https://instagram.com/${igAccount.username}`;
-            const dmResult = await sendInstagramDM(
+
+            // Step 1: Send plain text private reply to open the DM conversation window
+            const openResult = await sendInstagramDM(
               { comment_id: commentId },
               followGateMsg,
-              tokenToUse,
-              [
-                { type: "web_url", url: profileUrl, title: "Visit Profile" },
-                { type: "postback", title: "I'm Following", payload: `check_follow:${rule.id}:${commentId}` }
-              ]
+              tokenToUse
             );
+
+            let dmResult = openResult;
+
+            if (openResult.success) {
+              // Step 2: Send the follow-gate template with Visit Profile button to user ID
+              // NOTE: Instagram does NOT support postback buttons (Messenger-only).
+              // Instead we instruct the user to reply "I'm Following" as text,
+              // which is handled by the text-based follow verification handler.
+              const buttonResult = await sendInstagramDM(
+                { id: commenterId },
+                `👆 Tap the button below to visit my profile and follow me.\n\nOnce you've followed, reply \"I'm Following\" here and I'll send your link! 🚀`,
+                tokenToUse,
+                [
+                  { type: "web_url", url: profileUrl, title: "Visit Profile" }
+                ]
+              );
+              if (buttonResult.success) {
+                console.log(`[Webhook] ✅ Follow-gate template sent to user ID: ${commenterId}`);
+                dmResult = buttonResult;
+              } else {
+                console.error(`[Webhook] ⚠️ Follow-gate template failed for user ${commenterId}:`, buttonResult.error);
+              }
+            } else {
+              console.error(`[Webhook] ❌ Failed to open DM window via comment_id ${commentId}:`, openResult.error);
+            }
 
             // ── Log result for follow gate message ───────────────────────────
             await supabaseAdmin.from("automation_logs").insert({
