@@ -16,7 +16,7 @@ const AVATARS = ["AT", "CM", "GH", "FP", "SK"];
 const DIALOGUES = [
   { trigger: "guide", response: "Hey! Just sent you the custom link. Check your DMs! 🚀" },
   { trigger: "link", response: "Here is your registration link! Let us know how it goes. 👍" },
-  { trigger: "template", response: "Sure! Here is the Figma template file: reelflow.co/figma-tmp 🎨" },
+  { trigger: "template", response: "Sure! Here is the Figma template file: startprofile.com/figma-tmp 🎨" },
   { trigger: "beta", response: "Awesome! Welcome to our private beta. You are now linked! 🔑" },
 ];
 
@@ -166,7 +166,7 @@ export function RealtimeSection() {
                   </div>
                   <div className="flex-1 text-left">
                     <h4 className="text-[12px] font-bold leading-tight flex items-center gap-1 text-slate-950">
-                      reelflow_ai
+                      startprofile_ai
                       {/* Verified Badge */}
                       <svg className="w-3.5 h-3.5 text-[#0095f6] fill-current shrink-0" viewBox="0 0 24 24">
                         <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.152-.4.238-.83.238-1.29 0-2.07-1.68-3.75-3.75-3.75-.46 0-.89.086-1.29.238C14.95 2.875 13.58 2 12 2c-1.58 0-2.95.875-3.6 2.148-.4-.152-.83-.238-1.29-.238-2.07 0-3.75 1.68-3.75 3.75 0 .46.086.89.238 1.29C2.25 9.55 1.375 10.92 1.375 12.5c0 1.58.875 2.95 2.148 3.6-.152.4-.238.83-.238 1.29 0 2.07 1.68 3.75 3.75 3.75.46 0 .89-.086 1.29-.238C9.05 21.125 10.42 22 12 22c1.58 0 2.95-.875 3.6-2.148.4.152.83.238 1.29.238 2.07 0 3.75-1.68 3.75-3.75 0-.46-.086-.89-.238-1.29 1.273-.65 2.148-2.02 2.148-3.6zm-12.72 4.19l-3.37-3.37 1.41-1.41 1.96 1.96 5.56-5.56 1.41 1.41-6.97 6.97z" />

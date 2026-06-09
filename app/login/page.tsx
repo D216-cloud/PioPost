@@ -17,7 +17,7 @@ export default function LoginPage() {
     setIsLoading(true);
     // Auto-login with mock credentials for seamless demonstration
     const result = await signIn("credentials", {
-      email: "creator@reelflow.com",
+      email: "creator@startprofile.com",
       password: "password123",
       redirect: true,
       callbackUrl: "/dashboard",
@@ -49,7 +49,7 @@ export default function LoginPage() {
     }
 
     if (result?.ok) {
-      toast.success("Welcome back to ReelFlow!");
+      toast.success("Welcome back to StartProfile!");
     }
   };
 

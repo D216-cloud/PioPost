@@ -428,7 +428,7 @@ export function WelcomeOpenerStudio() {
           botResponse = "💰 Here is our pricing structure! We have the Starter plan for beginners, and the Pro plan for scaling creators. Check the pricing section in the sidebar to learn more!";
           break;
         case "collab":
-          botResponse = "🤝 Awesome! We love partnerships. Drop us your media kit or email us at collab@reelflow.ai, and we will get back to you soon!";
+          botResponse = "🤝 Awesome! We love partnerships. Drop us your media kit or email us at collab@startprofile.com, and we will get back to you soon!";
           break;
         case "support":
           botResponse = "🎧 Our support team is online! Describe your issue or query, and our agent will jump into this chat in just a few minutes.";

@@ -14,7 +14,7 @@ interface Comment {
 
 const INITIAL_COMMENTS: Comment[] = [
   { id: 1, user: "fitness_journey", avatar: "FJ", text: "Where can I sign up for the template?", isBot: false },
-  { id: 2, user: "reelflow_ai", avatar: "RF", text: "Hey! Just sent the signup link to your DMs! Check it out 🚀", isBot: true },
+  { id: 2, user: "startprofile_ai", avatar: "RF", text: "Hey! Just sent the signup link to your DMs! Check it out 🚀", isBot: true },
 ];
 
 const NEW_COMMENTS = [
@@ -76,7 +76,7 @@ export function CommentAutomationSection() {
       setTimeout(() => {
         setComments((prev) => [
           ...prev,
-          { id: botReplyId, user: "reelflow_ai", avatar: "RF", text: "", isBot: true, isTyping: true }
+          { id: botReplyId, user: "startprofile_ai", avatar: "RF", text: "", isBot: true, isTyping: true }
         ]);
       }, 1000);
 
@@ -170,10 +170,10 @@ export function CommentAutomationSection() {
                   <div className="flex-1">
                     <p className="text-[11.5px] text-slate-800 leading-snug">
                       <strong className="font-bold text-slate-950 mr-0.5 inline-flex items-center gap-0.5">
-                        reelflow_ai
+                        startprofile_ai
                         <VerifiedBadge />
                       </strong>
-                      Automate your entire presence, comments, and DMs on autopilot. Try ReelFlow free! 👇
+                      Automate your entire presence, comments, and DMs on autopilot. Try StartProfile free! 👇
                     </p>
                   </div>
                 </div>
@@ -236,7 +236,7 @@ export function CommentAutomationSection() {
                 {/* Mock Comment Input Bar */}
                 <div className="px-4 pt-2 shrink-0 border-t border-slate-100 flex items-center gap-2">
                   <div className="flex-1 bg-slate-50 border border-slate-100 rounded-full px-4 py-2 flex items-center text-[10px] text-slate-400 text-left font-medium">
-                    Add a comment for @reelflow_ai...
+                    Add a comment for @startprofile_ai...
                   </div>
                 </div>
 

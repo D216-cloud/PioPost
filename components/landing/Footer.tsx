@@ -49,7 +49,7 @@ export function Footer() {
 
         {/* Copyright */}
         <p className="text-slate-300 text-[12px] font-normal tracking-wide">
-          © {new Date().getFullYear()} ReelFlow. All rights reserved.
+          © {new Date().getFullYear()} StartProfile. All rights reserved.
         </p>
       </div>
     </footer>

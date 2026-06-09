@@ -60,7 +60,7 @@ export default function DashboardLayout({
           </div>
           {/* We import Logo later or just inline text if Logo isn't available in this file. Wait, let's just use text for now to avoid breaking imports, or add the import. I will add the import above using multi_replace instead if needed. For now I'll just put standard text or import Logo. */}
           <span className="font-black tracking-tight text-[17px] text-slate-900">
-            ReelFlow<span className="text-[#a855f7]">.</span>
+            StartProfile<span className="text-[#3b82f6]">.</span>
           </span>
           <div className="w-8" /> {/* spacer for center alignment */}
         </div>

@@ -73,7 +73,7 @@ export function HeroSection() {
               Visual proof
             </span>
             <h3 className="text-xl md:text-2xl font-normal tracking-tight text-slate-800">
-              See what creators are building with ReelFlow
+              See what creators are building with StartProfile
             </h3>
           </div>
 

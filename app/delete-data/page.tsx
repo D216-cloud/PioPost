@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, Trash2 } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Delete My Data | ReelFlow",
+  title: "Delete My Data | StartProfile",
   description: "Request deletion of your account data and connected platform information.",
 };
 
@@ -34,14 +34,14 @@ export default function DeleteDataPage() {
             <h2 className="text-[22px] font-bold text-slate-900">What will be deleted</h2>
             <p>
               We will delete your profile details, saved settings, connected social account references, and other
-              data tied to your ReelFlow account where deletion is technically possible.
+              data tied to your StartProfile account where deletion is technically possible.
             </p>
           </section>
 
           <section className="space-y-4">
             <h2 className="text-[22px] font-bold text-slate-900">How to request deletion</h2>
             <p>
-              Send an email to support@reelflow.com with the subject line "Delete my data" and include the email
+              Send an email to support@startprofile.com with the subject line "Delete my data" and include the email
               address associated with your account. We will review and process your request as quickly as possible.
             </p>
           </section>
@@ -57,7 +57,7 @@ export default function DeleteDataPage() {
 
         <div className="rounded-3xl border border-slate-100 bg-slate-50 p-8">
           <p className="text-[14px] font-medium leading-relaxed text-slate-500">
-            If you need help with a deletion request, contact support@reelflow.com.
+            If you need help with a deletion request, contact support@startprofile.com.
           </p>
         </div>
       </div>

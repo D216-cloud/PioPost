@@ -12,7 +12,7 @@ const COMPARISON_FEATURES = [
     title: "Auto DM",
     description: "Instantly send links, assets, or coupons to anyone who comments a trigger word on your posts.",
     traditional: "No automation / manual DMs",
-    reelflow: "Instant AI Delivery"
+    startprofile: "Instant AI Delivery"
   },
   {
     icon: (
@@ -23,7 +23,7 @@ const COMPARISON_FEATURES = [
     title: "Auto Quick Reply",
     description: "Provide immediate responses to common questions, keeping response rates perfect.",
     traditional: "Hours of delay checking inbox",
-    reelflow: "Contextual AI Reply"
+    startprofile: "Contextual AI Reply"
   },
   {
     icon: (
@@ -36,7 +36,7 @@ const COMPARISON_FEATURES = [
     title: "Auto-Post on Instagram",
     description: "Schedule your videos and Reels to publish automatically at peak traffic times.",
     traditional: "Manual app upload",
-    reelflow: "Set-and-Forget Autopilot"
+    startprofile: "Set-and-Forget Autopilot"
   },
   {
     icon: (
@@ -47,7 +47,7 @@ const COMPARISON_FEATURES = [
     title: "AI Generate Post",
     description: "Write viral hooks, engaging descriptions, and hashtags using our fine-tuned AI model.",
     traditional: "Writer's block / manual typing",
-    reelflow: "1-Click AI Generator"
+    startprofile: "1-Click AI Generator"
   },
   {
     icon: (
@@ -59,7 +59,7 @@ const COMPARISON_FEATURES = [
     title: "Unique Comment Templates",
     description: "Keep replies natural and diverse using randomized dynamic comment sets to avoid bot limits.",
     traditional: "Copy-paste spam / generic replies",
-    reelflow: "Dynamic Custom Templates"
+    startprofile: "Dynamic Custom Templates"
   }
 ];
 
@@ -69,7 +69,7 @@ const TESTIMONIALS = [
     role: "History Channel Creator",
     initials: "JM",
     color: "from-slate-700 to-slate-800",
-    text: "ReelFlow turned my content strategy around completely. My reach exploded by 400% in just one month with almost zero manual effort.",
+    text: "StartProfile turned my content strategy around completely. My reach exploded by 400% in just one month with almost zero manual effort.",
     stars: 5,
   },
   {
@@ -122,7 +122,7 @@ export function FeaturesSection() {
             <div className="hidden md:grid grid-cols-12 gap-6 px-8 py-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
               <div className="col-span-5">Feature & Description</div>
               <div className="col-span-3 text-center">Traditional Methods</div>
-              <div className="col-span-4 text-center">ReelFlow (AI Autopilot)</div>
+              <div className="col-span-4 text-center">StartProfile (AI Autopilot)</div>
             </div>
 
             {COMPARISON_FEATURES.map((item, i) => (
@@ -158,7 +158,7 @@ export function FeaturesSection() {
                   <span className="text-[12.5px] font-semibold text-slate-500">{item.traditional}</span>
                 </div>
 
-                {/* ReelFlow AI Autopilot */}
+                {/* StartProfile AI Autopilot */}
                 <div className="col-span-1 md:col-span-4 py-3 px-5 bg-gradient-to-tr from-[#f8fafc] to-slate-50/30 rounded-xl border border-slate-200/80 flex items-center gap-2.5 justify-start md:justify-center relative overflow-hidden shadow-sm shadow-slate-100">
                   {/* Subtle left glow border bar */}
                   <div className="absolute left-0 inset-y-0 w-1 bg-gradient-to-b from-[#3b82f6] to-[#ec4899]" />
@@ -168,7 +168,7 @@ export function FeaturesSection() {
                     </svg>
                   </div>
                   <span className="text-[12.5px] font-bold text-slate-900 flex items-center gap-1.5">
-                    {item.reelflow}
+                    {item.startprofile}
                     {/* Verified Badge */}
                     <svg className="w-3.5 h-3.5 text-[#0095f6] fill-current shrink-0 inline-block align-middle" viewBox="0 0 24 24">
                       <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.152-.4.238-.83.238-1.29 0-2.07-1.68-3.75-3.75-3.75-.46 0-.89.086-1.29.238C14.95 2.875 13.58 2 12 2c-1.58 0-2.95.875-3.6 2.148-.4-.152-.83-.238-1.29-.238-2.07 0-3.75 1.68-3.75 3.75 0 .46.086.89.238 1.29C2.25 9.55 1.375 10.92 1.375 12.5c0 1.58.875 2.95 2.148 3.6-.152.4-.238.83-.238 1.29 0 2.07 1.68 3.75 3.75 3.75.46 0 .89-.086 1.29-.238C9.05 21.125 10.42 22 12 22c1.58 0 2.95-.875 3.6-2.148.4.152.83.238 1.29.238 2.07 0 3.75-1.68 3.75-3.75 0-.46-.086-.89-.238-1.29 1.273-.65 2.148-2.02 2.148-3.6zm-12.72 4.19l-3.37-3.37 1.41-1.41 1.96 1.96 5.56-5.56 1.41 1.41-6.97 6.97z" />

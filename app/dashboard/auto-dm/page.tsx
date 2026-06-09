@@ -116,6 +116,7 @@ export default function ReelsPage() {
 
   const [simFollowVerified, setSimFollowVerified] = useState(false);
   const [simCheckingFollow, setSimCheckingFollow] = useState(false);
+  const [mockUserFollows, setMockUserFollows] = useState(false);
 
   // Reset simulator states when requireFollow setting toggles
   useEffect(() => {
@@ -1380,6 +1381,25 @@ export default function ReelsPage() {
                     </div>
                   </div>
 
+                  {/* Simulator Controls */}
+                  <div className="flex items-center justify-between gap-3 w-full max-w-[340px] px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl shrink-0">
+                    <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wide">Mock User Follow Status:</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSimFollowVerified(false);
+                        setMockUserFollows(!mockUserFollows);
+                      }}
+                      className={`px-3 py-1 rounded-full text-[10px] font-extrabold transition-all cursor-pointer ${
+                        mockUserFollows
+                          ? "bg-emerald-100 text-emerald-700 border border-emerald-250"
+                          : "bg-slate-100 text-slate-650 border border-slate-200"
+                      }`}
+                    >
+                      {mockUserFollows ? "Following" : "Not Following"}
+                    </button>
+                  </div>
+
                   {/* Segmented Control Selector */}
                   <div className="flex p-1 bg-slate-150/60 rounded-full w-full max-w-[280px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.03)] border border-slate-200/40 shrink-0">
                     <button
@@ -1487,7 +1507,7 @@ export default function ReelsPage() {
                                   </div>
                                 </div>
                                 <div className="text-center space-y-1">
-                                  <span className="block text-[10px] font-extrabold text-violet-505 uppercase tracking-widest font-black">PioPost AI Sync</span>
+                                  <span className="block text-[10px] font-extrabold text-violet-505 uppercase tracking-widest font-black">StartProfile AI Sync</span>
                                   <span className="block text-[8px] text-slate-400 font-bold">Simulating message stream...</span>
                                 </div>
                               </div>
@@ -1581,7 +1601,12 @@ export default function ReelsPage() {
                                             setSimCheckingFollow(true);
                                             setTimeout(() => {
                                               setSimCheckingFollow(false);
-                                              setSimFollowVerified(true);
+                                              if (mockUserFollows) {
+                                                setSimFollowVerified(true);
+                                                toast.success("Follow verification successful!");
+                                              } else {
+                                                toast.error("User is still not following. Resending follow gate message.");
+                                              }
                                             }, 1200);
                                           }}
                                           disabled={simCheckingFollow || simFollowVerified}
@@ -1629,7 +1654,7 @@ export default function ReelsPage() {
                                     </div>
                                     <div className="bg-gradient-to-tr from-[#3b82f6] via-[#8b5cf6] to-[#ec4899] text-white text-[10.5px] py-2 px-3 rounded-2xl rounded-tl-xs max-w-[80%] leading-relaxed font-semibold shadow-xs break-words">
                                       {automationMessage
-                                        ? automationMessage.replace(/{first_name}/g, "John").replace(/{link}/g, "piopost.com/get-link 🔗")
+                                        ? automationMessage.replace(/{first_name}/g, "John").replace(/{link}/g, "startprofile.com/get-link 🔗")
                                         : "Hey there! Thanks for your comment. Here is your link... 🚀"}
                                     </div>
                                   </div>

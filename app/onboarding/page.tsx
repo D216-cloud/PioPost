@@ -81,7 +81,7 @@ export default function OnboardingPage() {
               </h2>
               <p className="text-[13.5px] text-slate-500 leading-relaxed mb-8">
                 Select the core vertical of your Instagram account.{" "}
-                <span className="text-[#a855f7] font-semibold">ReelFlow</span>{" "}
+                <span className="text-[#a855f7] font-semibold">StartProfile</span>{" "}
                 adapts its caption style, suggestions, and auto hashtags to your niche automatically.
               </p>
 
@@ -138,7 +138,7 @@ export default function OnboardingPage() {
               </h2>
               <p className="text-[13.5px] text-slate-500 leading-relaxed mb-8">
                 Select your core objectives.{" "}
-                <span className="text-[#a855f7] font-semibold">ReelFlow</span>{" "}
+                <span className="text-[#a855f7] font-semibold">StartProfile</span>{" "}
                 organizes your{" "}
                 <span className="text-[#a855f7] font-semibold">sidebar modules</span>{" "}
                 and default{" "}
@@ -205,7 +205,7 @@ export default function OnboardingPage() {
                 AI Calibration
               </h2>
               <p className="text-[13.5px] text-slate-500 leading-relaxed mb-8">
-                Fine-tune how <span className="text-[#a855f7] font-semibold">ReelFlow</span> creates
+                Fine-tune how <span className="text-[#a855f7] font-semibold">StartProfile</span> creates
                 captions and auto-replies to perfectly match your brand voice.
               </p>
 
@@ -263,7 +263,7 @@ export default function OnboardingPage() {
                   onClick={() => setStage(4)}
                   className="flex-1 py-3.5 bg-gradient-to-r from-[#e84c9f] via-[#b656e3] to-[#5a60f6] text-white text-[14.5px] font-bold rounded-2xl shadow-[0_8px_24px_-4px_rgba(182,86,227,0.35)] transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2"
                 >
-                  Launch ReelFlow
+                  Launch StartProfile
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
                   </svg>

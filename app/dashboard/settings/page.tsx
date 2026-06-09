@@ -232,7 +232,7 @@ export default function SettingsPage() {
                     <div className="w-5 h-5 rounded-md bg-linear-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] flex items-center justify-center">
                       <Instagram size={11} className="text-white" />
                     </div>
-                    <span className="text-[13px] font-bold text-slate-700">ReelFlow</span>
+                    <span className="text-[13px] font-bold text-slate-700">StartProfile</span>
                   </div>
                 </div>
 

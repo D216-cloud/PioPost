@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const logoFont = Pacifico({ subsets: ["latin"], weight: "400", variable: "--font-logo" });
 
 export const metadata: Metadata = {
-  title: "ReelFlow | Automate Your Instagram Growth",
+  title: "StartProfile | Automate Your Instagram Growth",
   description:
     "AI powered reels scheduling, DM automation and engagement tools. Built specifically for creators, digital strategists, and modern brands.",
   keywords: ["social media", "instagram", "reels", "dm automation", "growth tools", "scheduler"],
@@ -16,14 +16,14 @@ export const metadata: Metadata = {
     icon: "/favicon.svg",
   },
   openGraph: {
-    title: "ReelFlow",
+    title: "StartProfile",
     description: "Automate Your Instagram Growth with AI powered reels scheduling and DM automation.",
-    siteName: "ReelFlow",
+    siteName: "StartProfile",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "ReelFlow",
+    title: "StartProfile",
     description: "Automate Your Instagram Growth with AI powered reels scheduling and DM automation.",
   },
 };
