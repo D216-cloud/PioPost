@@ -1599,12 +1599,22 @@ export default function ReelsPage() {
                                           onClick={() => {
                                             if (simCheckingFollow || simFollowVerified) return;
                                             setSimCheckingFollow(true);
+                                            
+                                            const timeStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+                                            console.log(`[${timeStr}] [ACTION] [simulated_user] Button clicked: I'm Following | simulated_user`);
+                                            console.log(`[${timeStr}] [ACTION] [simulated_user] Follow check started | simulated_user`);
+                                            
                                             setTimeout(() => {
                                               setSimCheckingFollow(false);
+                                              const finalTimeStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
                                               if (mockUserFollows) {
                                                 setSimFollowVerified(true);
+                                                console.log(`[${finalTimeStr}] [ACTION] [simulated_user] Follow check result: USER IS FOLLOWING | simulated_user`);
+                                                console.log(`[${finalTimeStr}] [ACTION] [simulated_user] Main message sent successfully | simulated_user`);
                                                 toast.success("Follow verification successful!");
                                               } else {
+                                                console.log(`[${finalTimeStr}] [ACTION] [simulated_user] Follow check result: USER STILL NOT FOLLOWING | simulated_user`);
+                                                console.log(`[${finalTimeStr}] [ACTION] [simulated_user] Follow message resent | simulated_user | attempt_1`);
                                                 toast.error("User is still not following. Resending follow gate message.");
                                               }
                                             }, 1200);
@@ -1616,7 +1626,7 @@ export default function ReelsPage() {
                                               : "text-blue-505 hover:bg-slate-50"
                                           }`}
                                         >
-                                          {simFollowVerified ? "Verified ✓" : "I'm Following"}
+                                          {simCheckingFollow ? "⏳ Checking..." : simFollowVerified ? "Verified ✓" : "I'm Following"}
                                         </button>
                                       </div>
                                     </div>
