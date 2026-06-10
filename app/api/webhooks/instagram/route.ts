@@ -209,7 +209,7 @@ async function handleFollowPostback(
   igBusinessId: string,
   fromButtonClick: boolean = false
 ) {
-  console.log(`[FOLLOW-GATE] ▶️ handleFollowPostback STARTED: user=${senderId}, rule=${ruleId}, comment=${commentId}, fromButton=${fromButtonClick}`);
+  console.log(`[FOLLOW-GATE] ▶️ STEP 3 STARTED: user=${senderId}, rule=${ruleId}, comment=${commentId}, fromButton=${fromButtonClick}`);
   
   try {
     // 1. Fetch the IG account from the business ID
@@ -251,14 +251,14 @@ async function handleFollowPostback(
       // User explicitly clicked "I'm Following" — trust them
       isFollowing = true;
       followVerified = false;
-      console.log(`[FOLLOW-GATE] ✅ User clicked "I'm Following" button — trusting user, skipping API check`);
+      console.log(`[FOLLOW-GATE] 🖱️ STEP 3: User clicked [I'm Following] BUTTON — trusting user, skipping API check`);
     } else {
       // User typed "I'm following" — check API
-      console.log(`[FOLLOW-GATE] 🔄 User typed text — checking follow via API...`);
+      console.log(`[FOLLOW-GATE] 💬 STEP 3: User typed "I'm following" — verifying via Instagram API...`);
       const followCheck = await checkIfUserFollows(senderId, tokenToUse);
       isFollowing = followCheck.follows;
       followVerified = followCheck.verified; // eslint-disable-line @typescript-eslint/no-unused-vars
-      console.log(`[FOLLOW-GATE] 📊 Follow check result: user=${senderId}, follows=${followCheck.follows}, verified=${followCheck.verified}`);
+      console.log(`[FOLLOW-GATE] 📊 STEP 3 RESULT: user=${senderId} follows=${followCheck.follows} (verified=${followCheck.verified})`);
     }
 
     if (isFollowing) {
@@ -284,7 +284,7 @@ async function handleFollowPostback(
         return;
       }
 
-      console.log(`[FOLLOW-GATE] 📤 User is following + no duplicate. SENDING MAIN DM to ${senderId}...`);
+      console.log(`[FOLLOW-GATE] 📤 STEP 4: User is following + no duplicate found. SENDING MAIN DM to ${senderId}...`);
 
       // 4. Send the main DM message!
       let dmText = (rule.dm_message || rule.reply_message || "").toString();
@@ -324,7 +324,7 @@ async function handleFollowPostback(
       });
 
       if (dmResult.success) {
-        console.log(`[FOLLOW-GATE] ✅✅✅ MAIN DM SENT SUCCESSFULLY to user: ${senderId} | rule: ${rule.id} | messageId: ${dmResult.messageId}`);
+        console.log(`[FOLLOW-GATE] ✅✅✅ STEP 4 DONE: MAIN DM SENT SUCCESSFULLY to user: ${senderId} | rule: ${rule.id} | messageId: ${dmResult.messageId}`);
         await supabaseAdmin
           .from("automation_rules")
           .update({
@@ -334,7 +334,7 @@ async function handleFollowPostback(
           })
           .eq("id", rule.id);
       } else {
-        console.error(`[FOLLOW-GATE] ❌ MAIN DM FAILED for user ${senderId}: ${dmResult.error}`);
+        console.error(`[FOLLOW-GATE] ❌ STEP 4 FAILED: MAIN DM could not be sent to ${senderId}: ${dmResult.error}`);
       }
     } else {
       // Log verification failure
@@ -361,7 +361,7 @@ async function handleFollowPostback(
           { type: "postback", title: "I'm Following", payload: `check_follow:${ruleId}:${commentId}` }
         ]
       );
-      console.log(`[FOLLOW-GATE] ⚠️ User ${senderId} is NOT following yet. Re-sending follow-gate message...`);
+      console.log(`[FOLLOW-GATE] ⚠️ STEP 3 RESULT: User ${senderId} is NOT following yet. Re-sending follow-gate message so they can try again...`);
     }
   } catch (err) {
     console.error("[Webhook] ❌ Exception in handleFollowPostback:", err);
@@ -614,7 +614,7 @@ export async function POST(req: Request) {
         // Handle postback (e.g. check follow status)
         if (msg.postback) {
           const payload = msg.postback.payload;
-          console.log(`[FOLLOW-GATE] 📮 POSTBACK BUTTON CLICKED by user ${senderId}: payload="${payload}"`);
+          console.log(`[FOLLOW-GATE] 📮 STEP 3 TRIGGER: User ${senderId} clicked [I'm Following] BUTTON — payload="${payload}"`);
           if (payload && payload.startsWith("check_follow:")) {
             const parts = payload.split(":");
             const ruleId = parts[1];
@@ -634,7 +634,7 @@ export async function POST(req: Request) {
           
           const cleanText = rawMessageText.trim().toLowerCase();
           if (cleanText === "i am following" || cleanText === "i'm following" || cleanText === "im following" || cleanText === "following") {
-            console.log(`[FOLLOW-GATE] 🔍 User ${senderId} typed "I'm following"! Searching for recent follow-gate log...`);
+            console.log(`[FOLLOW-GATE] 💬 User ${senderId} typed "I'm following" in DM! Searching for recent follow-gate log...`);
             
             // Query the most recent follow-gate automation log for this user (within 24h)
             const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -652,11 +652,11 @@ export async function POST(req: Request) {
             } else if (recentLogs && recentLogs.length > 0) {
               const ruleId = recentLogs[0].automation_id;
               const commentId = recentLogs[0].comment_id;
-              console.log(`[FOLLOW-GATE] ✅ Found follow-gate log: ruleId=${ruleId}, commentId=${commentId}. Now verifying follow status...`);
+              console.log(`[FOLLOW-GATE] 📋 Found follow-gate log: ruleId=${ruleId}, commentId=${commentId}. Now calling handleFollowPostback to verify and send main DM...`);
               
               await handleFollowPostback(senderId, ruleId, commentId, igBusinessId);
             } else {
-              console.log(`[FOLLOW-GATE] ⚠️ No follow-gate log found for user ${senderId} in the last 24h. Cannot verify.`);
+              console.log(`[FOLLOW-GATE] ⚠️ No follow-gate log found for user ${senderId} in last 24h. User may have commented too long ago. Cannot verify.`);
             }
           } else {
             // Welcome Opener DM handler
@@ -852,15 +852,16 @@ export async function POST(req: Request) {
           const shouldAskFollow = rule.require_follow || rule.ask_follow;
           let isFollowing = false;
           if (shouldAskFollow) {
+            console.log(`[FOLLOW-GATE] 🔎 STEP 1: Checking if user ${commenterId} follows the business account...`);
             const followCheck = await checkIfUserFollows(commenterId, tokenToUse);
             isFollowing = followCheck.follows;
-            console.log(`[FOLLOW-GATE] 📊 Initial follow check: user=${commenterId}, follows=${followCheck.follows}, verified=${followCheck.verified}`);
+            console.log(`[FOLLOW-GATE] 📊 STEP 1 RESULT: user=${commenterId} follows=${followCheck.follows} (verified=${followCheck.verified})`);
           }
 
           if (shouldAskFollow && !isFollowing) {
             const baseFollowGateMsg = rule.follow_gate_message || "Hey! Follow me first and I'll send you the link 🙌";
             const followGateMsg = `${baseFollowGateMsg}\n\n✅ Follow my account\n✅ Then reply "I'm following" to get your link!`;
-            console.log(`[Webhook] User ${commenterId} is not following. Sending follow-gate template with buttons directly to comment_id: ${commentId}...`);
+            console.log(`[FOLLOW-GATE] 🚫 STEP 2: User ${commenterId} is NOT following — sending follow-gate message with [Visit Profile] + [I'm Following] buttons...`);
             
             const profileUrl = `https://instagram.com/${igAccount.username}`;
             const dmResult = await sendInstagramDM(
@@ -885,7 +886,8 @@ export async function POST(req: Request) {
             });
 
             if (dmResult.success) {
-              console.log(`[FOLLOW-GATE] 📨 Follow-gate message SENT to user ${commenterId} on comment ${commentId}. Waiting for user to follow...`);
+              console.log(`[FOLLOW-GATE] ✅ STEP 2 DONE: Follow-gate message SENT to user ${commenterId}. ⏳ Waiting for user to follow and click "I'm Following"...`);
+              console.log(`[FOLLOW-GATE] 📋 NEXT: When user clicks [I'm Following] button or types "I'm following", the main DM will be sent.`);
               // Update stats
               await supabaseAdmin
                 .from("automation_rules")
@@ -896,7 +898,7 @@ export async function POST(req: Request) {
                 })
                 .eq("id", rule.id);
             } else {
-              console.error("[Webhook] ❌ Follow-gate DM flow failed for commenter", commenterId, ":", dmResult.error);
+              console.error(`[FOLLOW-GATE] ❌ STEP 2 FAILED: Follow-gate DM could not be sent to ${commenterId}: ${dmResult.error}`);
             }
 
             // Skip sending the main DM since they need to follow first
