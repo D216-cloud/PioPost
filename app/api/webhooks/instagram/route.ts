@@ -1,6 +1,24 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
+// Shared types
+interface IGButton {
+  type: string;
+  url?: string;
+  title: string;
+  payload?: string;
+}
+
+interface QuickReply {
+  label: string;
+}
+
+interface DMRequestBody {
+  recipient: { id: string } | { comment_id: string };
+  message: Record<string, unknown>;
+  access_token: string;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // GET — Meta webhook verification handshake
 // ─────────────────────────────────────────────────────────────────────────────
@@ -120,19 +138,19 @@ async function sendInstagramDM(
   recipient: { id: string } | { comment_id: string },
   message: string,
   accessToken: string,
-  buttonLabelOrButtons?: string | Array<any> | null,
+  buttonLabelOrButtons?: string | Array<IGButton> | null,
   buttonUrl?: string | null
 ): Promise<{ success: boolean; error?: string; messageId?: string }> {
   const url = `https://graph.instagram.com/v21.0/me/messages`;
 
-  let buttonsArray: Array<any> = [];
+  let buttonsArray: Array<IGButton> = [];
   if (Array.isArray(buttonLabelOrButtons)) {
     buttonsArray = buttonLabelOrButtons;
   } else if (typeof buttonLabelOrButtons === "string" && buttonUrl) {
     buttonsArray = [{ type: "web_url", url: buttonUrl, title: buttonLabelOrButtons }];
   }
 
-  let body: any = null;
+  let body: DMRequestBody | null = null;
 
   if (buttonsArray.length > 0) {
     // Generic template message (since Button templates are not supported on Instagram)
@@ -181,14 +199,17 @@ async function sendInstagramDM(
   }
 }
 
-/** Process follow confirmation postback clicks and send the main DM if follow check succeeds */
+/** Process follow confirmation postback clicks and send the main DM.
+ *  @param fromButtonClick - true when triggered by "I'm Following" button postback (trust the user)
+ */
 async function handleFollowPostback(
   senderId: string,
   ruleId: string,
   commentId: string,
-  igBusinessId: string
+  igBusinessId: string,
+  fromButtonClick: boolean = false
 ) {
-  console.log(`[FOLLOW-GATE] ▶️ handleFollowPostback STARTED: user=${senderId}, rule=${ruleId}, comment=${commentId}`);
+  console.log(`[FOLLOW-GATE] ▶️ handleFollowPostback STARTED: user=${senderId}, rule=${ruleId}, comment=${commentId}, fromButton=${fromButtonClick}`);
   
   try {
     // 1. Fetch the IG account from the business ID
@@ -201,7 +222,7 @@ async function handleFollowPostback(
 
     const igAccount = igAccounts?.[0] ?? null;
     if (!igAccount) {
-      console.error("[Webhook] No IG account found for business ID in postback:", igBusinessId);
+      console.error("[FOLLOW-GATE] ❌ No IG account found for business ID:", igBusinessId);
       return;
     }
     
@@ -216,15 +237,29 @@ async function handleFollowPostback(
       .single();
 
     if (!rule) {
-      console.error("[Webhook] Rule not found in postback:", ruleId);
+      console.error("[FOLLOW-GATE] ❌ Rule not found:", ruleId);
       return;
     }
 
-    // 3. Check if user follows now
-    console.log(`[FOLLOW-GATE] 🔄 Checking if user ${senderId} follows the account...`);
-    const followCheck = await checkIfUserFollows(senderId, tokenToUse);
-    const isFollowing = followCheck.follows;
-    console.log(`[FOLLOW-GATE] 📊 Follow check result: user=${senderId}, follows=${followCheck.follows}, verified=${followCheck.verified}`);
+    // 3. Determine if user is following
+    //    - From button click: TRUST the user (they clicked "I'm Following")
+    //    - From text message: check API but be optimistic on failure
+    let isFollowing = false;
+    let followVerified = false;
+
+    if (fromButtonClick) {
+      // User explicitly clicked "I'm Following" — trust them
+      isFollowing = true;
+      followVerified = false;
+      console.log(`[FOLLOW-GATE] ✅ User clicked "I'm Following" button — trusting user, skipping API check`);
+    } else {
+      // User typed "I'm following" — check API
+      console.log(`[FOLLOW-GATE] 🔄 User typed text — checking follow via API...`);
+      const followCheck = await checkIfUserFollows(senderId, tokenToUse);
+      isFollowing = followCheck.follows;
+      followVerified = followCheck.verified; // eslint-disable-line @typescript-eslint/no-unused-vars
+      console.log(`[FOLLOW-GATE] 📊 Follow check result: user=${senderId}, follows=${followCheck.follows}, verified=${followCheck.verified}`);
+    }
 
     if (isFollowing) {
       // Prevent duplicate message delivery (exclude follow-gate and postback verification logs)
@@ -447,15 +482,15 @@ async function handleWelcomeOpenerMessage(
   const rule = rules?.[0] ?? null;
   if (!rule) return;
 
-  let quickReplies: any[] = [];
+  let quickReplies: QuickReply[] = [];
   try {
-    quickReplies = JSON.parse(rule.post_caption || "[]");
+    quickReplies = JSON.parse(rule.post_caption || "[]") as QuickReply[];
   } catch (e) {
     console.error("[Webhook] Failed to parse quick replies JSON:", e);
   }
 
   const matchedButton = quickReplies.find(
-    (btn: any) => btn.label.toLowerCase() === messageText.toLowerCase()
+    (btn: QuickReply) => btn.label.toLowerCase() === messageText.toLowerCase()
   );
 
   if (matchedButton) {
@@ -491,7 +526,7 @@ async function handleWelcomeOpenerMessage(
 
   if (!welcomeText) return;
 
-  const buttons = quickReplies.slice(0, 3).map((btn: any) => ({
+  const buttons = quickReplies.slice(0, 3).map((btn: QuickReply) => ({
     type: "postback",
     title: btn.label,
     payload: `welcome_opener_click:${btn.label}`,
@@ -584,7 +619,7 @@ export async function POST(req: Request) {
             const parts = payload.split(":");
             const ruleId = parts[1];
             const commentId = parts[2];
-            await handleFollowPostback(senderId, ruleId, commentId, igBusinessId);
+            await handleFollowPostback(senderId, ruleId, commentId, igBusinessId, true);
           } else if (payload && payload.startsWith("welcome_opener_click:")) {
             const buttonLabel = payload.replace("welcome_opener_click:", "");
             await handleWelcomeOpenerButtonClick(senderId, buttonLabel, igBusinessId);

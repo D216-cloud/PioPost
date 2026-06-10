@@ -52,6 +52,9 @@ interface InstagramAccount {
   profile_picture_url?: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AutomationRule = Record<string, any>;
+
 type ViewMode = "grid" | "list";
 type FilterType = "ALL" | "ACTIVE_RULES";
 
@@ -96,7 +99,7 @@ export default function ReelsPage() {
   const [media, setMedia] = useState<InstagramMedia[]>([]);
 
   // Automation state
-  const [rules, setRules] = useState<any[]>([]);
+  const [rules, setRules] = useState<AutomationRule[]>([]);
   const [selectedItemForAutomation, setSelectedItemForAutomation] = useState<InstagramMedia | null>(null);
   const [isAutomationModalOpen, setIsAutomationModalOpen] = useState(false);
   const [automationMessage, setAutomationMessage] = useState("");
@@ -120,11 +123,7 @@ export default function ReelsPage() {
   const [simCheckingFollow, setSimCheckingFollow] = useState(false);
   const [mockUserFollows, setMockUserFollows] = useState(false);
 
-  // Reset simulator states when requireFollow setting toggles
-  useEffect(() => {
-    setSimFollowVerified(false);
-    setSimCheckingFollow(false);
-  }, [requireFollow]);
+  // Reset simulator states when requireFollow toggles — handled inline in the toggle onClick
 
 
 
@@ -142,13 +141,16 @@ export default function ReelsPage() {
   // Detect just-connected redirect
   useEffect(() => {
     if (searchParams?.get("connected") === "true") {
-      setJustConnected(true);
       // Remove param from URL without reload
       window.history.replaceState({}, "", window.location.pathname);
-      // Auto-hide after 5s
-      setTimeout(() => setJustConnected(false), 5000);
+      // Trigger just-connected banner via state update in a microtask
+      queueMicrotask(() => {
+        setJustConnected(true);
+        setTimeout(() => setJustConnected(false), 5000);
+      });
     }
-  }, [searchParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Fetch accounts
   useEffect(() => {
@@ -175,12 +177,67 @@ export default function ReelsPage() {
     }
   }, []);
 
+  const fetchMedia = async (accountId: string, isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+      fetchRules();
+    }
+    else setLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/instagram-posts?accountId=${encodeURIComponent(accountId)}&limit=50`);
+      const { data, error: apiError } = await res.json();
+      if (apiError) throw new Error(apiError);
+      setMedia(data ?? []);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to fetch media.";
+      setError(msg);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
   // Fetch media and rules when account changes
   useEffect(() => {
     if (!selectedAccount) return;
-    fetchMedia(selectedAccount.id);
-    fetchRules();
-  }, [fetchRules, selectedAccount]);
+    let ignore = false;
+
+    // Defer synchronous setState to a microtask (allowed in callbacks)
+    queueMicrotask(() => {
+      if (!ignore) {
+        setLoading(true);
+        setError(null);
+      }
+    });
+
+    fetch(`/api/instagram-posts?accountId=${encodeURIComponent(selectedAccount.id)}&limit=50`)
+      .then((r) => r.json())
+      .then(({ data, error: apiError }) => {
+        if (ignore) return;
+        if (apiError) throw new Error(apiError);
+        setMedia(data ?? []);
+      })
+      .catch((e: unknown) => {
+        if (ignore) return;
+        setError(e instanceof Error ? e.message : "Failed to fetch media.");
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false);
+      });
+
+    fetch("/api/automations")
+      .then((r) => r.json())
+      .then(({ data, error: ruleError }) => {
+        if (ignore) return;
+        if (ruleError) throw new Error(ruleError);
+        setRules(data || []);
+      })
+      .catch((e) => console.error("Failed to fetch automation rules:", e));
+
+    return () => { ignore = true; };
+  }, [selectedAccount]);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -204,27 +261,6 @@ export default function ReelsPage() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [fetchRules, selectedAccount]);
-
-  const fetchMedia = async (accountId: string, isRefresh = false) => {
-    if (isRefresh) {
-      setRefreshing(true);
-      fetchRules();
-    }
-    else setLoading(true);
-    setError(null);
-
-    try {
-      const res = await fetch(`/api/instagram-posts?accountId=${encodeURIComponent(accountId)}&limit=50`);
-      const { data, error: apiError } = await res.json();
-      if (apiError) throw new Error(apiError);
-      setMedia(data ?? []);
-    } catch (e: any) {
-      setError(e.message || "Failed to fetch media.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
 
   const openAutomationModal = (item: InstagramMedia) => {
     const existingRule = rules.find((r) => r.post_id === item.id);
@@ -324,8 +360,9 @@ export default function ReelsPage() {
 
       await fetchRules();
       setIsAutomationModalOpen(false);
-    } catch (e: any) {
-      toast.error(e.message || "Failed to save automation.");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to save automation.";
+      toast.error(msg);
     } finally {
       setSavingAutomation(false);
     }
@@ -343,14 +380,15 @@ export default function ReelsPage() {
       toast.success("Automation deleted successfully!");
       await fetchRules();
       setIsAutomationModalOpen(false);
-    } catch (e: any) {
-      toast.error(e.message || "Failed to delete automation.");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to delete automation.";
+      toast.error(msg);
     } finally {
       setSavingAutomation(false);
     }
   };
 
-  const handleToggleRuleActive = async (rule: any) => {
+  const handleToggleRuleActive = async (rule: AutomationRule) => {
     try {
       const res = await fetch("/api/automations", {
         method: "PATCH",
@@ -372,8 +410,9 @@ export default function ReelsPage() {
       if (error) throw new Error(error);
       toast.success(`Automation ${!rule.active ? "activated" : "paused"} successfully!`);
       await fetchRules();
-    } catch (e: any) {
-      toast.error(e.message || "Failed to toggle automation.");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to toggle automation.";
+      toast.error(msg);
     }
   };
 
@@ -387,8 +426,9 @@ export default function ReelsPage() {
       if (error) throw new Error(error);
       toast.success("Automation deleted successfully!");
       await fetchRules();
-    } catch (e: any) {
-      toast.error(e.message || "Failed to delete automation.");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to delete automation.";
+      toast.error(msg);
     }
   };
 
@@ -538,9 +578,9 @@ export default function ReelsPage() {
             <h3 className="text-[18px] font-bold text-slate-900 mb-1">No Instagram Account Connected</h3>
             <p className="text-[13.5px] text-slate-500 max-w-xs mx-auto">Connect your Instagram account to view and manage your media here.</p>
           </div>
-          <a href="/api/auth/instagram/link" className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#e84c9f] via-[#b656e3] to-[#5a60f6] text-white text-[13.5px] font-bold rounded-full shadow-[0_8px_20px_-4px_rgba(182,86,227,0.25)] transition-all hover:scale-[1.01]">
+          <Link href="/api/auth/instagram/link" className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#e84c9f] via-[#b656e3] to-[#5a60f6] text-white text-[13.5px] font-bold rounded-full shadow-[0_8px_20px_-4px_rgba(182,86,227,0.25)] transition-all hover:scale-[1.01]">
             Connect Instagram
-          </a>
+          </Link>
         </div>
       )}
 
@@ -864,7 +904,7 @@ export default function ReelsPage() {
                         {search ? `No active automations for "${search}"` : "No active Auto-DM rules yet."}
                       </p>
                       <p className="text-[13px] text-slate-400 max-w-xs leading-relaxed font-medium">
-                        Select a post from the "All Posts" tab to configure your first automated trigger.
+                        Select a post from the &ldquo;All Posts&rdquo; tab to configure your first automated trigger.
                       </p>
                     </div>
                   );
@@ -1309,7 +1349,11 @@ export default function ReelsPage() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => setRequireFollow(!requireFollow)}
+                        onClick={() => {
+                          setRequireFollow(!requireFollow);
+                          setSimFollowVerified(false);
+                          setSimCheckingFollow(false);
+                        }}
                         className={`w-10 h-5.5 rounded-full relative transition-all duration-300 flex-shrink-0 cursor-pointer ${
                           requireFollow
                             ? "bg-slate-900"
