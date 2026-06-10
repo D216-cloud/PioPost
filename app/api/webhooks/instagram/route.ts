@@ -191,13 +191,6 @@ async function handleFollowPostback(
     
     const tokenToUse = igAccount.access_token;
 
-    // Send a status message first
-    await sendInstagramDM(
-      { id: senderId },
-      "Checking your follow status... ⏳",
-      tokenToUse
-    );
-
     // 2. Fetch the automation rule
     const { data: rule } = await supabaseAdmin
       .from("automation_rules")
@@ -217,13 +210,15 @@ async function handleFollowPostback(
     console.log(`[Webhook] [DEBUG] Follow check result for user: ${senderId} - isFollowing: ${isFollowing}`);
 
     if (isFollowing) {
-      // Prevent duplicate message delivery
+      // Prevent duplicate message delivery (exclude follow-gate and postback verification logs)
       const { data: alreadySent } = await supabaseAdmin
         .from("automation_logs")
         .select("id")
         .eq("automation_id", rule.id)
         .eq("instagram_user_id", senderId)
         .eq("dm_sent", true)
+        .not("comment_text", "ilike", "%[Follow Gate]%")
+        .not("comment_text", "ilike", "%[Postback Follow Verification]%")
         .limit(1);
 
       if (alreadySent && alreadySent.length > 0) {
@@ -586,11 +581,14 @@ export async function POST(req: Request) {
           if (cleanText === "i am following" || cleanText === "i'm following" || cleanText === "im following" || cleanText === "following") {
             console.log(`[Webhook] 🔍 User ${senderId} sent follow verification text. Searching database for recent follow-gate logs...`);
             
-            // Query the most recent automation log for this user to find which rule/comment is active
+            // Query the most recent follow-gate automation log for this user (within 24h)
+            const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
             const { data: recentLogs, error: recentLogsErr } = await supabaseAdmin
               .from("automation_logs")
               .select("automation_id, comment_id")
               .eq("instagram_user_id", senderId)
+              .like("comment_text", "[Follow Gate]%")
+              .gte("created_at", since24h)
               .order("created_at", { ascending: false })
               .limit(1);
                
@@ -822,10 +820,10 @@ export async function POST(req: Request) {
             await supabaseAdmin.from("automation_logs").insert({
               automation_id: rule.id,
               instagram_user_id: commenterId,
-              comment_text: commentText,
+              comment_text: `[Follow Gate] ${commentText}`,
               comment_id: commentId,
-              dm_sent: dmResult.success,
-              dm_sent_at: dmResult.success ? new Date().toISOString() : null,
+              dm_sent: false,  // Follow-gate only — main DM not yet sent
+              dm_sent_at: null,
               error_message: dmResult.error ?? null,
             });
 

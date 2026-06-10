@@ -113,6 +113,8 @@ export default function ReelsPage() {
   const [previewTab, setPreviewTab] = useState<"dm" | "comment">("dm");
   const [simStep, setSimStep] = useState<"load-data" | "user-typing" | "user-sent" | "creator-typing" | "creator-sent">("creator-sent");
   const [dmType, setDmType] = useState<"message_only" | "comment_only">("message_only");
+  const [dmButtonLabel, setDmButtonLabel] = useState("");
+  const [dmButtonUrl, setDmButtonUrl] = useState("");
 
   const [simFollowVerified, setSimFollowVerified] = useState(false);
   const [simCheckingFollow, setSimCheckingFollow] = useState(false);
@@ -237,6 +239,8 @@ export default function ReelsPage() {
       setRequireFollow(Boolean(existingRule.require_follow));
       setFollowGateMessage(existingRule.follow_gate_message || "Hey! Follow me first and I'll send you the link 🙌");
       setDmType(existingRule.dm_type === "comment_only" ? "comment_only" : "message_only");
+      setDmButtonLabel(existingRule.dm_button_label || "");
+      setDmButtonUrl(existingRule.dm_button_url || "");
       
       const matchedPreset = AUTOMATION_PRESETS.findIndex(p => p.message === existingRule.dm_message);
       setActivePresetIndex(matchedPreset !== -1 ? matchedPreset : 0);
@@ -278,6 +282,9 @@ export default function ReelsPage() {
             comment_reply_text: autoReplyComment ? commentReplyText : null,
             require_follow: requireFollow,
             follow_gate_message: requireFollow ? followGateMessage : null,
+            dm_type: dmType,
+            dm_button_label: dmButtonLabel || null,
+            dm_button_url: dmButtonUrl || null,
           }),
         });
 
@@ -304,6 +311,9 @@ export default function ReelsPage() {
             rule_name: `Auto-DM: ${selectedItemForAutomation.caption ? selectedItemForAutomation.caption.substring(0, 20) : selectedItemForAutomation.id}`,
             require_follow: requireFollow,
             follow_gate_message: requireFollow ? followGateMessage : null,
+            dm_type: dmType,
+            dm_button_label: dmButtonLabel || null,
+            dm_button_url: dmButtonUrl || null,
           }),
         });
 
