@@ -788,7 +788,12 @@ export async function POST(req: Request) {
           }
 
           // ── Comment Only Mode ────────────────────────────────────────────
-          if (rule.dm_type === "comment_only") {
+          // Detect comment-only mode either by explicit dm_type or by data shape
+          const dmMessageEmpty = !rule.dm_message && !rule.reply_message;
+          const hasCommentReply = !!(rule.comment_reply_text || rule.auto_reply_text || rule.auto_reply_comment);
+          const isCommentOnly = rule.dm_type === "comment_only" || (dmMessageEmpty && hasCommentReply);
+
+          if (isCommentOnly) {
             console.log(`[Webhook] ✅ Rule "${rule.rule_name || rule.name}" matched! [Comment Only Mode]`);
             const commentReplyText = (rule.comment_reply_text || rule.auto_reply_text || rule.dm_message || rule.reply_message || "").toString().trim();
             if (commentReplyText) {

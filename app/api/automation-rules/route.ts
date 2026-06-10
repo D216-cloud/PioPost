@@ -20,7 +20,8 @@ function mapCompatibilityPayload(body: Record<string, any>) {
   if (body.instagram_media_id && !mapped.post_id) {
     mapped.post_id = body.instagram_media_id;
   }
-  if (body.reply_message && !mapped.dm_message) {
+  // Only copy reply_message -> dm_message when NOT in comment-only mode
+  if (body.reply_message && !mapped.dm_message && body.dm_type !== "comment_only") {
     mapped.dm_message = body.reply_message;
   }
   if (body.post_thumbnail && !mapped.post_thumbnail_url) {

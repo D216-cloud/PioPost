@@ -349,7 +349,7 @@ export function QuickRepliesStudio() {
         keyword_mode: "any",
         keywords: [],
         trigger_keyword: "Any comment",
-        reply_message: "",
+        reply_message: replyMessage || selectedTemplate.message,
         dm_message: "",
         comment_reply_text: replyMessage || selectedTemplate.message,
         auto_reply_comment: true,

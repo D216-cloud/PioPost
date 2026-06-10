@@ -31,8 +31,8 @@ export function HeroSection() {
           </div>
 
           {/* Title */}
-          <h1 className="mt-8 text-[36px] md:text-[72px] font-normal tracking-tight text-slate-900 leading-[1.05] max-w-4xl mx-auto text-center animate-in fade-in slide-in-from-bottom-4 duration-1000">
-            Automate Your <br className="hidden sm:block" /> Instagram Growth
+          <h1 className="mt-8 text-[36px] md:text-[72px] font-normal tracking-tight text-slate-900 leading-[1.15] max-w-4xl mx-auto text-center animate-in fade-in slide-in-from-bottom-4 duration-1000">
+            Automate Your <br className="hidden sm:block" /> <span className="relative inline-block">Instagram Growth<svg className="absolute left-0 w-full" style={{bottom:'-8px', height:'12px'}} viewBox="0 0 300 12" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"><path d="M2 8 Q150 0 298 8" stroke="#3b82f6" strokeWidth="4" strokeLinecap="round" fill="none"/></svg></span>
           </h1>
 
           {/* Description */}
