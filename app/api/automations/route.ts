@@ -68,7 +68,7 @@ export async function POST(req: Request) {
     } = body;
 
     // Validate required fields
-    if (!instagram_account_id || !post_id || (dm_type === "comment_only" ? !comment_reply_text : !dm_message)) {
+    if (!instagram_account_id || (dm_type === "comment_only" ? !comment_reply_text : !dm_message)) {
       return NextResponse.json(
         { error: dm_type === "comment_only" ? "Comment reply text is required" : "DM message is required" },
         { status: 400 }
@@ -92,7 +92,7 @@ export async function POST(req: Request) {
       .insert({
         user_id: session.user.id,
         instagram_account_id,
-        post_id,
+        post_id: post_id || null,
         post_type: post_type || "POST",
         post_thumbnail_url,
         post_caption,

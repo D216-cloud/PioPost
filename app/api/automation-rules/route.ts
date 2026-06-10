@@ -33,23 +33,37 @@ function mapCompatibilityPayload(body: Record<string, any>) {
 }
 
 async function insertAutomationRule(payload: Record<string, unknown>) {
-  const { data, error } = await supabaseAdmin
-    .from('automation_rules')
-    .insert(payload)
-    .select()
-    .single();
+  let currentPayload = payload;
 
-  if (error) {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const { data, error } = await supabaseAdmin
+      .from('automation_rules')
+      .insert(currentPayload)
+      .select()
+      .single();
+
+    if (!error) return { data, error: null };
+
     console.error("Supabase insert error details:", error);
-    const errorMsg = error instanceof Error 
-      ? error.message 
+    const errorMsg = error instanceof Error
+      ? error.message
       : (typeof error === 'object' && error !== null && 'message' in error)
         ? String((error as any).message)
         : String(error);
-    return { data: null, error: new Error(errorMsg) };
+
+    const unsupportedField = getUnsupportedFieldFromSchemaError(errorMsg);
+    if (!unsupportedField || !(unsupportedField in currentPayload)) {
+      return { data: null, error: new Error(errorMsg) };
+    }
+
+    console.warn(`Stripping unsupported field '${unsupportedField}' from insert payload`);
+    currentPayload = stripUnsupportedField(currentPayload, unsupportedField);
   }
 
-  return { data, error: null };
+  return {
+    data: null,
+    error: new Error('Failed to insert automation rule after removing unsupported schema fields'),
+  };
 }
 
 async function updateAutomationRule(id: string, userId: string, payload: Record<string, unknown>) {

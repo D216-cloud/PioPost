@@ -297,11 +297,48 @@ export default function ReelsPage() {
     setIsAutomationModalOpen(true);
   };
 
+  const openGlobalAutomationModal = () => {
+    const existingGlobalRule = rules.find((r) => !r.post_id);
+    setSelectedItemForAutomation(null);
+    if (existingGlobalRule) {
+      setAutomationMessage(existingGlobalRule.dm_type === "comment_only" ? (existingGlobalRule.comment_reply_text || "") : (existingGlobalRule.dm_message || ""));
+      setAutomationActive(existingGlobalRule.active);
+      setAutomationKeywordMode(existingGlobalRule.keyword_mode || "any");
+      setAutomationKeywords(existingGlobalRule.keywords || []);
+      setAutoReplyComment(Boolean(existingGlobalRule.auto_reply_comment));
+      setCommentReplyText(existingGlobalRule.comment_reply_text || "Thanks for the comment! Link is in bio 📩");
+      setRequireFollow(Boolean(existingGlobalRule.require_follow));
+      setFollowGateMessage(existingGlobalRule.follow_gate_message || "Hey! Follow me first and I'll send you the link 🙌");
+      setDmType(existingGlobalRule.dm_type === "comment_only" ? "comment_only" : "message_only");
+      setDmButtonLabel(existingGlobalRule.dm_button_label || "");
+      setDmButtonUrl(existingGlobalRule.dm_button_url || "");
+      
+      const matchedPreset = AUTOMATION_PRESETS.findIndex(p => p.message === existingGlobalRule.dm_message);
+      setActivePresetIndex(matchedPreset !== -1 ? matchedPreset : 0);
+    } else {
+      setAutomationMessage(AUTOMATION_PRESETS[1].message);
+      setAutomationActive(true);
+      setAutomationKeywordMode("any");
+      setAutomationKeywords([]);
+      setAutoReplyComment(false);
+      setCommentReplyText("Thanks for the comment! Link is in bio 📩");
+      setRequireFollow(false);
+      setFollowGateMessage("Hey! Follow me first and I'll send you the link 🙌");
+      setDmType("message_only");
+      setActivePresetIndex(1);
+    }
+    setKeywordInput("");
+    setIsAutomationModalOpen(true);
+  };
+
   const handleSaveAutomation = async () => {
-    if (!selectedAccount || !selectedItemForAutomation) return;
+    if (!selectedAccount) return;
     setSavingAutomation(true);
 
-    const existingRule = rules.find((r) => r.post_id === selectedItemForAutomation.id);
+    const isGlobal = !selectedItemForAutomation;
+    const existingRule = isGlobal
+      ? rules.find((r) => !r.post_id)
+      : rules.find((r) => r.post_id === selectedItemForAutomation.id);
 
     try {
       if (existingRule) {
@@ -333,18 +370,20 @@ export default function ReelsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             instagram_account_id: selectedAccount.id,
-            post_id: selectedItemForAutomation.id,
-            post_type: "REEL",
-            post_thumbnail_url: getThumb(selectedItemForAutomation),
-            post_caption: selectedItemForAutomation.caption || "",
-            post_permalink: selectedItemForAutomation.permalink,
+            post_id: isGlobal ? null : selectedItemForAutomation.id,
+            post_type: isGlobal ? "ALL" : "REEL",
+            post_thumbnail_url: isGlobal ? null : getThumb(selectedItemForAutomation),
+            post_caption: isGlobal ? "" : (selectedItemForAutomation.caption || ""),
+            post_permalink: isGlobal ? null : selectedItemForAutomation.permalink,
             keyword_mode: automationKeywordMode,
             keywords: automationKeywordMode === "specific" ? automationKeywords : [],
             dm_message: automationMessage,
             active: automationActive,
             auto_reply_comment: autoReplyComment,
             comment_reply_text: autoReplyComment ? commentReplyText : null,
-            rule_name: `Auto-DM: ${selectedItemForAutomation.caption ? selectedItemForAutomation.caption.substring(0, 20) : selectedItemForAutomation.id}`,
+            rule_name: isGlobal
+              ? "Auto-Reply: All Reels & Posts"
+              : `Auto-DM: ${selectedItemForAutomation.caption ? selectedItemForAutomation.caption.substring(0, 20) : selectedItemForAutomation.id}`,
             require_follow: requireFollow,
             follow_gate_message: requireFollow ? followGateMessage : null,
             dm_type: dmType,
@@ -355,7 +394,7 @@ export default function ReelsPage() {
 
         const { error } = await res.json();
         if (error) throw new Error(error);
-        toast.success("Automation created successfully!");
+        toast.success(isGlobal ? "Global auto-reply created!" : "Automation created successfully!");
       }
 
       await fetchRules();
@@ -607,6 +646,16 @@ export default function ReelsPage() {
             </div>
 
             <div className="flex items-center gap-3 ml-auto w-full sm:w-auto justify-between sm:justify-end">
+              {/* Global Auto-Reply Button */}
+              <button
+                onClick={openGlobalAutomationModal}
+                disabled={!selectedAccount}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#e84c9f] via-[#b656e3] to-[#5a60f6] text-white text-[12px] font-bold rounded-full shadow-[0_8px_20px_-4px_rgba(182,86,227,0.25)] transition-all hover:scale-[1.01] disabled:opacity-50 shrink-0"
+              >
+                <Zap size={13} />
+                Auto-Reply All
+              </button>
+
               {/* Search */}
               <div className="relative">
                 <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -1033,7 +1082,7 @@ export default function ReelsPage() {
 
       {/* Auto-DM Automation Modal */}
       <AnimatePresence>
-        {isAutomationModalOpen && selectedItemForAutomation && selectedAccount && (
+        {isAutomationModalOpen && selectedAccount && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             {/* Backdrop */}
             <motion.div
@@ -1394,45 +1443,63 @@ export default function ReelsPage() {
                   
                   {/* Selected Reel Preview Card (Redesigned & Height Increased) */}
                   <div className="w-full p-5 bg-linear-to-br from-violet-50/30 via-white to-fuchsia-50/20 border border-slate-200/80 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.02)] flex gap-4.5 items-start text-left shrink-0 hover:shadow-[0_8px_24px_rgba(124,58,237,0.08)] transition-all duration-300">
-                    <div className="relative w-26 h-36 shrink-0 overflow-hidden rounded-xl bg-slate-100 border border-slate-200/60 shadow-sm group">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={getThumb(selectedItemForAutomation)} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300" />
-                      <span className="absolute bottom-0 inset-x-0 bg-slate-950/70 py-1.5 text-center text-[8.5px] font-black uppercase text-white tracking-widest leading-none">
-                        {selectedItemForAutomation.media_type === "VIDEO" ? "REEL" : "POST"}
-                      </span>
-                    </div>
-                    <div className="min-w-0 flex-1 flex flex-col justify-between h-36 py-0.5">
-                      <div>
-                        <div className="flex items-center gap-1.5 mb-2">
-                          <div className="w-5.5 h-5.5 rounded-full overflow-hidden bg-slate-100 border border-slate-200">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img 
-                              src={selectedAccount.profile_picture_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedAccount.username}`} 
-                              alt="" 
-                              className="w-full h-full object-cover" 
-                            />
-                          </div>
-                          <span className="text-[12px] font-extrabold text-slate-800">@{selectedAccount.username}</span>
+                    {selectedItemForAutomation ? (
+                      <>
+                        <div className="relative w-26 h-36 shrink-0 overflow-hidden rounded-xl bg-slate-100 border border-slate-200/60 shadow-sm group">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={getThumb(selectedItemForAutomation)} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300" />
+                          <span className="absolute bottom-0 inset-x-0 bg-slate-950/70 py-1.5 text-center text-[8.5px] font-black uppercase text-white tracking-widest leading-none">
+                            {selectedItemForAutomation.media_type === "VIDEO" ? "REEL" : "POST"}
+                          </span>
                         </div>
-                        <p className="line-clamp-4 text-[13px] leading-relaxed text-slate-655 font-semibold">
-                          {selectedItemForAutomation.caption || <span className="italic text-slate-400 font-medium">No caption text available.</span>}
-                        </p>
+                        <div className="min-w-0 flex-1 flex flex-col justify-between h-36 py-0.5">
+                          <div>
+                            <div className="flex items-center gap-1.5 mb-2">
+                              <div className="w-5.5 h-5.5 rounded-full overflow-hidden bg-slate-100 border border-slate-200">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img 
+                                  src={selectedAccount.profile_picture_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedAccount.username}`} 
+                                  alt="" 
+                                  className="w-full h-full object-cover" 
+                                />
+                              </div>
+                              <span className="text-[12px] font-extrabold text-slate-800">@{selectedAccount.username}</span>
+                            </div>
+                            <p className="line-clamp-4 text-[13px] leading-relaxed text-slate-655 font-semibold">
+                              {selectedItemForAutomation.caption || <span className="italic text-slate-400 font-medium">No caption text available.</span>}
+                            </p>
+                          </div>
+                          <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                            <span className="text-[10.5px] text-slate-450 font-bold flex items-center gap-1">
+                              <Clock size={12} className="text-slate-400" />
+                              {formatDate(selectedItemForAutomation.timestamp)}
+                            </span>
+                            <a
+                              href={selectedItemForAutomation.permalink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] font-black text-violet-600 hover:text-violet-755 hover:underline transition-colors"
+                            >
+                              View on IG <ExternalLink size={11} />
+                            </a>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex items-center gap-4 w-full">
+                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shrink-0">
+                          <Zap size={28} className="text-white" />
+                        </div>
+                        <div>
+                          <h4 className="text-[15px] font-black text-slate-900">All Reels & Posts</h4>
+                          <p className="text-[12px] text-slate-500 font-semibold mt-0.5">This automation will trigger on every new comment across all your reels and posts.</p>
+                          <span className="inline-flex items-center gap-1 mt-2 px-2.5 py-0.75 bg-violet-50 rounded-full border border-violet-100">
+                            <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
+                            <span className="text-[9px] font-black text-violet-600 uppercase tracking-wider">Global Mode</span>
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                        <span className="text-[10.5px] text-slate-450 font-bold flex items-center gap-1">
-                          <Clock size={12} className="text-slate-400" />
-                          {formatDate(selectedItemForAutomation.timestamp)}
-                        </span>
-                        <a
-                          href={selectedItemForAutomation.permalink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[11px] font-black text-violet-600 hover:text-violet-755 hover:underline transition-colors"
-                        >
-                          View on IG <ExternalLink size={11} />
-                        </a>
-                      </div>
-                    </div>
+                    )}
                   </div>
 
                   {/* Simulator Controls */}
@@ -1786,7 +1853,7 @@ export default function ReelsPage() {
                                       </svg>
                                     </div>
                                     <p className="text-[9.5px] text-slate-550 leading-relaxed font-semibold mt-0.5">
-                                      {selectedItemForAutomation.caption || "Check out our latest update! Drop comments below."}
+                                      {selectedItemForAutomation?.caption || "Check out our latest update! Drop comments below."}
                                     </p>
                                   </div>
                                 </div>
@@ -1911,7 +1978,10 @@ export default function ReelsPage() {
               {/* Footer */}
               <div className="border-t border-slate-100 bg-white pt-6 mt-8 flex items-center justify-between">
                 {(() => {
-                  const existingRule = rules.find((r) => r.post_id === selectedItemForAutomation.id);
+                  const isGlobal = !selectedItemForAutomation;
+                  const existingRule = isGlobal
+                    ? rules.find((r) => !r.post_id)
+                    : rules.find((r) => r.post_id === selectedItemForAutomation?.id);
                   if (existingRule) {
                     return (
                       <button
