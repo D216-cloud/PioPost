@@ -1,424 +1,478 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
+import { useState, useEffect } from "react";
 import {
-  Sparkles,
   Calendar,
-  Share2,
-  ImagePlus,
   ChevronDown,
-  Paperclip,
-  Brain,
+  Bot,
+  MessageCircle,
+  Send,
+  Radio,
+  BarChart2,
+  Settings,
+  ChevronRight,
+  ArrowUpRight,
+  Edit3,
+  Check,
+  User,
+  Star,
+  Activity,
+  Play,
+  HelpCircle,
+  Plus,
+  RefreshCw,
+  MoreVertical,
+  Link as LinkIcon,
+  Flame,
   CheckCircle2,
-  Clock,
-  Shield,
-  Globe2,
+  Lock,
+  Target
 } from "lucide-react";
-import { Manrope, Space_Grotesk } from "next/font/google";
-
-const headingFont = Space_Grotesk({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--font-control-heading",
-});
-
-const bodyFont = Manrope({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-control-body",
-});
-
-const featureCards = [
-  {
-    title: "Auto-generate platform-ready posts",
-    description:
-      "Create optimized copy for Instagram and LinkedIn with consistent brand tone and structured CTAs.",
-    icon: Brain,
-  },
-  {
-    title: "Smart scheduling with guardrails",
-    description:
-      "Queue posts across time zones, auto-avoid overlaps, and keep a healthy publishing cadence.",
-    icon: Calendar,
-  },
-  {
-    title: "Publish with confidence",
-    description:
-      "Approval flows, preview cards, and post checks help you ship without last-minute fixes.",
-    icon: Shield,
-  },
-];
-
-const steps = [
-  {
-    title: "Connect accounts",
-    description: "Link Instagram and LinkedIn once. We keep tokens secure and refresh automatically.",
-    icon: Globe2,
-  },
-  {
-    title: "Generate post draft",
-    description: "Describe your launch or update. We generate a platform-specific version.",
-    icon: Sparkles,
-  },
-  {
-    title: "Schedule and approve",
-    description: "Pick date and time, review the preview, then approve for autopost.",
-    icon: CheckCircle2,
-  },
-];
-
-const plans = [
-  {
-    name: "Starter",
-    price: "$0",
-    description: "For testing autopost basics",
-    items: ["2 scheduled posts/day", "Instagram and LinkedIn", "Basic analytics"],
-    cta: "Stay on Free",
-  },
-  {
-    name: "Growth",
-    price: "$19",
-    description: "For creators and small teams",
-    items: ["30 scheduled posts/day", "AI post generation", "Team approvals"],
-    cta: "Start Growth",
-    featured: true,
-  },
-  {
-    name: "Scale",
-    price: "$49",
-    description: "For agencies and brands",
-    items: ["Unlimited scheduling", "Multi-brand workspaces", "Advanced analytics"],
-    cta: "Talk to Sales",
-  },
-];
+import Link from "next/link";
 
 export default function ControlPostPage() {
-  const [prompt, setPrompt] = useState("Write a post about my new product launch for LinkedIn and Instagram...");
-  const [platform, setPlatform] = useState<"instagram" | "linkedin">("instagram");
-  const [scheduleDate, setScheduleDate] = useState("");
-  const [scheduleTime, setScheduleTime] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [account, setAccount] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [automations, setAutomations] = useState([
+    { id: 1, name: "Giveaway Campaign", trigger: 'Trigger: Keyword contains "giveaway"', dmsSent: 452, comments: 89, type: "giveaway", active: true },
+    { id: 2, name: "Link in Bio AutoDM", trigger: 'Trigger: Keyword contains "link"', dmsSent: 320, comments: 156, type: "link", active: true },
+    { id: 3, name: "Reel Engagement", trigger: "Trigger: Comment on specific reels", dmsSent: 289, comments: 67, type: "reel", active: true },
+    { id: 4, name: "Story Mention Auto Reply", trigger: "Trigger: Story mention received", dmsSent: 189, comments: 34, type: "story", active: true },
+    { id: 5, name: "New Follower Welcome", trigger: "Trigger: New follower", dmsSent: 120, comments: 120, type: "follower", active: true },
+  ]);
 
-  const handleGenerate = () => {
-    setIsGenerating(true);
-    // Simulate generation process
-    setTimeout(() => {
-      setIsGenerating(false);
-    }, 2000);
+  useEffect(() => {
+    fetch("/api/instagram/account")
+      .then((res) => {
+        if (res.ok) return res.json();
+        throw new Error("Not connected");
+      })
+      .then((data) => {
+        setAccount(data);
+      })
+      .catch(() => {
+        setAccount(null);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
+
+  const toggleAutomation = (id: number) => {
+    setAutomations((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, active: !item.active } : item
+      )
+    );
   };
 
-  return (
-    <div className={`${bodyFont.className} min-h-screen bg-white pt-28 md:pt-20 text-black`}>
-      <div className="relative overflow-hidden">
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -top-24 left-10 h-64 w-64 rounded-full bg-[#1D4ED8]/25 blur-[120px]" />
-          <div className="absolute top-10 right-10 h-72 w-72 rounded-full bg-[#06B6D4]/20 blur-[140px]" />
-        </div>
-      </div>
+  const filteredAutomations = automations.filter((item) =>
+    item.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-      <section className="relative px-6 pb-20 md:px-8">
-        <div className="mx-auto max-w-7xl">
-          <div className="text-center md:text-left">
-            <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
-              <h1 className={`${headingFont.className} text-3xl font-semibold md:text-4xl`}>
-                AutoPost for Instagram and LinkedIn
-              </h1>
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-black/70">
-                Autopilot
-              </span>
-            </div>
-            <p className="mt-3 text-sm text-black/60 md:text-base">
-              Generate launch posts, approve drafts, and schedule on both platforms in one workflow.
+  if (loading) {
+    return (
+      <div className="flex h-screen bg-[#f8fafc] items-center justify-center">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-[#f8fafc] min-h-screen text-slate-800 font-sans pb-12">
+      <div className="max-w-[1600px] mx-auto px-6 lg:px-8 pt-8 flex flex-col gap-6">
+        
+        {/* ── Header ── */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="text-left">
+            <h1 className="text-[28px] font-bold tracking-tight text-slate-900">AutoDM</h1>
+            <p className="text-sm text-slate-500 font-medium mt-1">
+              Create powerful DM automations that engage your audience 24/7
             </p>
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-              <div className="inline-flex items-center gap-3 rounded-full border border-gray-200 bg-white px-5 py-2.5 text-sm text-gray-700 shadow-md">
-                <span className="font-medium">2 free scheduled posts daily on the Starter plan</span>
-                <span className="h-5 w-px bg-gray-300" />
-                <span className="inline-flex items-center gap-2 font-semibold text-amber-500 hover:text-amber-600 cursor-pointer transition">
-                  <span>Upgrade (Save 30%)</span>
-                </span>
-              </div>
-            </div>
           </div>
 
-          <div className="mt-10 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-            <div className="rounded-[20px] border border-gray-200 bg-white p-5 text-gray-900 sm:p-6 shadow-md">
-              <div className="flex min-h-[200px] flex-col justify-between gap-10">
-              <div className="flex items-start gap-3">
-                <Image
-                  src="/assets/avatar-placeholder.png"
-                  alt="Avatar"
-                  width={40}
-                  height={40}
-                  className="rounded-xl object-cover"
-                />
-                <button className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-gray-50 text-gray-600 transition-colors hover:bg-gray-100">
-                  <ImagePlus size={20} strokeWidth={1.5} />
+          <div className="flex items-center gap-3">
+            <button className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-650 shadow-[0_1px_2px_rgba(0,0,0,0.02)] hover:bg-slate-50 transition-all">
+              <HelpCircle size={14} className="text-slate-400" />
+              <span>How it works?</span>
+            </button>
+            <Link
+              href="/dashboard/control-post/create"
+              className="flex items-center gap-1.5 bg-slate-900 text-white rounded-xl px-4 py-2 text-xs font-bold shadow-md hover:bg-slate-800 transition-all cursor-pointer"
+            >
+              <Plus size={14} />
+              <span>Create New Automation</span>
+            </Link>
+          </div>
+        </div>
+
+        {account ? (
+          /* ── CONNECTED LAYOUT ── */
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+            
+            {/* LEFT 3 COLUMNS: Main Controls & Active Automations */}
+            <div className="lg:col-span-3 flex flex-col gap-6">
+              
+              {/* Connected Instagram Account Card */}
+              <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.01)] flex flex-col gap-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    {/* Avatar Ring Gradient */}
+                    <div className="relative shrink-0 p-[2.5px] rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600">
+                      <div className="p-[2px] bg-white rounded-full">
+                        {account.profile_picture_url ? (
+                          <img
+                            src={account.profile_picture_url}
+                            alt="avatar"
+                            className="w-14 h-14 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center text-slate-700 text-lg font-bold">
+                            M
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-base font-bold text-slate-900">@{account.username || "maheta.deepak"}</p>
+                        {/* Blue Checkmark */}
+                        <div className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center text-white">
+                          <Check size={10} strokeWidth={4} />
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-400 font-semibold mt-1">
+                        Business Account • Connected on May 16, 2025
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-[10px] font-bold border border-emerald-100">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span>Connected</span>
+                    </span>
+                    <button
+                      onClick={() => (window.location.href = "/api/auth/instagram/link")}
+                      className="inline-flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
+                    >
+                      <RefreshCw size={12} className="text-slate-400" />
+                      <span>Reconnect</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="h-px bg-slate-100 w-full" />
+
+                {/* Sub-Access Indicators */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-1">
+                  
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+                      <MessageCircle size={16} fill="currentColor" className="fill-blue-100" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider leading-none">DM Access</p>
+                      <p className="text-xs font-bold text-emerald-600 mt-1 leading-none">Active</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+                      <MessageCircle size={16} fill="currentColor" className="fill-blue-100" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider leading-none">Comments</p>
+                      <p className="text-xs font-bold text-emerald-600 mt-1 leading-none">Active</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-purple-50 flex items-center justify-center text-purple-600 shrink-0">
+                      <Target size={16} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider leading-none">Story Replies</p>
+                      <p className="text-xs font-bold text-emerald-600 mt-1 leading-none">Active</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+                      <User size={16} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider leading-none">Followers</p>
+                      <p className="text-xs font-bold text-emerald-600 mt-1 leading-none">Active</p>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* Active Automations Card */}
+              <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.01)] flex flex-col gap-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <h3 className="text-sm font-bold text-slate-900">Active Automations</h3>
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <input
+                      type="text"
+                      placeholder="Search automations..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="border border-slate-200 bg-white rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-400 transition-all flex-1 sm:flex-initial sm:w-56"
+                    />
+                    <div className="flex items-center gap-1 bg-slate-50 border border-slate-250 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-650 cursor-pointer">
+                      <span>All Status</span>
+                      <ChevronDown size={14} className="text-slate-400" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  {filteredAutomations.map((item) => {
+                    const getIcon = () => {
+                      if (item.type === "giveaway") return <Star size={16} fill="currentColor" className="text-blue-600" />;
+                      if (item.type === "link") return <LinkIcon size={16} className="text-emerald-600" />;
+                      if (item.type === "reel") return <Flame size={16} className="text-orange-600" />;
+                      if (item.type === "story") return <MessageCircle size={16} className="text-purple-600" />;
+                      return <User size={16} className="text-pink-600" />;
+                    };
+
+                    const getBg = () => {
+                      if (item.type === "giveaway") return "bg-blue-50";
+                      if (item.type === "link") return "bg-emerald-50";
+                      if (item.type === "reel") return "bg-orange-50";
+                      if (item.type === "story") return "bg-purple-50";
+                      return "bg-pink-50";
+                    };
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between border border-slate-100 hover:border-slate-200/80 rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.01)] transition-all gap-4"
+                      >
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          <div className={`w-10 h-10 rounded-full ${getBg()} flex items-center justify-center shrink-0`}>
+                            {getIcon()}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs font-bold text-slate-900 leading-none">{item.name}</p>
+                              <span className="inline-flex px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700">
+                                Active
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-400 font-semibold mt-1 truncate">{item.trigger}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between sm:justify-end gap-6 shrink-0 ml-auto sm:ml-0 w-full sm:w-auto border-t sm:border-0 pt-3 sm:pt-0 border-slate-50">
+                          <div className="flex items-center gap-4 text-xs font-bold text-slate-750">
+                            <div className="text-center sm:text-right">
+                              <span className="block text-slate-900">{item.dmsSent}</span>
+                              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">DMs Sent</span>
+                            </div>
+                            <div className="text-center sm:text-right">
+                              <span className="block text-slate-900">{item.comments}</span>
+                              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Comments</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => toggleAutomation(item.id)}
+                              className={`w-9 h-5 rounded-full relative transition-all duration-200 outline-none ${
+                                item.active ? "bg-blue-600" : "bg-slate-200"
+                              }`}
+                            >
+                              <span className={`w-3.5 h-3.5 bg-white rounded-full absolute top-0.75 transition-all duration-200 ${
+                                item.active ? "left-[18px]" : "left-[3px]"
+                              }`} />
+                            </button>
+                            <button className="text-slate-400 hover:text-slate-700 p-1 rounded-lg">
+                              <MoreVertical size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <button className="w-full border border-slate-200 bg-white hover:bg-slate-50 rounded-xl py-2.5 text-xs font-bold text-slate-650 shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all">
+                  View All Automations
                 </button>
-                <div className="flex-1">
-                  <textarea
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    className="w-full resize-none bg-transparent pt-2 text-[15px] font-medium text-gray-900 placeholder:text-gray-400 focus:outline-none"
-                    rows={4}
-                    placeholder="Describe your product launch and goal..."
-                  />
-                  <div className="mt-3 flex flex-wrap items-center gap-3 text-sm font-medium text-gray-600">
-                    <button className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 transition-colors hover:bg-gray-100">
-                      <Brain size={16} className="text-[#818CF8]" />
-                      <span className="text-[#818CF8]">AutoPost Generator</span>
-                      <ChevronDown size={14} className="ml-1 opacity-50" />
-                    </button>
-                    <button className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-gray-50 transition-colors hover:bg-gray-100">
-                      <Paperclip size={16} className="opacity-70" />
-                    </button>
-                  </div>
-                </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm font-medium text-gray-700">
-                  Schedule date
-                  <input
-                    type="date"
-                    value={scheduleDate}
-                    onChange={(e) => setScheduleDate(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-900"
-                  />
-                </label>
-                <label className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm font-medium text-gray-700">
-                  Schedule time
-                  <input
-                    type="time"
-                    value={scheduleTime}
-                    onChange={(e) => setScheduleTime(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-900"
-                  />
-                </label>
-                <label className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm font-medium text-gray-700">
-                  Cadence
-                  <select className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-900">
-                    <option>One-time</option>
-                    <option>Daily</option>
-                    <option>Weekly</option>
-                    <option>Campaign burst</option>
-                  </select>
-                </label>
-                <label className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm font-medium text-gray-700">
-                  Time zone
-                  <select className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-900">
-                    <option>UTC -08:00 Pacific</option>
-                    <option>UTC -05:00 Eastern</option>
-                    <option>UTC +00:00 London</option>
-                    <option>UTC +05:30 India</option>
-                  </select>
-                </label>
-              </div>
+            </div>
 
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex items-center rounded-xl border border-gray-200 bg-gray-50 p-1">
-                    <button
-                      onClick={() => setPlatform("instagram")}
-                      className={`flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
-                        platform === "instagram"
-                          ? "bg-blue-50 text-blue-700"
-                          : "text-gray-600 hover:bg-gray-100"
-                      }`}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
-                      Instagram
-                    </button>
-                    <button
-                      onClick={() => setPlatform("linkedin")}
-                      className={`flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
-                        platform === "linkedin"
-                          ? "bg-blue-50 text-blue-700"
-                          : "text-gray-600 hover:bg-gray-100"
-                      }`}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect width="4" height="12" x="2" y="9"/><circle cx="4" cy="4" r="2"/></svg>
-                      LinkedIn
-                    </button>
-                  </div>
-                  <div className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm font-medium text-gray-600">
-                    <Clock size={16} className="opacity-70" />
-                    Auto-post after approval
+            {/* RIGHT COLUMN: Connection Status, Stats, Progress Bars */}
+            <div className="lg:col-span-1 flex flex-col gap-6">
+              
+              {/* Connection Status Card */}
+              <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.01)] flex flex-col gap-4">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Connection Status</h3>
+                  <div className="flex items-center gap-1.5 mt-2 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-1.5 text-emerald-800 text-[11px] font-bold self-start w-fit">
+                    <CheckCircle2 size={13} className="text-emerald-500 fill-emerald-50" />
+                    <span>All Systems Operational</span>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    onClick={handleGenerate}
-                    disabled={isGenerating}
-                    className="flex items-center gap-2 rounded-xl bg-[#3B82F6] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition-all hover:bg-[#2563EB] disabled:cursor-not-allowed disabled:opacity-70"
-                  >
-                    {isGenerating ? (
-                      <>
-                        <svg className="h-4 w-4 animate-spin text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles size={16} />
-                        Generate & Schedule
-                      </>
-                    )}
+                <div className="space-y-3.5 text-xs font-bold text-slate-750">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-450">Instagram API</span>
+                    <span className="flex items-center gap-1.5 text-emerald-600">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span>Connected</span>
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-450">DM Webhook</span>
+                    <span className="flex items-center gap-1.5 text-emerald-600">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span>Connected</span>
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-450">Comment Webhook</span>
+                    <span className="flex items-center gap-1.5 text-emerald-600">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span>Connected</span>
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-450">Story Webhook</span>
+                    <span className="flex items-center gap-1.5 text-emerald-600">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span>Connected</span>
+                    </span>
+                  </div>
+                </div>
+
+                <div className="h-px bg-slate-50 w-full" />
+
+                <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold">
+                  <span>Last checked: 2 minutes ago</span>
+                  <button className="text-slate-400 hover:text-slate-700 transition-all">
+                    <RefreshCw size={12} />
                   </button>
                 </div>
               </div>
-            </div>
-          </div>
 
-          <div className="rounded-[20px] border border-gray-200 bg-white p-6 shadow-md">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">Preview</p>
-                  <h3 className="mt-1 text-lg font-semibold text-gray-900">
-                    {platform === "instagram" ? "Instagram Post" : "LinkedIn Post"}
-                  </h3>
-                </div>
-                <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-600">
-                  Draft
-                </span>
-              </div>
-              <div className="mt-4 rounded-2xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-700">
-                <p className="font-semibold text-gray-900">New launch: Your Product</p>
-                <p className="mt-2">
-                  We are rolling out a faster way to plan content across Instagram and LinkedIn. Generate the post,
-                  approve, and let autopost handle the rest.
-                </p>
-                <p className="mt-3 text-xs font-semibold text-gray-500">Scheduled: {scheduleDate || "Pick a date"} {scheduleTime || ""}</p>
-              </div>
-              <div className="mt-4 flex flex-col gap-2 text-xs font-semibold text-gray-500">
-                <span>Linked account: Connected</span>
-                <span>Campaign: Product launch</span>
-                <span>Status: Waiting for approval</span>
-              </div>
-              <button className="mt-6 w-full rounded-xl border border-gray-200 bg-gray-50 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100">
-                Review approvals
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="px-6 pb-20 md:px-8">
-        <div className="mx-auto max-w-7xl">
-          <div className="text-center">
-            <h2 className={`${headingFont.className} text-3xl font-semibold`}>Why AutoPost makes launches smoother</h2>
-            <p className="mt-3 text-sm text-black/60 md:text-base">
-              Automate the busywork while keeping approvals and brand quality in your control.
-            </p>
-          </div>
-
-          <div className="mt-10 grid gap-6 md:grid-cols-3">
-            {featureCards.map((card) => {
-              const Icon = card.icon;
-              return (
-                <div
-                  key={card.title}
-                  className="rounded-[24px] border border-black/10 bg-white p-6 shadow-lg shadow-black/5"
-                >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EFF6FF] text-[#1D4ED8]">
-                    <Icon size={20} />
+              {/* Quick Stats (7 Days) Card */}
+              <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.01)] flex flex-col gap-4">
+                <h3 className="text-sm font-bold text-slate-900">Quick Stats (7 Days)</h3>
+                
+                <div className="grid grid-cols-2 gap-3.5">
+                  
+                  <div className="bg-[#f8fafc] border border-slate-100 rounded-xl p-3 text-left">
+                    <span className="block text-[18px] font-black text-slate-900 leading-none">1,250</span>
+                    <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1 leading-none">Total DMs</span>
+                    <span className="block text-[9px] text-emerald-500 font-bold mt-1.5">↑ 24.5%</span>
                   </div>
-                  <h3 className="mt-4 text-lg font-semibold text-black">{card.title}</h3>
-                  <p className="mt-3 text-sm text-black/60">{card.description}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
 
-      <section className="px-6 pb-20 md:px-8">
-        <div className="mx-auto max-w-7xl">
-          <div className="text-center">
-            <h2 className={`${headingFont.className} text-3xl font-semibold`}>How AutoPost works</h2>
-            <p className="mt-3 text-sm text-black/60 md:text-base">
-              A clear plan after you apply: connect, generate, approve, and schedule.
-            </p>
-          </div>
-          <div className="mt-10 grid gap-6 md:grid-cols-3">
-            {steps.map((step) => {
-              const Icon = step.icon;
-              return (
-                <div key={step.title} className="rounded-[24px] border border-black/10 bg-white p-6 shadow-lg shadow-black/5">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EFF6FF] text-[#1D4ED8]">
-                    <Icon size={20} />
+                  <div className="bg-[#f8fafc] border border-slate-100 rounded-xl p-3 text-left">
+                    <span className="block text-[18px] font-black text-slate-900 leading-none">3,890</span>
+                    <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1 leading-none">Comments</span>
+                    <span className="block text-[9px] text-emerald-500 font-bold mt-1.5">↑ 32.1%</span>
                   </div>
-                  <h3 className="mt-4 text-lg font-semibold text-black">{step.title}</h3>
-                  <p className="mt-3 text-sm text-black/60">{step.description}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
 
-      <section className="px-6 pb-20 md:px-8">
-        <div className="mx-auto max-w-7xl">
-          <div className="text-center">
-            <h2 className={`${headingFont.className} text-3xl font-semibold`}>Choose a plan for autoposting</h2>
-            <p className="mt-3 text-sm text-black/60 md:text-base">
-              Start free and scale when you are ready to schedule more.
-            </p>
-          </div>
-          <div className="mt-10 grid gap-6 lg:grid-cols-3">
-            {plans.map((plan) => (
-              <div
-                key={plan.name}
-                className={`rounded-[26px] border p-6 shadow-lg shadow-black/5 ${
-                  plan.featured
-                    ? "border-blue-200 bg-gradient-to-br from-[#EFF6FF] via-white to-white"
-                    : "border-black/10 bg-white"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-black">{plan.name}</h3>
-                  {plan.featured && (
-                    <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white">Most popular</span>
-                  )}
+                  <div className="bg-[#f8fafc] border border-slate-100 rounded-xl p-3 text-left">
+                    <span className="block text-[18px] font-black text-slate-900 leading-none">24</span>
+                    <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1 leading-none">Active Rules</span>
+                    <span className="block text-[9px] text-emerald-500 font-bold mt-1.5">↑ 14.3%</span>
+                  </div>
+
+                  <div className="bg-[#f8fafc] border border-slate-100 rounded-xl p-3 text-left">
+                    <span className="block text-[18px] font-black text-slate-900 leading-none">18.6%</span>
+                    <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1 leading-none">Conv. Rate</span>
+                    <span className="block text-[9px] text-emerald-500 font-bold mt-1.5">↑ 6.7%</span>
+                  </div>
+
                 </div>
-                <div className="mt-3 text-3xl font-semibold text-black">{plan.price}</div>
-                <p className="mt-2 text-sm text-black/60">{plan.description}</p>
-                <div className="mt-4 space-y-2 text-sm font-semibold text-gray-600">
-                  {plan.items.map((item) => (
-                    <div key={item} className="flex items-center gap-2">
-                      <CheckCircle2 size={16} className="text-blue-600" />
-                      {item}
+              </div>
+
+              {/* Automation Types Progress Card */}
+              <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.01)] flex flex-col gap-4">
+                <h3 className="text-sm font-bold text-slate-900">Automation Types</h3>
+                
+                <div className="space-y-4">
+                  
+                  <div>
+                    <div className="flex justify-between text-xs font-bold text-slate-750 mb-1.5">
+                      <span>Keyword Trigger</span>
+                      <span className="text-slate-900">12</span>
                     </div>
-                  ))}
-                </div>
-                <button className="mt-6 w-full rounded-xl bg-[#2563EB] py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 hover:bg-[#1D4ED8]">
-                  {plan.cta}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                      <div className="bg-blue-500 h-full rounded-full" style={{ width: "80%" }} />
+                    </div>
+                  </div>
 
-      <section className="px-6 pb-20 md:px-8">
-        <div className="mx-auto flex max-w-7xl flex-col items-center gap-4 rounded-[32px] border border-white/10 bg-white px-10 py-12 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#2563EB] text-white">
-            <Share2 size={24} />
+                  <div>
+                    <div className="flex justify-between text-xs font-bold text-slate-750 mb-1.5">
+                      <span>Comment Trigger</span>
+                      <span className="text-slate-900">6</span>
+                    </div>
+                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                      <div className="bg-emerald-500 h-full rounded-full" style={{ width: "40%" }} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-xs font-bold text-slate-750 mb-1.5">
+                      <span>Story Trigger</span>
+                      <span className="text-slate-900">4</span>
+                    </div>
+                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                      <div className="bg-purple-500 h-full rounded-full" style={{ width: "25%" }} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-xs font-bold text-slate-750 mb-1.5">
+                      <span>Follower Trigger</span>
+                      <span className="text-slate-900">2</span>
+                    </div>
+                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                      <div className="bg-orange-500 h-full rounded-full" style={{ width: "12%" }} />
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+
           </div>
-          <h3 className={`${headingFont.className} text-2xl font-semibold`}>Ready to create your next post?</h3>
-          <p className="text-sm text-black/60 md:text-base">
-            Generate, approve, and schedule your launch content across Instagram and LinkedIn.
-          </p>
-          <button className="mt-2 inline-flex items-center gap-2 rounded-full bg-[#2563EB] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/30">
-            <Sparkles size={16} />
-            Start autoposting
-          </button>
-        </div>
-      </section>
+        ) : (
+          /* ── NOT CONNECTED LAYOUT ── */
+          <div className="bg-white rounded-2xl border border-slate-100 p-16 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col items-center gap-6 text-center max-w-2xl mx-auto mt-12">
+            <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center text-slate-300">
+              <Bot size={32} />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 mb-1">No Instagram Account Connected</h3>
+              <p className="text-sm text-slate-500 max-w-sm mx-auto leading-relaxed">
+                Connect your Instagram Business Account to start building powerful DM, comment, and story reply automation rules.
+              </p>
+            </div>
+            <button
+              onClick={() => (window.location.href = "/api/auth/instagram/link")}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#e84c9f] via-[#b656e3] to-[#5a60f6] text-white text-[13.5px] font-bold rounded-full shadow-[0_8px_20px_-4px_rgba(182,86,227,0.25)] transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+            >
+              Connect Instagram Account
+            </button>
+          </div>
+        )}
+
+      </div>
     </div>
   );
 }
