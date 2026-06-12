@@ -34,15 +34,11 @@ export default function ControlPostPage() {
   const [account, setAccount] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [automations, setAutomations] = useState([
-    { id: 1, name: "Giveaway Campaign", trigger: 'Trigger: Keyword contains "giveaway"', dmsSent: 452, comments: 89, type: "giveaway", active: true },
-    { id: 2, name: "Link in Bio AutoDM", trigger: 'Trigger: Keyword contains "link"', dmsSent: 320, comments: 156, type: "link", active: true },
-    { id: 3, name: "Reel Engagement", trigger: "Trigger: Comment on specific reels", dmsSent: 289, comments: 67, type: "reel", active: true },
-    { id: 4, name: "Story Mention Auto Reply", trigger: "Trigger: Story mention received", dmsSent: 189, comments: 34, type: "story", active: true },
-    { id: 5, name: "New Follower Welcome", trigger: "Trigger: New follower", dmsSent: 120, comments: 120, type: "follower", active: true },
-  ]);
+  const [automations, setAutomations] = useState<any[]>([]);
+  const [fetchingAutomations, setFetchingAutomations] = useState(true);
 
   useEffect(() => {
+    // Fetch Instagram Account
     fetch("/api/instagram/account")
       .then((res) => {
         if (res.ok) return res.json();
@@ -57,18 +53,63 @@ export default function ControlPostPage() {
       .finally(() => {
         setLoading(false);
       });
+
+    // Fetch automations
+    fetch("/api/automations")
+      .then((res) => {
+        if (res.ok) return res.json();
+        throw new Error("Failed to fetch automations");
+      })
+      .then((resData) => {
+        setAutomations(resData.data || []);
+      })
+      .catch((err) => {
+        console.error("Error fetching automations:", err);
+      })
+      .finally(() => {
+        setFetchingAutomations(false);
+      });
   }, []);
 
-  const toggleAutomation = (id: number) => {
+  const toggleAutomation = async (id: string | number) => {
+    const item = automations.find((a) => a.id === id);
+    if (!item) return;
+
+    const newActive = !item.active;
+
+    // Optimistic UI update
     setAutomations((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, active: !item.active } : item
-      )
+      prev.map((a) => (a.id === id ? { ...a, active: newActive } : a))
     );
+
+    try {
+      const res = await fetch("/api/automations", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, active: newActive }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to update status");
+      }
+    } catch (err) {
+      console.error("Error toggling automation:", err);
+      // Revert state on failure
+      setAutomations((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, active: item.active } : a))
+      );
+    }
+  };
+
+  const getTriggerDescription = (item: any) => {
+    const kws = item.keywords || [];
+    const kwStr = kws.length > 0 ? ` containing "${kws.join(', ')}"` : ' (any comment)';
+    const targetStr = item.trigger_type === 'all_posts' ? 'Any Reel/Post' : 'Specific Reel/Post';
+    return `Trigger: Comment on ${targetStr}${kwStr}`;
   };
 
   const filteredAutomations = automations.filter((item) =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
+    (item.name || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   if (loading) {
@@ -232,74 +273,101 @@ export default function ControlPostPage() {
                 </div>
 
                 <div className="flex flex-col gap-3">
-                  {filteredAutomations.map((item) => {
-                    const getIcon = () => {
-                      if (item.type === "giveaway") return <Star size={16} fill="currentColor" className="text-blue-600" />;
-                      if (item.type === "link") return <LinkIcon size={16} className="text-emerald-600" />;
-                      if (item.type === "reel") return <Flame size={16} className="text-orange-600" />;
-                      if (item.type === "story") return <MessageCircle size={16} className="text-purple-600" />;
-                      return <User size={16} className="text-pink-600" />;
-                    };
+                  {fetchingAutomations ? (
+                    <div className="flex justify-center items-center py-12">
+                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-slate-800" />
+                    </div>
+                  ) : filteredAutomations.length === 0 ? (
+                    <div className="text-center py-12 border border-dashed border-slate-200 rounded-2xl bg-slate-50/30 flex flex-col items-center justify-center">
+                      <Bot size={36} className="text-slate-350 mx-auto mb-2.5" />
+                      <p className="text-xs font-bold text-slate-800">No automations found</p>
+                      <p className="text-[10px] text-slate-400 font-semibold mt-1">
+                        {searchQuery ? "Try adjusting your search query." : "Get started by creating your first DM automation!"}
+                      </p>
+                      {!searchQuery && (
+                        <Link
+                          href="/dashboard/control-post/create"
+                          className="inline-flex items-center gap-1 bg-slate-900 text-white rounded-xl px-3.5 py-1.5 text-[10px] font-extrabold mt-4 shadow-sm hover:bg-slate-800 transition-all cursor-pointer"
+                        >
+                          <Plus size={12} />
+                          <span>Create Automation</span>
+                        </Link>
+                      )}
+                    </div>
+                  ) : (
+                    filteredAutomations.map((item) => {
+                      const getIcon = () => {
+                        if (item.type === "giveaway") return <Star size={16} fill="currentColor" className="text-blue-600" />;
+                        if (item.type === "link") return <LinkIcon size={16} className="text-emerald-600" />;
+                        if (item.type === "reel") return <Flame size={16} className="text-orange-600" />;
+                        if (item.type === "story") return <MessageCircle size={16} className="text-purple-600" />;
+                        return <User size={16} className="text-pink-600" />;
+                      };
 
-                    const getBg = () => {
-                      if (item.type === "giveaway") return "bg-blue-50";
-                      if (item.type === "link") return "bg-emerald-50";
-                      if (item.type === "reel") return "bg-orange-50";
-                      if (item.type === "story") return "bg-purple-50";
-                      return "bg-pink-50";
-                    };
+                      const getBg = () => {
+                        if (item.type === "giveaway") return "bg-blue-50";
+                        if (item.type === "link") return "bg-emerald-50";
+                        if (item.type === "reel") return "bg-orange-50";
+                        if (item.type === "story") return "bg-purple-50";
+                        return "bg-pink-50";
+                      };
 
-                    return (
-                      <div
-                        key={item.id}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between border border-slate-100 hover:border-slate-200/80 rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.01)] transition-all gap-4"
-                      >
-                        <div className="flex items-center gap-3.5 min-w-0">
-                          <div className={`w-10 h-10 rounded-full ${getBg()} flex items-center justify-center shrink-0`}>
-                            {getIcon()}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <p className="text-xs font-bold text-slate-900 leading-none">{item.name}</p>
-                              <span className="inline-flex px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700">
-                                Active
-                              </span>
+                      return (
+                        <div
+                          key={item.id}
+                          className="flex flex-col sm:flex-row sm:items-center justify-between border border-slate-100 hover:border-slate-200/80 rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.01)] transition-all gap-4"
+                        >
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            <div className={`w-10 h-10 rounded-full ${getBg()} flex items-center justify-center shrink-0`}>
+                              {getIcon()}
                             </div>
-                            <p className="text-[11px] text-slate-400 font-semibold mt-1 truncate">{item.trigger}</p>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="text-xs font-bold text-slate-900 leading-none">{item.name || item.rule_name || "Untitled"}</p>
+                                <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
+                                  item.active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                                }`}>
+                                  {item.active ? "Active" : "Paused"}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-400 font-semibold mt-1 truncate">
+                                {getTriggerDescription(item)}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between sm:justify-end gap-6 shrink-0 ml-auto sm:ml-0 w-full sm:w-auto border-t sm:border-0 pt-3 sm:pt-0 border-slate-50">
+                            <div className="flex items-center gap-4 text-xs font-bold text-slate-750">
+                              <div className="text-center sm:text-right">
+                                <span className="block text-slate-900">{item.dmsSent || 0}</span>
+                                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">DMs Sent</span>
+                              </div>
+                              <div className="text-center sm:text-right">
+                                <span className="block text-slate-900">{item.comments || 0}</span>
+                                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Comments</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              <button
+                                onClick={() => toggleAutomation(item.id)}
+                                className={`w-9 h-5 rounded-full relative transition-all duration-200 outline-none ${
+                                  item.active ? "bg-blue-600" : "bg-slate-200"
+                                }`}
+                              >
+                                <span className={`w-3.5 h-3.5 bg-white rounded-full absolute top-0.75 transition-all duration-200 ${
+                                  item.active ? "left-[18px]" : "left-[3px]"
+                                }`} />
+                              </button>
+                              <button className="text-slate-400 hover:text-slate-700 p-1 rounded-lg">
+                                <MoreVertical size={16} />
+                              </button>
+                            </div>
                           </div>
                         </div>
-
-                        <div className="flex items-center justify-between sm:justify-end gap-6 shrink-0 ml-auto sm:ml-0 w-full sm:w-auto border-t sm:border-0 pt-3 sm:pt-0 border-slate-50">
-                          <div className="flex items-center gap-4 text-xs font-bold text-slate-750">
-                            <div className="text-center sm:text-right">
-                              <span className="block text-slate-900">{item.dmsSent}</span>
-                              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">DMs Sent</span>
-                            </div>
-                            <div className="text-center sm:text-right">
-                              <span className="block text-slate-900">{item.comments}</span>
-                              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Comments</span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3">
-                            <button
-                              onClick={() => toggleAutomation(item.id)}
-                              className={`w-9 h-5 rounded-full relative transition-all duration-200 outline-none ${
-                                item.active ? "bg-blue-600" : "bg-slate-200"
-                              }`}
-                            >
-                              <span className={`w-3.5 h-3.5 bg-white rounded-full absolute top-0.75 transition-all duration-200 ${
-                                item.active ? "left-[18px]" : "left-[3px]"
-                              }`} />
-                            </button>
-                            <button className="text-slate-400 hover:text-slate-700 p-1 rounded-lg">
-                              <MoreVertical size={16} />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  )}
                 </div>
 
                 <button className="w-full border border-slate-200 bg-white hover:bg-slate-50 rounded-xl py-2.5 text-xs font-bold text-slate-650 shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all">

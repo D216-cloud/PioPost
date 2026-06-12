@@ -42,10 +42,18 @@ export default function CreateAutomationPage() {
   const [loadingMedia, setLoadingMedia] = useState(false);
   const [savingRule, setSavingRule] = useState(false);
 
+  // Step 1: Keywords State
+  const [keywords, setKeywords] = useState<string[]>(["GUIDE"]);
+  const [keywordInput, setKeywordInput] = useState("");
+  const [excludeKeywords, setExcludeKeywords] = useState<string[]>([]);
+
   // Step 3: Messages State
   const [commentReplyText, setCommentReplyText] = useState("Thanks for the comment! Check your DMs 📩");
+  const [initialDmMessage, setInitialDmMessage] = useState(
+    "Thanks for commenting! Tap below and I'll send you the access instantly 🚀"
+  );
   const [dmButtonLabel, setDmButtonLabel] = useState("Send Access");
-  const [dmButtonUrl, setDmButtonUrl] = useState("https://example.com/access");
+  const [dmButtonUrl, setDmButtonUrl] = useState("");
   const [mainDmMessage, setMainDmMessage] = useState("Here is your main access link! 🚀");
 
   // Step 3 Simulator State
@@ -77,6 +85,29 @@ export default function CreateAutomationPage() {
   const [enableFollowUp, setEnableFollowUp] = useState(false);
   const [followUpMessage, setFollowUpMessage] = useState("");
   const [followUpDelay, setFollowUpDelay] = useState(60);
+
+  // Keyword tag-pill helpers
+  const addKeyword = (raw: string) => {
+    const kw = raw.trim().replace(/,+$/, "").trim();
+    if (!kw) return;
+    if (keywords.length >= 3) return;
+    if (keywords.map((k) => k.toLowerCase()).includes(kw.toLowerCase())) return;
+    setKeywords((prev) => [...prev, kw]);
+    setKeywordInput("");
+  };
+
+  const removeKeyword = (kw: string) => {
+    setKeywords((prev) => prev.filter((k) => k !== kw));
+  };
+
+  const handleKeywordKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addKeyword(keywordInput);
+    } else if (e.key === "Backspace" && keywordInput === "" && keywords.length > 0) {
+      removeKeyword(keywords[keywords.length - 1]);
+    }
+  };
 
   useEffect(() => {
     fetch("/api/instagram/account")
@@ -158,17 +189,21 @@ export default function CreateAutomationPage() {
     const body = {
       instagram_account_id: account.id,
       name: postId
-        ? `Auto-DM: ${post?.caption ? post.caption.substring(0, 20) : postId}`
-        : "Auto-Reply: All Reels & Posts",
+        ? `Auto-DM: ${post?.caption ? post.caption.substring(0, 30) : postId}`
+        : `Auto-Reply: All Reels & Posts`,
       trigger_type: postId ? "specific_post" : "all_posts",
       specific_post_id: postId || null,
       specific_post_thumbnail: post ? (post.thumbnail_url || post.media_url) : null,
-      trigger_keywords: ["GUIDE", "guide", "access"], // default keywords
-      exclude_keywords: ["spam", "bot"],
+      trigger_keywords: keywords.length > 0 ? keywords : ["GUIDE"],
+      exclude_keywords: excludeKeywords,
       dm_message_text: mainDmMessage,
-      dm_button_text: requireFollow || emailAsk ? null : dmButtonLabel,
-      dm_button_url: requireFollow || emailAsk ? null : dmButtonUrl,
+      // For normal (no-gate) flow: dm_button_text is the "Send Access" postback label
+      dm_button_text: !requireFollow && !emailAsk ? dmButtonLabel : null,
+      dm_button_url: !requireFollow && !emailAsk ? (dmButtonUrl || null) : null,
       dm_message_type: "text",
+      // New 2-step DM flow fields
+      comment_reply_text: commentReplyText,
+      initial_dm_message: !requireFollow && !emailAsk ? initialDmMessage : null,
       
       // follow gate settings
       follow_first_enabled: requireFollow,
@@ -422,11 +457,71 @@ export default function CreateAutomationPage() {
               })}
             </div>
 
+            {/* Keyword Input — shown for comment trigger */}
+            {selectedTrigger === "comment" && (
+              <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-[0_1px_4px_rgba(0,0,0,0.01)] flex flex-col gap-3.5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-extrabold text-slate-900">Trigger Keywords</h3>
+                    <p className="text-[11px] text-slate-400 font-semibold mt-0.5">
+                      Users who comment containing ANY of these keywords will trigger this automation (max 3)
+                    </p>
+                  </div>
+                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                    keywords.length >= 3 ? "bg-orange-50 text-orange-600 border border-orange-100" : "bg-slate-100 text-slate-500"
+                  }`}>
+                    {keywords.length}/3
+                  </span>
+                </div>
+
+                {/* Tag pills + input */}
+                <div className="flex flex-wrap items-center gap-2 border border-slate-200 bg-slate-50/50 rounded-2xl px-3.5 py-2.5 min-h-[44px] focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-500/5 focus-within:bg-white transition-all">
+                  {keywords.map((kw) => (
+                    <span key={kw} className="inline-flex items-center gap-1.5 bg-blue-600 text-white text-[11px] font-bold px-2.5 py-1 rounded-full">
+                      {kw}
+                      <button
+                        type="button"
+                        onClick={() => removeKeyword(kw)}
+                        className="text-white/70 hover:text-white text-xs leading-none cursor-pointer"
+                        aria-label={`Remove keyword ${kw}`}
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                  {keywords.length < 3 && (
+                    <input
+                      type="text"
+                      value={keywordInput}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val.endsWith(",")) {
+                          addKeyword(val.slice(0, -1));
+                        } else {
+                          setKeywordInput(val);
+                        }
+                      }}
+                      onKeyDown={handleKeywordKeyDown}
+                      onBlur={() => addKeyword(keywordInput)}
+                      placeholder={keywords.length === 0 ? "Type keyword, press Enter" : "Add another..."}
+                      className="flex-1 min-w-[120px] bg-transparent text-xs font-bold text-slate-800 placeholder-slate-400 outline-none py-0.5"
+                    />
+                  )}
+                </div>
+
+                <p className="text-[10px] text-slate-400 font-semibold">
+                  💡 Press <kbd className="bg-slate-100 border border-slate-200 rounded px-1 py-0.5 text-[9px] font-mono">Enter</kbd> or <kbd className="bg-slate-100 border border-slate-200 rounded px-1 py-0.5 text-[9px] font-mono">,</kbd> to add a keyword. Leave empty to match all comments.
+                </p>
+              </div>
+            )}
+
             {/* Info Bar */}
             <div className="bg-blue-55/60 border border-blue-100 rounded-2xl p-4 flex items-center gap-3">
               <Info size={18} className="text-blue-500 shrink-0" />
               <p className="text-xs font-semibold text-blue-800">
-                You can set multiple keywords and advanced conditions in the next steps.
+                {selectedTrigger === "comment"
+                  ? `Automation triggers when a comment contains any of your keywords above.`
+                  : "You can set advanced conditions in the next steps."}
               </p>
             </div>
           </div>
@@ -779,41 +874,62 @@ export default function CreateAutomationPage() {
                 )}
               </div>
 
-              {/* Card 4: Initial DM Button (Shown only when no follow first or email ask active) */}
+              {/* Card 4: Initial DM Message (shown only when no gates active) */}
               {!requireFollow && !emailAsk && (
-                <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-[0_2px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_4px_20px_rgba(0,0,0,0.04)] transition-all duration-300 flex items-start gap-4">
+                <div className="bg-white border border-emerald-100 ring-2 ring-emerald-500/5 rounded-3xl p-6 shadow-[0_2px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_4px_20px_rgba(0,0,0,0.04)] transition-all duration-300 flex items-start gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
                     <Bot size={20} className="text-emerald-600" />
                   </div>
                   <div className="flex-1 flex flex-col gap-3.5">
                     <div>
-                      <h4 className="text-[13px] font-extrabold text-slate-900 tracking-tight">Initial DM Button</h4>
+                      <h4 className="text-[13px] font-extrabold text-slate-900 tracking-tight flex items-center gap-1.5">
+                        Initial DM Message
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-black uppercase tracking-wider">Step 1 of 2</span>
+                      </h4>
                       <p className="text-[11px] text-slate-400 font-semibold mt-0.5 leading-relaxed">
-                        Specify the button label and redirect link users see in their greeting DM.
+                        This greeting DM is sent first with a button. When the user clicks the button, the main message is delivered.
                       </p>
                     </div>
+
+                    {/* Initial DM text */}
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[11px] text-slate-550 font-bold">Greeting Message Text *</span>
+                      <textarea
+                        value={initialDmMessage}
+                        onChange={(e) => setInitialDmMessage(e.target.value)}
+                        rows={3}
+                        placeholder="e.g. Thanks for commenting! Tap below and I'll send you the access instantly 🚀"
+                        className="border border-slate-200 bg-slate-50/50 rounded-2xl px-4 py-3 text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-500/40 focus:bg-white transition-all resize-none w-full shadow-inner"
+                      />
+                    </div>
+
+                    {/* Button config */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="flex flex-col gap-1.5">
-                        <span className="text-[11px] text-slate-550 font-bold">Button Label</span>
+                        <span className="text-[11px] text-slate-550 font-bold">Access Button Label *</span>
                         <input
                           type="text"
                           value={dmButtonLabel}
                           onChange={(e) => setDmButtonLabel(e.target.value)}
                           placeholder="e.g. Send Access"
-                          className="border border-slate-200 bg-slate-50/50 rounded-2xl px-4 py-3 text-xs font-bold text-slate-800 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500/40 focus:bg-white transition-all w-full shadow-inner"
+                          className="border border-slate-200 bg-slate-50/50 rounded-2xl px-4 py-3 text-xs font-bold text-slate-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-500/40 focus:bg-white transition-all w-full shadow-inner"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <span className="text-[11px] text-slate-555 font-bold">Redirect URL</span>
+                        <span className="text-[11px] text-slate-555 font-bold">Optional Redirect URL</span>
                         <input
                           type="text"
                           value={dmButtonUrl}
                           onChange={(e) => setDmButtonUrl(e.target.value)}
-                          placeholder="e.g. https://example.com/access"
-                          className="border border-slate-200 bg-slate-50/50 rounded-2xl px-4 py-3 text-xs font-bold text-slate-800 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500/40 focus:bg-white transition-all w-full shadow-inner"
+                          placeholder="Optional: e.g. https://example.com"
+                          className="border border-slate-200 bg-slate-50/50 rounded-2xl px-4 py-3 text-xs font-bold text-slate-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-500/40 focus:bg-white transition-all w-full shadow-inner"
                         />
                       </div>
                     </div>
+
+                    <p className="text-[10px] text-slate-400 font-semibold bg-emerald-50/60 border border-emerald-100/60 rounded-xl px-3 py-2">
+                      💡 When user clicks <strong>"{dmButtonLabel || "Send Access"}"</strong>, the main DM payload below is delivered instantly.
+                    </p>
                   </div>
                 </div>
               )}
@@ -1078,7 +1194,9 @@ export default function CreateAutomationPage() {
                       <>
                         <div className="flex flex-col gap-2 items-start self-start max-w-[85%] animate-in fade-in duration-500 delay-300">
                           <div className="bg-slate-900 border border-slate-850 text-white rounded-2xl rounded-tl-none p-3.5 flex flex-col gap-3 shadow-md w-full">
-                            <p className="leading-relaxed text-slate-200">Thanks for commenting! Click below to send access.</p>
+                            <p className="leading-relaxed text-slate-200">
+                              {initialDmMessage || "Thanks for commenting! Tap below and I'll send you the access instantly 🚀"}
+                            </p>
                             
                             {simStep === "step1" ? (
                               <button
@@ -1147,6 +1265,21 @@ export default function CreateAutomationPage() {
                     </p>
                   </div>
                 </div>
+
+                {selectedTrigger === "comment" && (
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1 bg-white border border-slate-100 p-2.5 rounded-xl">
+                    <span className="text-[10px] text-slate-400 font-bold mr-1 uppercase tracking-wider">Trigger Keywords:</span>
+                    {keywords.length === 0 ? (
+                      <span className="text-[10px] text-slate-500 italic font-semibold">Any comment (empty match)</span>
+                    ) : (
+                      keywords.map((kw, i) => (
+                        <span key={i} className="text-[10px] font-extrabold bg-blue-50 border border-blue-100/50 text-blue-600 px-2 py-0.5 rounded-lg">
+                          {kw}
+                        </span>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Step 2 Review */}
@@ -1210,15 +1343,27 @@ export default function CreateAutomationPage() {
                   </div>
 
                   {!requireFollow && !emailAsk && (
-                    <div className="flex justify-between items-center bg-white border border-slate-100/80 p-3.5 rounded-xl text-left">
-                      <div className="flex flex-col gap-0.5 pr-2">
-                        <span className="text-slate-400 font-bold">DM Button Label</span>
-                        <span className="text-[10px] text-slate-400 font-semibold">Interactive button in greeting DM</span>
+                    <>
+                      <div className="flex justify-between items-start bg-white border border-slate-100/80 p-3.5 rounded-xl text-left">
+                        <div className="flex flex-col gap-0.5 pr-2">
+                          <span className="text-slate-400 font-bold">Initial DM Message</span>
+                          <span className="text-[10px] text-slate-400 font-semibold">Greeting sent with access button</span>
+                        </div>
+                        <span className="text-slate-800 max-w-[320px] text-right italic font-normal bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-xl leading-relaxed text-xs">
+                          "{initialDmMessage || "Thanks for commenting! Tap below and I'll send you the access instantly 🚀"}"
+                        </span>
                       </div>
-                      <span className="text-slate-800 bg-slate-50 border border-slate-100 px-3 py-1 rounded-xl text-xs">
-                        {dmButtonLabel || "Send Access"}
-                      </span>
-                    </div>
+
+                      <div className="flex justify-between items-center bg-white border border-slate-100/80 p-3.5 rounded-xl text-left">
+                        <div className="flex flex-col gap-0.5 pr-2">
+                          <span className="text-slate-400 font-bold">DM Button Label</span>
+                          <span className="text-[10px] text-slate-400 font-semibold">Interactive button in greeting DM</span>
+                        </div>
+                        <span className="text-slate-800 bg-slate-50 border border-slate-100 px-3 py-1 rounded-xl text-xs">
+                          {dmButtonLabel || "Send Access"}
+                        </span>
+                      </div>
+                    </>
                   )}
 
                   <div className="flex justify-between items-start bg-white border border-slate-100/80 p-3.5 rounded-xl text-left">

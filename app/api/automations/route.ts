@@ -104,6 +104,9 @@ export async function POST(req: Request) {
       dm_media_url,
       dm_message_type,
       
+      // 2-step DM flow fields
+      initial_dm_message,
+      
       follow_first_enabled,
       follow_first_opening_message,
       follow_first_btn_label,
@@ -160,6 +163,10 @@ export async function POST(req: Request) {
         dm_button_url: dm_button_url || null,
         dm_media_url: dm_media_url || null,
         dm_message_type: dm_message_type || dm_type || "text",
+        
+        // 2-step DM flow fields
+        comment_reply_text: comment_reply_text || null,
+        initial_dm_message: initial_dm_message || null,
         
         // Follow gate settings
         follow_first_enabled: follow_first_enabled !== undefined ? follow_first_enabled : (require_follow || false),

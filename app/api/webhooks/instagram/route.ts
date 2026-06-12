@@ -357,6 +357,142 @@ async function handleFollowPostback(
   }
 }
 
+/**
+ * Handle "Send Access" postback click in normal (no-gate) flow.
+ * The user clicked the initial DM's postback button, so we now deliver
+ * the main DM payload (dm_message_text) + optional URL access button.
+ */
+async function handleSendAccessPostback(
+  senderId: string,
+  automationId: string,
+  _commentId: string,
+  igBusinessId: string
+) {
+  console.log(`[SEND-ACCESS] postback: user=${senderId}, auto=${automationId}`);
+
+  try {
+    // 1. Fetch IG account
+    const { data: igAccounts } = await supabaseAdmin
+      .from("instagram_accounts")
+      .select("id, user_id, access_token, username")
+      .eq("instagram_business_id", igBusinessId.toString())
+      .order("updated_at", { ascending: false })
+      .limit(1);
+
+    const igAccount = igAccounts?.[0] ?? null;
+    if (!igAccount) {
+      console.warn("[SEND-ACCESS] IG account not found for business ID:", igBusinessId);
+      return;
+    }
+
+    // 2. Fetch automation
+    const { data: automation } = await supabaseAdmin
+      .from("automations")
+      .select("*")
+      .eq("id", automationId)
+      .maybeSingle();
+
+    if (!automation) {
+      console.warn("[SEND-ACCESS] Automation not found:", automationId);
+      return;
+    }
+
+    // 3. If email gate is enabled, transition to email gate instead of delivering payload directly
+    if (automation.email_ask_enabled) {
+      const token = crypto.randomUUID();
+      await supabaseAdmin.from("email_pending_requests").insert({
+        token: token,
+        automation_id: automation.id,
+        commenter_instagram_id: senderId,
+        commenter_username: "[Postback User]",
+        status: "waiting_for_email"
+      });
+
+      const collectionUrl = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/collect-email?token=${token}`;
+      let emailMsgText = automation.email_ask_message ||
+        "📧 Get your free guide! Click here to enter your email:\n\n{link}\n\nYour guide will be sent to your DMs instantly after you submit.";
+
+      if (emailMsgText.includes("{link}")) {
+        emailMsgText = emailMsgText.replace("{link}", collectionUrl);
+      } else {
+        emailMsgText = `${emailMsgText}\n\n${collectionUrl}`;
+      }
+
+      const dmRes = await sendInstagramDM(
+        { id: senderId },
+        emailMsgText,
+        igAccount.access_token,
+        automation.email_ask_btn_label || "Send Guide",
+        collectionUrl
+      );
+
+      await supabaseAdmin.from("automation_logs").insert({
+        automation_id: automation.id,
+        commenter_username: "[Access Postback]",
+        commenter_instagram_id: senderId,
+        comment_text: "[Email Gate Triggered via Send Access postback]",
+        matched_keyword: null,
+        follow_check_passed: false,
+        dm_sent_status: dmRes.success ? "pending" : "failed",
+        error_message: dmRes.error ?? null
+      });
+      return;
+    }
+
+    // 4. Normal path: deliver main DM payload
+    const dmText = (automation.dm_message_text || "").toString().trim();
+    if (!dmText) {
+      console.warn("[SEND-ACCESS] No dm_message_text configured for automation:", automationId);
+      return;
+    }
+
+    const hasUrlButton = !!automation.dm_button_url;
+    // For the main payload we use dm_button_url as a web_url button (access link)
+    // dm_button_text is the postback label used for the initial DM; reuse it here or fallback
+    const urlBtnLabel = automation.dm_button_text || "Access Link";
+
+    const dmResult = await sendInstagramDM(
+      { id: senderId },
+      dmText,
+      igAccount.access_token,
+      hasUrlButton ? urlBtnLabel : null,
+      hasUrlButton ? automation.dm_button_url : null
+    );
+
+    console.log(`[SEND-ACCESS] Main DM sent: success=${dmResult.success}, error=${dmResult.error}`);
+
+    // 5. Log to automation_logs
+    await supabaseAdmin.from("automation_logs").insert({
+      automation_id: automation.id,
+      commenter_username: "[Access Postback]",
+      commenter_instagram_id: senderId,
+      comment_text: "[Main payload delivered via Send Access postback]",
+      matched_keyword: null,
+      follow_check_passed: true,
+      dm_sent_status: dmResult.success ? "sent" : "failed",
+      error_message: dmResult.error ?? null
+    });
+
+    // 6. Update automation statistics
+    if (dmResult.success) {
+      await supabaseAdmin
+        .from("automations")
+        .update({
+          total_success: (automation.total_success || 0) + 1,
+          total_triggers: (automation.total_triggers || 0) + 1
+        })
+        .eq("id", automation.id);
+    } else {
+      await supabaseAdmin
+        .from("automations")
+        .update({ total_failed: (automation.total_failed || 0) + 1 })
+        .eq("id", automation.id);
+    }
+  } catch (err) {
+    console.error("[Webhook] ❌ Error handling send_access postback:", err);
+  }
+}
+
 /** Post a public reply to a comment */
 async function postCommentReply(
   commentId: string,
@@ -432,6 +568,12 @@ export async function POST(req: Request) {
             const autoId = parts[1];
             const commentId = parts[2];
             await handleFollowPostback(senderId, autoId, commentId, igBusinessId, false);
+          } else if (payload && payload.startsWith("send_access:")) {
+            // Normal (no-gate) flow: user clicked "Send Access" postback → deliver main DM
+            const parts = payload.split(":");
+            const autoId = parts[1];
+            const commentId = parts[2] || "";
+            await handleSendAccessPostback(senderId, autoId, commentId, igBusinessId);
           }
           continue;
         }
@@ -534,10 +676,12 @@ export async function POST(req: Request) {
             continue;
           }
 
-          // 4. Public Comment Reply (if configured, send comment reply first)
-          // Since the new table design focuses on DMs, we reply to the comment if possible
-          // We can reply with a default comment or use follow-gate message preview
-          await postCommentReply(commentId, `Thanks for the comment! Check your DMs 📩`, tokenToUse);
+          // 4. Public Comment Reply (use automation.comment_reply_text, fallback to default)
+          await postCommentReply(
+            commentId,
+            (automation.comment_reply_text || "").trim() || "Thanks for the comment! Check your DMs 📩",
+            tokenToUse
+          );
 
           // Helper to trigger email gate
           const triggerEmailGate = async () => {
@@ -665,48 +809,40 @@ export async function POST(req: Request) {
             // --- Only Email Gate active ---
             await triggerEmailGate();
           } else {
-            // --- Normal direct payload DM ---
-            let dmText = (automation.dm_message_text || "").toString().trim();
-            const hasButton = !!automation.dm_button_text && !!automation.dm_button_url;
+            // --- Normal direct payload DM (2-step flow) ---
+            // Step 1: Send initial DM with a "Send Access" postback button.
+            // Step 2: When user clicks the button, handleSendAccessPostback() delivers the main DM.
+            const initialMsg = (automation.initial_dm_message || "").trim() ||
+              "Thanks for commenting! Tap below and I'll send you the access instantly 🚀";
+            const accessBtnLabel = (automation.dm_button_text || "").trim() || "Send Access";
 
-            if (dmText) {
-              const dmResult = await sendInstagramDM(
-                { comment_id: commentId },
-                dmText,
-                tokenToUse,
-                hasButton ? automation.dm_button_text : null,
-                hasButton ? automation.dm_button_url : null
-              );
+            const dmResult = await sendInstagramDM(
+              { comment_id: commentId },
+              initialMsg,
+              tokenToUse,
+              [{ type: "postback", title: accessBtnLabel, payload: `send_access:${automation.id}:${commentId}` }]
+            );
 
-              await supabaseAdmin.from("automation_logs").insert({
-                automation_id: automation.id,
-                commenter_username: commenterUsername,
-                commenter_instagram_id: commenterId,
-                comment_text: commentText,
-                matched_keyword: matchedKeyword,
-                follow_check_passed: true,
-                dm_sent_status: dmResult.success ? "sent" : "failed",
-                error_message: dmResult.error ?? null
-              });
+            // Log as "pending" — success will be counted when postback is received
+            await supabaseAdmin.from("automation_logs").insert({
+              automation_id: automation.id,
+              commenter_username: commenterUsername,
+              commenter_instagram_id: commenterId,
+              comment_text: commentText,
+              matched_keyword: matchedKeyword,
+              follow_check_passed: true,
+              dm_sent_status: dmResult.success ? "pending" : "failed",
+              error_message: dmResult.error ?? null
+            });
 
-              if (dmResult.success) {
-                await supabaseAdmin
-                  .from("automations")
-                  .update({
-                    total_success: (automation.total_success || 0) + 1,
-                    total_triggers: (automation.total_triggers || 0) + 1
-                  })
-                  .eq("id", automation.id);
-              } else {
-                await supabaseAdmin
-                  .from("automations")
-                  .update({
-                    total_failed: (automation.total_failed || 0) + 1,
-                    total_triggers: (automation.total_triggers || 0) + 1
-                  })
-                  .eq("id", automation.id);
-              }
-            }
+            // Update total_triggers (total_success counted in postback handler)
+            await supabaseAdmin
+              .from("automations")
+              .update({
+                total_triggers: (automation.total_triggers || 0) + 1,
+                ...(dmResult.success ? {} : { total_failed: (automation.total_failed || 0) + 1 })
+              })
+              .eq("id", automation.id);
           }
         }
       }
