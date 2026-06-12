@@ -14,6 +14,25 @@ function safeParseJSON(str: any) {
   }
 }
 
+// Extract column name that is missing from schema cache / relation
+function getUnsupportedFieldFromError(message?: string): string | undefined {
+  if (!message) return undefined;
+  
+  // Pattern 1: PostgREST schema cache error
+  const cacheMatch = message.match(/Could not find the '([^']+)' column of 'automations' in the schema cache/);
+  if (cacheMatch) return cacheMatch[1];
+  
+  // Pattern 2: Postgres column does not exist error
+  const existMatch = message.match(/column "([^"]+)" of relation "automations" does not exist/);
+  if (existMatch) return existMatch[1];
+
+  // Pattern 3: Simple column name does not exist
+  const simpleMatch = message.match(/column automations\.([^ ]+) does not exist/);
+  if (simpleMatch) return simpleMatch[1];
+
+  return undefined;
+}
+
 // GET — List all rules for the current user
 export async function GET(req: Request) {
   try {
@@ -147,49 +166,74 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Keywords list cannot exceed 3 items" }, { status: 400 });
     }
 
-    const { data, error } = await supabaseAdmin
-      .from("automations")
-      .insert({
-        profile_id: session.user.id,
-        instagram_account_id,
-        name: name || rule_name || "Untitled Automation",
-        trigger_type: trigger_type || (post_id || specific_post_id ? "specific_post" : "all_posts"),
-        specific_post_id: specific_post_id || post_id || null,
-        specific_post_thumbnail: specific_post_thumbnail || post_thumbnail_url || null,
-        trigger_keywords: finalKeywords,
-        exclude_keywords: exclude_keywords || [],
-        dm_message_text: dm_message_text !== undefined ? dm_message_text : (dm_message || ""),
-        dm_button_text: dm_button_text !== undefined ? dm_button_text : (dm_button_label || null),
-        dm_button_url: dm_button_url || null,
-        dm_media_url: dm_media_url || null,
-        dm_message_type: dm_message_type || dm_type || "text",
-        
-        // 2-step DM flow fields
-        comment_reply_text: comment_reply_text || null,
-        initial_dm_message: initial_dm_message || null,
-        
-        // Follow gate settings
-        follow_first_enabled: follow_first_enabled !== undefined ? follow_first_enabled : (require_follow || false),
-        follow_first_opening_message: follow_first_opening_message || null,
-        follow_first_btn_label: follow_first_btn_label || "Send me the access",
-        follow_check_msg: follow_check_msg || follow_gate_message || null,
-        follow_check_btn1_label: follow_check_btn1_label || "Visit Profile",
-        follow_check_btn2_label: follow_check_btn2_label || "I'm following ✅",
-        
-        // Email gate settings
-        email_ask_enabled: email_ask_enabled || false,
-        email_ask_message: email_ask_message || null,
-        email_ask_btn_label: email_ask_btn_label || "Send Guide to My DMs",
-        
-        // Follow up settings
-        follow_up_enabled: follow_up_enabled || false,
-        follow_up_hours: Number.isInteger(follow_up_hours) ? follow_up_hours : 24,
-        follow_up_message: follow_up_message || null,
-        
-        is_active: is_active !== undefined ? is_active : true
-      })
-      .select()
-      .single();
+    const insertPayload: Record<string, any> = {
+      profile_id: session.user.id,
+      instagram_account_id,
+      name: name || rule_name || "Untitled Automation",
+      trigger_type: trigger_type || (post_id || specific_post_id ? "specific_post" : "all_posts"),
+      specific_post_id: specific_post_id || post_id || null,
+      specific_post_thumbnail: specific_post_thumbnail || post_thumbnail_url || null,
+      trigger_keywords: finalKeywords,
+      exclude_keywords: exclude_keywords || [],
+      dm_message_text: dm_message_text !== undefined ? dm_message_text : (dm_message || ""),
+      dm_button_text: dm_button_text !== undefined ? dm_button_text : (dm_button_label || null),
+      dm_button_url: dm_button_url || null,
+      dm_media_url: dm_media_url || null,
+      dm_message_type: dm_message_type || dm_type || "text",
+      
+      // 2-step DM flow fields
+      comment_reply_text: comment_reply_text || null,
+      initial_dm_message: initial_dm_message || null,
+      
+      // Follow gate settings
+      follow_first_enabled: follow_first_enabled !== undefined ? follow_first_enabled : (require_follow || false),
+      follow_first_opening_message: follow_first_opening_message || null,
+      follow_first_btn_label: follow_first_btn_label || "Send me the access",
+      follow_check_msg: follow_check_msg || follow_gate_message || null,
+      follow_check_btn1_label: follow_check_btn1_label || "Visit Profile",
+      follow_check_btn2_label: follow_check_btn2_label || "I'm following ✅",
+      
+      // Email gate settings
+      email_ask_enabled: email_ask_enabled || false,
+      email_ask_message: email_ask_message || null,
+      email_ask_btn_label: email_ask_btn_label || "Send Guide to My DMs",
+      
+      // Follow up settings
+      follow_up_enabled: follow_up_enabled || false,
+      follow_up_hours: Number.isInteger(follow_up_hours) ? follow_up_hours : 24,
+      follow_up_message: follow_up_message || null,
+      
+      is_active: is_active !== undefined ? is_active : true
+    };
+
+    let currentPayload = { ...insertPayload };
+    let data: any = null;
+    let error: any = null;
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const res = await supabaseAdmin
+        .from("automations")
+        .insert(currentPayload)
+        .select()
+        .single();
+
+      if (!res.error) {
+        data = res.data;
+        error = null;
+        break;
+      }
+
+      error = res.error;
+      const errorMsg = res.error.message || String(res.error);
+      const unsupportedField = getUnsupportedFieldFromError(errorMsg);
+
+      if (unsupportedField && unsupportedField in currentPayload) {
+        console.warn(`[POST /api/automations] Stripping unsupported field: '${unsupportedField}'`);
+        delete currentPayload[unsupportedField];
+      } else {
+        break;
+      }
+    }
 
     if (error) throw error;
 
@@ -237,12 +281,35 @@ export async function PATCH(req: Request) {
     delete dbUpdates.require_follow;
     delete dbUpdates.follow_gate_message;
 
-    const { data, error } = await supabaseAdmin
-      .from("automations")
-      .update(dbUpdates)
-      .eq("id", id)
-      .select()
-      .single();
+    let currentUpdates = { ...dbUpdates };
+    let data: any = null;
+    let error: any = null;
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const res = await supabaseAdmin
+        .from("automations")
+        .update(currentUpdates)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (!res.error) {
+        data = res.data;
+        error = null;
+        break;
+      }
+
+      error = res.error;
+      const errorMsg = res.error.message || String(res.error);
+      const unsupportedField = getUnsupportedFieldFromError(errorMsg);
+
+      if (unsupportedField && unsupportedField in currentUpdates) {
+        console.warn(`[PATCH /api/automations] Stripping unsupported field: '${unsupportedField}'`);
+        delete currentUpdates[unsupportedField];
+      } else {
+        break;
+      }
+    }
 
     if (error) throw error;
 
