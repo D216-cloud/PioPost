@@ -26,7 +26,8 @@ import {
   Flame,
   CheckCircle2,
   Lock,
-  Target
+  Target,
+  Trash2
 } from "lucide-react";
 import Link from "next/link";
 
@@ -98,6 +99,30 @@ export default function ControlPostPage() {
       setAutomations((prev) =>
         prev.map((a) => (a.id === id ? { ...a, active: item.active } : a))
       );
+    }
+  };
+
+  const deleteAutomation = async (id: string | number) => {
+    if (!confirm("Are you sure you want to delete this automation?")) return;
+
+    // Optimistic UI update
+    setAutomations((prev) => prev.filter((a) => a.id !== id));
+
+    try {
+      const res = await fetch(`/api/automations?id=${id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to delete automation");
+      }
+    } catch (err) {
+      console.error("Error deleting automation:", err);
+      alert("Failed to delete automation. Please try again.");
+      // Reload automations from server
+      fetch("/api/automations")
+        .then((res) => res.json())
+        .then((resData) => setAutomations(resData.data || []));
     }
   };
 
@@ -318,9 +343,17 @@ export default function ControlPostPage() {
                           className="flex flex-col sm:flex-row sm:items-center justify-between border border-slate-100 hover:border-slate-200/80 rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.01)] transition-all gap-4"
                         >
                           <div className="flex items-center gap-3.5 min-w-0">
-                            <div className={`w-10 h-10 rounded-full ${getBg()} flex items-center justify-center shrink-0`}>
-                              {getIcon()}
-                            </div>
+                            {item.specific_post_thumbnail ? (
+                              <img
+                                src={item.specific_post_thumbnail}
+                                alt="Post thumbnail"
+                                className="w-10 h-10 rounded-xl object-cover border border-slate-100 shrink-0"
+                              />
+                            ) : (
+                              <div className={`w-10 h-10 rounded-full ${getBg()} flex items-center justify-center shrink-0`}>
+                                {getIcon()}
+                              </div>
+                            )}
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
                                 <p className="text-xs font-bold text-slate-900 leading-none">{item.name || item.rule_name || "Untitled"}</p>
@@ -359,8 +392,12 @@ export default function ControlPostPage() {
                                   item.active ? "left-[18px]" : "left-[3px]"
                                 }`} />
                               </button>
-                              <button className="text-slate-400 hover:text-slate-700 p-1 rounded-lg">
-                                <MoreVertical size={16} />
+                              <button
+                                onClick={() => deleteAutomation(item.id)}
+                                className="text-slate-450 hover:text-red-600 p-1 rounded-lg transition-colors cursor-pointer"
+                                title="Delete Automation"
+                              >
+                                <Trash2 size={16} />
                               </button>
                             </div>
                           </div>

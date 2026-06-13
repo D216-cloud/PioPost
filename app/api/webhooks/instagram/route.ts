@@ -150,7 +150,23 @@ async function sendInstagramDM(
 
   let body: DMRequestBody | null = null;
 
-  if (buttonsArray.length > 0) {
+  // Use quick replies if all buttons are of postback type (avoids clunky template UI and triggers standard messages webhook)
+  const useQuickReplies = buttonsArray.length > 0 && buttonsArray.every(btn => btn.type === "postback");
+
+  if (useQuickReplies) {
+    body = {
+      recipient,
+      message: {
+        text: message,
+        quick_replies: buttonsArray.map(btn => ({
+          content_type: "text",
+          title: btn.title,
+          payload: btn.payload || ""
+        }))
+      },
+      access_token: accessToken,
+    };
+  } else if (buttonsArray.length > 0) {
     const truncatedTitle = message.length > 80 ? message.substring(0, 77) + "..." : message;
     body = {
       recipient,
@@ -553,23 +569,23 @@ export async function POST(req: Request) {
         const igAccount = igAccounts?.[0] ?? null;
         if (!igAccount) continue;
 
-        // Handle button clicks (postbacks)
-        if (msg.postback) {
-          const payload = msg.postback.payload;
-          console.log(`[Webhook] Postback clicked by user ${senderId}: payload="${payload}"`);
+        // Handle button clicks (postbacks) or Quick Replies
+        const payload = msg.postback?.payload || msg.message?.quick_reply?.payload;
+        if (payload) {
+          console.log(`[Webhook] Postback/QuickReply clicked by user ${senderId}: payload="${payload}"`);
           
-          if (payload && payload.startsWith("verify_follow_initial:")) {
+          if (payload.startsWith("verify_follow_initial:")) {
             const parts = payload.split(":");
             const autoId = parts[1];
             const commentId = parts[2];
             await handleFollowPostback(senderId, autoId, commentId, igBusinessId, true);
-          } else if (payload && payload.startsWith("check_follow:")) {
+          } else if (payload.startsWith("check_follow:")) {
             const parts = payload.split(":");
             const autoId = parts[1];
             const commentId = parts[2];
             await handleFollowPostback(senderId, autoId, commentId, igBusinessId, false);
-          } else if (payload && payload.startsWith("send_access:")) {
-            // Normal (no-gate) flow: user clicked "Send Access" postback → deliver main DM
+          } else if (payload.startsWith("send_access:")) {
+            // Normal (no-gate) flow: user clicked "Send Access" → deliver main DM
             const parts = payload.split(":");
             const autoId = parts[1];
             const commentId = parts[2] || "";
@@ -578,11 +594,17 @@ export async function POST(req: Request) {
           continue;
         }
 
-        // Handle text reply "DONE" or "following"
+        // Handle text reply "DONE", "following", or similar keywords
         const rawMessageText = msg.message?.text;
-        if (rawMessageText) {
+        if (rawMessageText && !msg.message?.quick_reply) {
           const cleanText = rawMessageText.trim().toLowerCase();
-          if (cleanText === "done" || cleanText === "following" || cleanText === "i am following" || cleanText === "i'm following") {
+          
+          const isFollowVerificationWord = [
+            "done", "following", "i am following", "i'm following",
+            "send me the access", "send me access", "send access", "get access", "access"
+          ].some(word => cleanText.includes(word));
+
+          if (isFollowVerificationWord) {
             // Find recent pending follow request for this user
             const { data: recentRequests } = await supabaseAdmin
               .from("pending_follow_requests")
@@ -594,6 +616,7 @@ export async function POST(req: Request) {
 
             if (recentRequests && recentRequests.length > 0) {
               const req = recentRequests[0];
+              console.log(`[Webhook] Text verification triggered for user ${senderId} on message "${rawMessageText}"`);
               await handleFollowPostback(senderId, req.automation_id, "text_verify", igBusinessId, false);
             }
           }
