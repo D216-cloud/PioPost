@@ -74,39 +74,33 @@ async function checkIfUserFollows(
   accessToken: string
 ): Promise<{ follows: boolean; verified: boolean }> {
   try {
-    const cacheBuster = Date.now();
-    const fbUrl = `https://graph.facebook.com/v21.0/${commenterId}?fields=is_user_follow_business&access_token=${accessToken}&cb=${cacheBuster}`;
-    const fbRes = await fetch(fbUrl, { cache: "no-store" });
-    const fbData = await fbRes.json();
-    console.log(`[Webhook] Follow check response (graph.facebook.com) for ${commenterId}:`, JSON.stringify(fbData));
+    // Only use graph.instagram.com — graph.facebook.com needs a Page token (different token type)
+    // is_user_follow_business only works with instagram_manage_insights permission
+    const url = `https://graph.instagram.com/v21.0/${commenterId}?fields=is_user_follow_business&access_token=${accessToken}`;
+    const res = await fetch(url, { cache: "no-store" });
+    const data = await res.json();
 
-    if (fbData.error) {
-      console.warn(`[Webhook] ⚠️ Facebook API error checking follow: ${JSON.stringify(fbData.error)}`);
-    }
-    
-    if (fbData.is_user_follow_business !== undefined) {
-      return { follows: !!fbData.is_user_follow_business, verified: true };
-    }
-    
-    const igUrl = `https://graph.instagram.com/v21.0/${commenterId}?fields=is_user_follow_business&access_token=${accessToken}&cb=${cacheBuster}`;
-    const igRes = await fetch(igUrl, { cache: "no-store" });
-    const igData = await igRes.json();
-    console.log(`[Webhook] Follow check response (graph.instagram.com) for ${commenterId}:`, JSON.stringify(igData));
+    console.log(`[FOLLOW-CHECK] user=${commenterId} response:`, JSON.stringify(data));
 
-    if (igData.error) {
-      console.warn(`[Webhook] ⚠️ Instagram API error checking follow: ${JSON.stringify(igData.error)}`);
-    }
-    
-    if (igData.is_user_follow_business !== undefined) {
-      return { follows: !!igData.is_user_follow_business, verified: true };
+    if (data.error) {
+      console.warn(`[FOLLOW-CHECK] ⚠️ API error:`, JSON.stringify(data.error));
+      // If API fails (permissions issue etc.), DO NOT assume follows=true
+      // Return verified=false so caller can decide
+      return { follows: false, verified: false };
     }
 
-    // Be optimistic on missing fields
-    console.warn(`[Webhook] ⚠️ is_user_follow_business not returned. Assuming follows=true (optimistic).`);
-    return { follows: true, verified: false };
+    if (data.is_user_follow_business !== undefined) {
+      console.log(`[FOLLOW-CHECK] ✅ Result: follows=${data.is_user_follow_business}`);
+      return { follows: !!data.is_user_follow_business, verified: true };
+    }
+
+    // Field not returned = likely missing permission instagram_manage_insights
+    console.warn(`[FOLLOW-CHECK] ⚠️ is_user_follow_business not in response. Permission missing?`);
+    return { follows: false, verified: false };
+
   } catch (err) {
-    console.error("[Webhook] ❌ Exception checking follow status:", err);
-    return { follows: true, verified: false };
+    console.error("[FOLLOW-CHECK] ❌ Exception:", err);
+    return { follows: false, verified: false };
   }
 }
 
@@ -381,7 +375,7 @@ async function handleFollowPostback(
 async function handleSendAccessPostback(
   senderId: string,
   automationId: string,
-  _commentId: string,
+  commentId: string,
   igBusinessId: string
 ) {
   console.log(`[SEND-ACCESS] postback: user=${senderId}, auto=${automationId}`);
@@ -397,7 +391,7 @@ async function handleSendAccessPostback(
 
     const igAccount = igAccounts?.[0] ?? null;
     if (!igAccount) {
-      console.warn("[SEND-ACCESS] IG account not found for business ID:", igBusinessId);
+      console.warn("[SEND-ACCESS] IG account not found:", igBusinessId);
       return;
     }
 
@@ -413,11 +407,75 @@ async function handleSendAccessPostback(
       return;
     }
 
-    // 3. If email gate is enabled, transition to email gate instead of delivering payload directly
+    // 3. Check follow status (ONLY if follow_first_enabled is ON)
+    if (automation.follow_first_enabled) {
+      console.log(`[SEND-ACCESS] follow_first_enabled=true, checking follow for user=${senderId}`);
+      
+      const followCheck = await checkIfUserFollows(senderId, igAccount.access_token);
+      console.log(`[SEND-ACCESS] Follow check result: follows=${followCheck.follows}, verified=${followCheck.verified}`);
+
+      if (!followCheck.follows) {
+        // User is NOT following — send "please follow first" DM
+        console.log(`[SEND-ACCESS] User not following. Sending follow-gate message.`);
+
+        const followMsg = automation.follow_check_msg ||
+          "Oops! Looks like you haven't followed me yet 👀\nIt would mean a lot if you could visit my profile and hit that follow button 😅";
+
+        const profileUrl = `https://instagram.com/${igAccount.username}`;
+
+        const followDmResult = await sendInstagramDM(
+          { id: senderId },
+          followMsg,
+          igAccount.access_token,
+          [
+            {
+              type: "web_url",
+              url: profileUrl,
+              title: automation.follow_check_btn1_label || "Visit Profile"
+            },
+            {
+              type: "postback",
+              title: automation.follow_check_btn2_label || "I'm following ✅",
+              // Re-use verify_follow_initial so clicking "I'm following" re-checks
+              payload: `verify_follow_initial:${automation.id}:${commentId}`
+            }
+          ]
+        );
+
+        // Log the failed follow check
+        await supabaseAdmin.from("automation_logs").insert({
+          automation_id: automation.id,
+          commenter_username: "[Send Access Postback]",
+          commenter_instagram_id: senderId,
+          comment_text: "[Follow check failed on Send Access click]",
+          matched_keyword: null,
+          follow_check_passed: false,
+          dm_sent_status: followDmResult.success ? "pending" : "failed",
+          error_message: followDmResult.error ?? null
+        });
+
+        // Save pending follow request so "I'm following" button works
+        await supabaseAdmin
+          .from("pending_follow_requests")
+          .upsert({
+            automation_id: automation.id,
+            commenter_id: senderId,
+            status: "waiting"
+          }, { onConflict: "automation_id,commenter_id" });
+
+        return; // Stop here — don't send main DM
+      }
+
+      console.log(`[SEND-ACCESS] ✅ User IS following. Proceeding to send main DM.`);
+    } else {
+      console.log(`[SEND-ACCESS] follow_first_enabled=false, skipping follow check.`);
+    }
+
+    // 4. If email gate is enabled, transition to email gate
     if (automation.email_ask_enabled) {
       const token = crypto.randomUUID();
       await supabaseAdmin.from("email_pending_requests").insert({
-        token: token,
+        token,
         automation_id: automation.id,
         commenter_instagram_id: senderId,
         commenter_username: "[Postback User]",
@@ -444,27 +502,25 @@ async function handleSendAccessPostback(
 
       await supabaseAdmin.from("automation_logs").insert({
         automation_id: automation.id,
-        commenter_username: "[Access Postback]",
+        commenter_username: "[Send Access Postback]",
         commenter_instagram_id: senderId,
-        comment_text: "[Email Gate Triggered via Send Access postback]",
+        comment_text: "[Email Gate Triggered via Send Access]",
         matched_keyword: null,
-        follow_check_passed: false,
+        follow_check_passed: true,
         dm_sent_status: dmRes.success ? "pending" : "failed",
         error_message: dmRes.error ?? null
       });
       return;
     }
 
-    // 4. Normal path: deliver main DM payload
+    // 5. Normal path: deliver main DM payload
     const dmText = (automation.dm_message_text || "").toString().trim();
     if (!dmText) {
-      console.warn("[SEND-ACCESS] No dm_message_text configured for automation:", automationId);
+      console.warn("[SEND-ACCESS] No dm_message_text set for automation:", automationId);
       return;
     }
 
     const hasUrlButton = !!automation.dm_button_url;
-    // For the main payload we use dm_button_url as a web_url button (access link)
-    // dm_button_text is the postback label used for the initial DM; reuse it here or fallback
     const urlBtnLabel = automation.dm_button_text || "Access Link";
 
     const dmResult = await sendInstagramDM(
@@ -475,21 +531,21 @@ async function handleSendAccessPostback(
       hasUrlButton ? automation.dm_button_url : null
     );
 
-    console.log(`[SEND-ACCESS] Main DM sent: success=${dmResult.success}, error=${dmResult.error}`);
+    console.log(`[SEND-ACCESS] Main DM result: success=${dmResult.success}, error=${dmResult.error}`);
 
-    // 5. Log to automation_logs
+    // 6. Log result
     await supabaseAdmin.from("automation_logs").insert({
       automation_id: automation.id,
-      commenter_username: "[Access Postback]",
+      commenter_username: "[Send Access Postback]",
       commenter_instagram_id: senderId,
-      comment_text: "[Main payload delivered via Send Access postback]",
+      comment_text: "[Main DM delivered via Send Access]",
       matched_keyword: null,
       follow_check_passed: true,
       dm_sent_status: dmResult.success ? "sent" : "failed",
       error_message: dmResult.error ?? null
     });
 
-    // 6. Update automation statistics
+    // 7. Update stats
     if (dmResult.success) {
       await supabaseAdmin
         .from("automations")
@@ -504,8 +560,9 @@ async function handleSendAccessPostback(
         .update({ total_failed: (automation.total_failed || 0) + 1 })
         .eq("id", automation.id);
     }
+
   } catch (err) {
-    console.error("[Webhook] ❌ Error handling send_access postback:", err);
+    console.error("[SEND-ACCESS] ❌ Unhandled error:", err);
   }
 }
 
