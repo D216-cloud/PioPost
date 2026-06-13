@@ -46,6 +46,7 @@ export default function CreateAutomationPage() {
   const [keywords, setKeywords] = useState<string[]>(["GUIDE"]);
   const [keywordInput, setKeywordInput] = useState("");
   const [excludeKeywords, setExcludeKeywords] = useState<string[]>([]);
+  const [keywordMode, setKeywordMode] = useState<string>("any");
 
   // Step 3: Messages State
   const [commentReplyText, setCommentReplyText] = useState("Thanks for the comment! Check your DMs 📩");
@@ -196,6 +197,7 @@ export default function CreateAutomationPage() {
       specific_post_thumbnail: post ? (post.thumbnail_url || post.media_url) : null,
       trigger_keywords: keywords.length > 0 ? keywords : ["GUIDE"],
       exclude_keywords: excludeKeywords,
+      keyword_mode: keywordMode,
       dm_message_text: mainDmMessage,
       // For normal (no-gate) flow: dm_button_text is the "Send Access" postback label
       dm_button_text: !requireFollow && !emailAsk ? dmButtonLabel : null,
@@ -459,59 +461,107 @@ export default function CreateAutomationPage() {
 
             {/* Keyword Input — shown for comment trigger */}
             {selectedTrigger === "comment" && (
-              <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-[0_1px_4px_rgba(0,0,0,0.01)] flex flex-col gap-3.5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-extrabold text-slate-900">Trigger Keywords</h3>
-                    <p className="text-[11px] text-slate-400 font-semibold mt-0.5">
-                      Users who comment containing ANY of these keywords will trigger this automation (max 3)
+              <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-[0_1px_4px_rgba(0,0,0,0.01)] flex flex-col gap-4">
+                
+                {/* Matching Mode Selector */}
+                <div className="flex flex-col gap-2">
+                  <h3 className="text-sm font-extrabold text-slate-900">Keyword Matching Mode</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    {[
+                      { id: "any", label: "Contains Any", desc: "OR match" },
+                      { id: "all", label: "Contains All", desc: "AND match" },
+                      { id: "exact", label: "Exact Match", desc: "Equal match" },
+                      { id: "any_comment", label: "Any Comment", desc: "No keywords" },
+                    ].map((mode) => {
+                      const isSel = keywordMode === mode.id;
+                      return (
+                        <div
+                          key={mode.id}
+                          onClick={() => setKeywordMode(mode.id)}
+                          className={`border rounded-xl p-3 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 select-none ${
+                            isSel
+                              ? "border-blue-500 bg-blue-50/20 ring-2 ring-blue-500/10 text-blue-600 font-bold"
+                              : "border-slate-100 bg-white hover:border-slate-200/80 text-slate-500"
+                          }`}
+                        >
+                          <span className="text-xs font-bold leading-tight">{mode.label}</span>
+                          <span className={`text-[9px] font-semibold mt-0.5 leading-none ${isSel ? "text-blue-500/70" : "text-slate-400"}`}>
+                            {mode.desc}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {keywordMode !== "any_comment" ? (
+                  <div className="flex flex-col gap-3.5 pt-2 border-t border-slate-100/60 animate-in slide-in-from-top-2 duration-300">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-xs font-extrabold text-slate-900">
+                          {keywordMode === "exact" ? "Exact Keywords" : keywordMode === "all" ? "Required Keywords" : "Trigger Keywords"}
+                        </h3>
+                        <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
+                          {keywordMode === "exact"
+                            ? "Comment must match a keyword exactly (max 3)"
+                            : keywordMode === "all"
+                            ? "Comment must contain ALL of these keywords (max 3)"
+                            : "Comment contains ANY of these keywords (max 3)"}
+                        </p>
+                      </div>
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                        keywords.length >= 3 ? "bg-orange-50 text-orange-600 border border-orange-100" : "bg-slate-100 text-slate-500"
+                      }`}>
+                        {keywords.length}/3
+                      </span>
+                    </div>
+
+                    {/* Tag pills + input */}
+                    <div className="flex flex-wrap items-center gap-2 border border-slate-200 bg-slate-50/50 rounded-2xl px-3.5 py-2.5 min-h-[44px] focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-500/5 focus-within:bg-white transition-all">
+                      {keywords.map((kw) => (
+                        <span key={kw} className="inline-flex items-center gap-1.5 bg-blue-600 text-white text-[11px] font-bold px-2.5 py-1 rounded-full">
+                          {kw}
+                          <button
+                            type="button"
+                            onClick={() => removeKeyword(kw)}
+                            className="text-white/70 hover:text-white text-xs leading-none cursor-pointer"
+                            aria-label={`Remove keyword ${kw}`}
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ))}
+                      {keywords.length < 3 && (
+                        <input
+                          type="text"
+                          value={keywordInput}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val.endsWith(",")) {
+                              addKeyword(val.slice(0, -1));
+                            } else {
+                              setKeywordInput(val);
+                            }
+                          }}
+                          onKeyDown={handleKeywordKeyDown}
+                          onBlur={() => addKeyword(keywordInput)}
+                          placeholder={keywords.length === 0 ? "Type keyword, press Enter" : "Add another..."}
+                          className="flex-1 min-w-[120px] bg-transparent text-xs font-bold text-slate-800 placeholder-slate-400 outline-none py-0.5"
+                        />
+                      )}
+                    </div>
+
+                    <p className="text-[10px] text-slate-450 font-semibold">
+                      💡 Press <kbd className="bg-slate-100 border border-slate-200 rounded px-1 py-0.5 text-[9px] font-mono">Enter</kbd> or <kbd className="bg-slate-100 border border-slate-200 rounded px-1 py-0.5 text-[9px] font-mono">,</kbd> to add a keyword.
                     </p>
                   </div>
-                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                    keywords.length >= 3 ? "bg-orange-50 text-orange-600 border border-orange-100" : "bg-slate-100 text-slate-500"
-                  }`}>
-                    {keywords.length}/3
-                  </span>
-                </div>
-
-                {/* Tag pills + input */}
-                <div className="flex flex-wrap items-center gap-2 border border-slate-200 bg-slate-50/50 rounded-2xl px-3.5 py-2.5 min-h-[44px] focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-500/5 focus-within:bg-white transition-all">
-                  {keywords.map((kw) => (
-                    <span key={kw} className="inline-flex items-center gap-1.5 bg-blue-600 text-white text-[11px] font-bold px-2.5 py-1 rounded-full">
-                      {kw}
-                      <button
-                        type="button"
-                        onClick={() => removeKeyword(kw)}
-                        className="text-white/70 hover:text-white text-xs leading-none cursor-pointer"
-                        aria-label={`Remove keyword ${kw}`}
-                      >
-                        ✕
-                      </button>
-                    </span>
-                  ))}
-                  {keywords.length < 3 && (
-                    <input
-                      type="text"
-                      value={keywordInput}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val.endsWith(",")) {
-                          addKeyword(val.slice(0, -1));
-                        } else {
-                          setKeywordInput(val);
-                        }
-                      }}
-                      onKeyDown={handleKeywordKeyDown}
-                      onBlur={() => addKeyword(keywordInput)}
-                      placeholder={keywords.length === 0 ? "Type keyword, press Enter" : "Add another..."}
-                      className="flex-1 min-w-[120px] bg-transparent text-xs font-bold text-slate-800 placeholder-slate-400 outline-none py-0.5"
-                    />
-                  )}
-                </div>
-
-                <p className="text-[10px] text-slate-400 font-semibold">
-                  💡 Press <kbd className="bg-slate-100 border border-slate-200 rounded px-1 py-0.5 text-[9px] font-mono">Enter</kbd> or <kbd className="bg-slate-100 border border-slate-200 rounded px-1 py-0.5 text-[9px] font-mono">,</kbd> to add a keyword. Leave empty to match all comments.
-                </p>
+                ) : (
+                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-left animate-in slide-in-from-top-2 duration-300">
+                    <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                      👉 <strong>Any Comment Mode:</strong> Keywords are disabled. This automation will trigger for <strong>every comment</strong> left on the selected post(s).
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1267,16 +1317,32 @@ export default function CreateAutomationPage() {
                 </div>
 
                 {selectedTrigger === "comment" && (
-                  <div className="flex flex-wrap items-center gap-1.5 mt-1 bg-white border border-slate-100 p-2.5 rounded-xl">
-                    <span className="text-[10px] text-slate-400 font-bold mr-1 uppercase tracking-wider">Trigger Keywords:</span>
-                    {keywords.length === 0 ? (
-                      <span className="text-[10px] text-slate-500 italic font-semibold">Any comment (empty match)</span>
-                    ) : (
-                      keywords.map((kw, i) => (
-                        <span key={i} className="text-[10px] font-extrabold bg-blue-50 border border-blue-100/50 text-blue-600 px-2 py-0.5 rounded-lg">
-                          {kw}
-                        </span>
-                      ))
+                  <div className="flex flex-col gap-2 mt-1 bg-white border border-slate-100 p-2.5 rounded-xl text-left">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Matching Mode:</span>
+                      <span className="text-[10px] font-extrabold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-md border border-blue-100/40">
+                        {keywordMode === "any_comment"
+                          ? "Any Comment (Matches everything)"
+                          : keywordMode === "exact"
+                          ? "Exact Match (Equals exactly)"
+                          : keywordMode === "all"
+                          ? "Contains All (AND Match)"
+                          : "Contains Any (OR Match)"}
+                      </span>
+                    </div>
+                    {keywordMode !== "any_comment" && (
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-slate-50 mt-1">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mr-1">Keywords:</span>
+                        {keywords.length === 0 ? (
+                          <span className="text-[10px] text-slate-500 italic font-semibold">Any comment (empty match)</span>
+                        ) : (
+                          keywords.map((kw, i) => (
+                            <span key={i} className="text-[10px] font-extrabold bg-blue-50 border border-blue-100/50 text-blue-600 px-2.5 py-0.5 rounded-md">
+                              {kw}
+                            </span>
+                          ))
+                        )}
+                      </div>
                     )}
                   </div>
                 )}

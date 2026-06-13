@@ -184,6 +184,7 @@ export async function POST(req: Request) {
       // 2-step DM flow fields
       comment_reply_text: comment_reply_text || null,
       initial_dm_message: initial_dm_message || null,
+      keyword_mode: keyword_mode || "any",
       
       // Follow gate settings
       follow_first_enabled: follow_first_enabled !== undefined ? follow_first_enabled : (require_follow || false),

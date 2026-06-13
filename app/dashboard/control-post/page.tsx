@@ -128,7 +128,20 @@ export default function ControlPostPage() {
 
   const getTriggerDescription = (item: any) => {
     const kws = item.keywords || [];
-    const kwStr = kws.length > 0 ? ` containing "${kws.join(', ')}"` : ' (any comment)';
+    const mode = item.keyword_mode || "any";
+    
+    let kwStr = "";
+    if (mode === "any_comment") {
+      kwStr = " (any comment)";
+    } else if (mode === "exact") {
+      kwStr = kws.length > 0 ? ` matching exactly "${kws.join(', ')}"` : ' (any comment)';
+    } else if (mode === "all") {
+      kwStr = kws.length > 0 ? ` containing ALL of "${kws.join(', ')}"` : ' (any comment)';
+    } else {
+      // 'any'
+      kwStr = kws.length > 0 ? ` containing ANY of "${kws.join(', ')}"` : ' (any comment)';
+    }
+
     const targetStr = item.trigger_type === 'all_posts' ? 'Any Reel/Post' : 'Specific Reel/Post';
     return `Trigger: Comment on ${targetStr}${kwStr}`;
   };

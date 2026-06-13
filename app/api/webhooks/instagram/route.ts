@@ -286,29 +286,30 @@ async function handleFollowPostback(
           error_message: dmRes.error ?? null
         });
       } else {
-        // User follows! Send final DM payload
-        let dmText = (automation.dm_message_text || "").toString().trim();
-        const hasButton = !!automation.dm_button_text && !!automation.dm_button_url;
+        // User follows! Send initial DM with "Send Access" postback button (2-step flow)
+        const initialMsg = (automation.initial_dm_message || "").trim() ||
+          "Thanks for commenting! Tap below and I'll send you the access instantly 🚀";
+        const accessBtnLabel = (automation.dm_button_text || "").trim() || "Send Access";
 
-        if (!dmText) return;
+        const payload = `send_access:${automation.id}:${commentId}`;
+        console.log(`[DEBUG] Sending button with payload: ${payload}`);
 
         const dmResult = await sendInstagramDM(
           { id: senderId },
-          dmText,
+          initialMsg,
           igAccount.access_token,
-          hasButton ? automation.dm_button_text : null,
-          hasButton ? automation.dm_button_url : null
+          [{ type: "postback", title: accessBtnLabel, payload }]
         );
 
-        // Log success log
+        // Log initial DM log
         await supabaseAdmin.from("automation_logs").insert({
           automation_id: automation.id,
           commenter_username: "[Postback Verified]",
           commenter_instagram_id: senderId,
-          comment_text: "[Follow Verified Gate Success]",
+          comment_text: "[Follow Gate Passed - Sent Initial DM]",
           matched_keyword: null,
           follow_check_passed: true,
-          dm_sent_status: dmResult.success ? "sent" : "failed",
+          dm_sent_status: dmResult.success ? "pending" : "failed",
           error_message: dmResult.error ?? null
         });
 
@@ -319,12 +320,11 @@ async function handleFollowPostback(
           .eq("automation_id", automation.id)
           .eq("commenter_id", senderId);
 
-        // Update statistics
+        // Update statistics (increment total_triggers; total_success is incremented in send_access postback)
         if (dmResult.success) {
           await supabaseAdmin
             .from("automations")
             .update({
-              total_success: (automation.total_success || 0) + 1,
               total_triggers: (automation.total_triggers || 0) + 1
             })
             .eq("id", automation.id);
@@ -592,7 +592,7 @@ async function postCommentReply(
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    console.log("[Webhook/POST] ✅ Event received:", JSON.stringify(body, null, 2));
+    console.log("🚨🚨🚨 [EMERGENCY] Raw webhook event:", JSON.stringify(body, null, 2));
 
     // Log raw event to DB
     supabaseAdmin.from("webhook_events").insert({
@@ -738,13 +738,42 @@ export async function POST(req: Request) {
 
           let isMatch = false;
           let matchedKeyword = "any";
-          if (keywords.length === 0) {
+          const keywordMode = automation.keyword_mode || "any";
+
+          if (keywordMode === "any_comment") {
             isMatch = true;
-          } else {
-            const found = keywords.find((kw: string) => commentLower.includes(kw.toLowerCase()));
-            if (found) {
+            matchedKeyword = "any_comment";
+          } else if (keywordMode === "exact") {
+            if (keywords.length === 0) {
               isMatch = true;
-              matchedKeyword = found;
+            } else {
+              const commentTrimmed = commentText.trim().toLowerCase();
+              const found = keywords.find((kw: string) => commentTrimmed === kw.trim().toLowerCase());
+              if (found) {
+                isMatch = true;
+                matchedKeyword = found;
+              }
+            }
+          } else if (keywordMode === "all") {
+            if (keywords.length === 0) {
+              isMatch = true;
+            } else {
+              const allMatched = keywords.every((kw: string) => commentLower.includes(kw.toLowerCase()));
+              if (allMatched) {
+                isMatch = true;
+                matchedKeyword = keywords.join(" & ");
+              }
+            }
+          } else {
+            // Default to 'any'
+            if (keywords.length === 0) {
+              isMatch = true;
+            } else {
+              const found = keywords.find((kw: string) => commentLower.includes(kw.toLowerCase()));
+              if (found) {
+                isMatch = true;
+                matchedKeyword = found;
+              }
             }
           }
 
@@ -816,39 +845,39 @@ export async function POST(req: Request) {
               if (automation.email_ask_enabled) {
                 await triggerEmailGate();
               } else {
-                // Send final payload immediately
-                let dmText = (automation.dm_message_text || "").toString().trim();
-                const hasButton = !!automation.dm_button_text && !!automation.dm_button_url;
+                // Already following, transition to 2-step flow (Initial DM + Send Access button)
+                const initialMsg = (automation.initial_dm_message || "").trim() ||
+                  "Thanks for commenting! Tap below and I'll send you the access instantly 🚀";
+                const accessBtnLabel = (automation.dm_button_text || "").trim() || "Send Access";
 
-                if (dmText) {
-                  const dmResult = await sendInstagramDM(
-                    { comment_id: commentId },
-                    dmText,
-                    tokenToUse,
-                    hasButton ? automation.dm_button_text : null,
-                    hasButton ? automation.dm_button_url : null
-                  );
+                const payload = `send_access:${automation.id}:${commentId}`;
+                console.log(`[DEBUG] Sending button with payload: ${payload}`);
 
-                  await supabaseAdmin.from("automation_logs").insert({
-                    automation_id: automation.id,
-                    commenter_username: commenterUsername,
-                    commenter_instagram_id: commenterId,
-                    comment_text: commentText,
-                    matched_keyword: matchedKeyword,
-                    follow_check_passed: true,
-                    dm_sent_status: dmResult.success ? "sent" : "failed",
-                    error_message: dmResult.error ?? null
-                  });
+                const dmResult = await sendInstagramDM(
+                  { comment_id: commentId },
+                  initialMsg,
+                  tokenToUse,
+                  [{ type: "postback", title: accessBtnLabel, payload }]
+                );
 
-                  if (dmResult.success) {
-                    await supabaseAdmin
-                      .from("automations")
-                      .update({
-                        total_success: (automation.total_success || 0) + 1,
-                        total_triggers: (automation.total_triggers || 0) + 1
-                      })
-                      .eq("id", automation.id);
-                  }
+                await supabaseAdmin.from("automation_logs").insert({
+                  automation_id: automation.id,
+                  commenter_username: commenterUsername,
+                  commenter_instagram_id: commenterId,
+                  comment_text: commentText,
+                  matched_keyword: matchedKeyword,
+                  follow_check_passed: true,
+                  dm_sent_status: dmResult.success ? "pending" : "failed",
+                  error_message: dmResult.error ?? null
+                });
+
+                if (dmResult.success) {
+                  await supabaseAdmin
+                    .from("automations")
+                    .update({
+                      total_triggers: (automation.total_triggers || 0) + 1
+                    })
+                    .eq("id", automation.id);
                 }
               }
             } else {
@@ -896,11 +925,14 @@ export async function POST(req: Request) {
               "Thanks for commenting! Tap below and I'll send you the access instantly 🚀";
             const accessBtnLabel = (automation.dm_button_text || "").trim() || "Send Access";
 
+            const payload = `send_access:${automation.id}:${commentId}`;
+            console.log(`[DEBUG] Sending button with payload: ${payload}`);
+
             const dmResult = await sendInstagramDM(
               { comment_id: commentId },
               initialMsg,
               tokenToUse,
-              [{ type: "postback", title: accessBtnLabel, payload: `send_access:${automation.id}:${commentId}` }]
+              [{ type: "postback", title: accessBtnLabel, payload }]
             );
 
             // Log as "pending" — success will be counted when postback is received
