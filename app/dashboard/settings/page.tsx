@@ -6,7 +6,8 @@ import {
   Plus,
   LogOut,
   ChevronRight,
-  X
+  X,
+  ChevronDown
 } from "lucide-react";
 import { InstagramIcon as Instagram } from "@/components/icons";
 import { useSession } from "next-auth/react";
@@ -33,6 +34,7 @@ type InstagramPost = {
 export default function SettingsPage() {
   const { data: session } = useSession();
   const [instagramAccounts, setInstagramAccounts] = useState<InstagramAccount[]>([]);
+  const [activeAccountId, setActiveAccountId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewState, setViewState] = useState<ViewState>("loading");
   const [isConnecting, setIsConnecting] = useState(false);
@@ -74,11 +76,25 @@ export default function SettingsPage() {
       const accounts = Array.isArray(data) ? data : [];
 
       setInstagramAccounts(accounts);
+      if (accounts.length > 0) {
+        const savedActiveId = localStorage.getItem("active_instagram_account_id");
+        const found = accounts.find((acc) => acc.id === savedActiveId);
+        if (found) {
+          setActiveAccountId(found.id);
+        } else {
+          setActiveAccountId(accounts[0].id);
+          localStorage.setItem("active_instagram_account_id", accounts[0].id);
+        }
+      } else {
+        setActiveAccountId(null);
+      }
 
       if (checkSuccessParam) {
         const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('success') === 'true') {
+        if (urlParams.get('success') === 'true' || urlParams.get('connected') === 'true') {
           setViewState("success");
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, document.title, newUrl);
           return;
         }
       }
@@ -144,11 +160,14 @@ export default function SettingsPage() {
     setIsConnecting(true);
     setConnectionStep("Redirecting to Instagram...");
     setErrorMessage(null);
-    window.location.href = "/api/auth/instagram/link";
+    window.location.href = "/api/auth/instagram/link?returnTo=/dashboard/settings";
   };
 
   const disconnectInstagram = async (accountId: string) => {
     if (!session?.user?.id) return;
+    if (!confirm("Are you sure you want to disconnect this Instagram account? This will also disable any automations set up for this account.")) {
+      return;
+    }
 
     try {
       const response = await fetch(`/api/instagram-account?accountId=${encodeURIComponent(accountId)}`, {
@@ -166,6 +185,11 @@ export default function SettingsPage() {
 
         if (nextAccounts.length === 0) {
           setViewState("not_connected");
+          setActiveAccountId(null);
+          localStorage.removeItem("active_instagram_account_id");
+        } else if (activeAccountId === accountId) {
+          setActiveAccountId(nextAccounts[0].id);
+          localStorage.setItem("active_instagram_account_id", nextAccounts[0].id);
         }
 
         return nextAccounts;
@@ -372,8 +396,11 @@ export default function SettingsPage() {
                       </div>
 
                       <button 
-                        onClick={() => setViewState("settings")}
-                        className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-[14px] font-bold transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-2"
+                        onClick={() => {
+                          setViewState("settings");
+                          loadInstagramAccounts(false);
+                        }}
+                        className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-[14px] font-bold transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-2 cursor-pointer"
                       >
                         Continue
                         <ChevronRight size={16} strokeWidth={2.5} />
@@ -399,9 +426,30 @@ export default function SettingsPage() {
                   <p className="text-[15px] md:text-[16px] text-slate-500 font-medium">Manage your app integrations and connections.</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
+                  {instagramAccounts.length > 0 && (
+                    <div className="relative inline-flex items-center bg-white border border-slate-200 rounded-full px-3 py-1.5 text-xs font-semibold shadow-sm mr-2">
+                      <select
+                        value={activeAccountId || ""}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setActiveAccountId(val);
+                          localStorage.setItem("active_instagram_account_id", val);
+                          toast.success(`Switched active account`);
+                        }}
+                        className="appearance-none pr-8 pl-1 bg-transparent font-bold text-slate-750 focus:outline-none cursor-pointer"
+                      >
+                        {instagramAccounts.map((acc) => (
+                          <option key={acc.id} value={acc.id}>
+                            @{acc.username}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500" />
+                    </div>
+                  )}
                   <button
                     onClick={connectInstagram}
-                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
                   >
                     <Plus size={14} />
                     Add account
@@ -443,10 +491,23 @@ export default function SettingsPage() {
                           <div className="flex flex-col min-w-0">
                             <div className="flex items-center gap-2.5 mb-1.5">
                               <h3 className="text-lg font-semibold text-slate-800 truncate tracking-tight max-w-37.5 sm:max-w-62.5">@{account.username}</h3>
-                              <div className="px-2 py-0.5 bg-emerald-50/80 text-emerald-600 rounded-md flex items-center gap-1.5 shrink-0 border border-emerald-100/50">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                <span className="text-[10px] font-bold tracking-wide uppercase">Active</span>
-                              </div>
+                              {activeAccountId === account.id ? (
+                                <div className="px-2 py-0.5 bg-emerald-50/80 text-emerald-600 rounded-md flex items-center gap-1.5 shrink-0 border border-emerald-100/50">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                  <span className="text-[10px] font-bold tracking-wide uppercase">Active</span>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setActiveAccountId(account.id);
+                                    localStorage.setItem("active_instagram_account_id", account.id);
+                                    toast.success(`Switched active account to @${account.username}`);
+                                  }}
+                                  className="px-2 py-0.5 bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-850 rounded-md flex items-center gap-1.5 shrink-0 border border-slate-200 transition-colors cursor-pointer"
+                                >
+                                  <span className="text-[10px] font-bold tracking-wide uppercase">Make Active</span>
+                                </button>
+                              )}
                             </div>
                             <div className="flex items-center gap-2 sm:gap-3 text-[13px] text-slate-500 font-medium">
                               <span>Instagram</span>

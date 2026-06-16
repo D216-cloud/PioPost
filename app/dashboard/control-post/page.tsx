@@ -27,33 +27,89 @@ import {
   CheckCircle2,
   Lock,
   Target,
-  Trash2
+  Trash2,
+  X
 } from "lucide-react";
 import Link from "next/link";
+import { InstagramIcon as Instagram } from "@/components/icons";
+
 
 export default function ControlPostPage() {
-  const [account, setAccount] = useState<any>(null);
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [activeAccount, setActiveAccount] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [automations, setAutomations] = useState<any[]>([]);
   const [fetchingAutomations, setFetchingAutomations] = useState(true);
+  const [isAddAccountModalOpen, setIsAddAccountModalOpen] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  const account = activeAccount;
+
+  const loadAccounts = async () => {
+    try {
+      const res = await fetch("/api/instagram-account");
+      if (!res.ok) throw new Error("Failed to fetch accounts");
+      const resData = await res.json();
+      const list = resData.data || [];
+      setAccounts(list);
+      if (list.length > 0) {
+        const savedActiveId = localStorage.getItem("active_instagram_account_id");
+        const found = list.find((acc: any) => acc.id === savedActiveId);
+        if (found) {
+          setActiveAccount(found);
+        } else {
+          setActiveAccount(list[0]);
+          localStorage.setItem("active_instagram_account_id", list[0].id);
+        }
+      } else {
+        setActiveAccount(null);
+      }
+    } catch (err) {
+      console.error(err);
+      setAccounts([]);
+      setActiveAccount(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async (accountId: string) => {
+    if (!confirm("Are you sure you want to disconnect this Instagram account? This will also disable any automations set up for this account.")) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/instagram-account?accountId=${encodeURIComponent(accountId)}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete account");
+      
+      const newAccounts = accounts.filter((a) => a.id !== accountId);
+      setAccounts(newAccounts);
+      if (newAccounts.length > 0) {
+        setActiveAccount(newAccounts[0]);
+        localStorage.setItem("active_instagram_account_id", newAccounts[0].id);
+      } else {
+        setActiveAccount(null);
+        localStorage.removeItem("active_instagram_account_id");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to disconnect Instagram account");
+    }
+  };
 
   useEffect(() => {
-    // Fetch Instagram Account
-    fetch("/api/instagram/account")
-      .then((res) => {
-        if (res.ok) return res.json();
-        throw new Error("Not connected");
-      })
-      .then((data) => {
-        setAccount(data);
-      })
-      .catch(() => {
-        setAccount(null);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("connected") === "true") {
+      setShowSuccessModal(true);
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAccounts();
 
     // Fetch automations
     fetch("/api/automations")
@@ -147,7 +203,8 @@ export default function ControlPostPage() {
   };
 
   const filteredAutomations = automations.filter((item) =>
-    (item.name || "").toLowerCase().includes(searchQuery.toLowerCase())
+    (item.name || "").toLowerCase().includes(searchQuery.toLowerCase()) &&
+    (!activeAccount || item.instagram_account_id === activeAccount.id)
   );
 
   if (loading) {
@@ -160,7 +217,7 @@ export default function ControlPostPage() {
 
   return (
     <div className="bg-[#f8fafc] min-h-screen text-slate-800 font-sans pb-12">
-      <div className="max-w-[1600px] mx-auto px-6 lg:px-8 pt-8 flex flex-col gap-6">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-8 flex flex-col gap-6">
         
         {/* ── Header ── */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -171,30 +228,27 @@ export default function ControlPostPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <button className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-650 shadow-[0_1px_2px_rgba(0,0,0,0.02)] hover:bg-slate-50 transition-all">
+          <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap w-full sm:w-auto">
+            <button className="flex items-center justify-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3 sm:px-4 py-2 text-xs font-bold text-slate-650 shadow-[0_1px_2px_rgba(0,0,0,0.02)] hover:bg-slate-50 transition-all flex-1 sm:flex-none">
               <HelpCircle size={14} className="text-slate-400" />
               <span>How it works?</span>
             </button>
             <Link
               href="/dashboard/control-post/create"
-              className="flex items-center gap-1.5 bg-slate-900 text-white rounded-xl px-4 py-2 text-xs font-bold shadow-md hover:bg-slate-800 transition-all cursor-pointer"
+              className="flex items-center justify-center gap-1.5 bg-slate-900 text-white rounded-xl px-3 sm:px-4 py-2 text-xs font-bold shadow-md hover:bg-slate-800 transition-all cursor-pointer flex-1 sm:flex-none"
             >
               <Plus size={14} />
-              <span>Create New Automation</span>
+              <span>Create Automation</span>
             </Link>
           </div>
         </div>
 
         {account ? (
           /* ── CONNECTED LAYOUT ── */
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-            
-            {/* LEFT 3 COLUMNS: Main Controls & Active Automations */}
-            <div className="lg:col-span-3 flex flex-col gap-6">
+          <div className="flex flex-col gap-6 w-full animate-in fade-in duration-350">
               
               {/* Connected Instagram Account Card */}
-              <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.01)] flex flex-col gap-5">
+              <div className="bg-white border border-slate-100 rounded-2xl p-4 sm:p-6 shadow-[0_2px_8px_rgba(0,0,0,0.01)] flex flex-col gap-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
                     {/* Avatar Ring Gradient */}
@@ -216,9 +270,33 @@ export default function ControlPostPage() {
 
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <p className="text-base font-bold text-slate-900">@{account.username || "maheta.deepak"}</p>
+                        {accounts.length > 1 ? (
+                          <div className="relative inline-flex items-center">
+                            <select
+                              value={activeAccount?.id || ""}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const found = accounts.find((a) => a.id === val);
+                                if (found) {
+                                  setActiveAccount(found);
+                                  localStorage.setItem("active_instagram_account_id", found.id);
+                                }
+                              }}
+                              className="appearance-none pr-8 pl-1 py-0.5 bg-transparent border-b border-transparent hover:border-slate-350 focus:border-slate-400 font-bold text-slate-900 text-base focus:outline-none cursor-pointer"
+                            >
+                              {accounts.map((acc) => (
+                                <option key={acc.id} value={acc.id}>
+                                  @{acc.username}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown size={14} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500" />
+                          </div>
+                        ) : (
+                          <p className="text-base font-bold text-slate-900">@{account.username || "maheta.deepak"}</p>
+                        )}
                         {/* Blue Checkmark */}
-                        <div className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center text-white">
+                        <div className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center text-white shrink-0">
                           <Check size={10} strokeWidth={4} />
                         </div>
                       </div>
@@ -228,17 +306,31 @@ export default function ControlPostPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-[10px] font-bold border border-emerald-100">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                       <span>Connected</span>
                     </span>
                     <button
-                      onClick={() => (window.location.href = "/api/auth/instagram/link")}
-                      className="inline-flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
+                      onClick={() => setIsAddAccountModalOpen(true)}
+                      className="inline-flex items-center gap-1.5 bg-slate-900 text-white rounded-xl px-3.5 py-2 text-xs font-bold shadow-md hover:bg-slate-800 transition-all cursor-pointer"
+                    >
+                      <Plus size={12} />
+                      <span>Add Another</span>
+                    </button>
+                    <button
+                      onClick={() => (window.location.href = "/api/auth/instagram/link?returnTo=/dashboard/control-post")}
+                      className="inline-flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.02)] cursor-pointer"
                     >
                       <RefreshCw size={12} className="text-slate-400" />
                       <span>Reconnect</span>
+                    </button>
+                    <button
+                      onClick={() => activeAccount && handleDeleteAccount(activeAccount.id)}
+                      className="inline-flex items-center justify-center bg-white border border-slate-200 hover:border-red-100 hover:bg-red-50 text-slate-500 hover:text-red-600 rounded-xl p-2 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.02)] cursor-pointer"
+                      title="Disconnect Account"
+                    >
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
@@ -292,18 +384,18 @@ export default function ControlPostPage() {
               </div>
 
               {/* Active Automations Card */}
-              <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.01)] flex flex-col gap-5">
+              <div className="bg-white border border-slate-100 rounded-2xl p-4 sm:p-6 shadow-[0_2px_8px_rgba(0,0,0,0.01)] flex flex-col gap-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <h3 className="text-sm font-bold text-slate-900">Active Automations</h3>
-                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
                     <input
                       type="text"
                       placeholder="Search automations..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="border border-slate-200 bg-white rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-400 transition-all flex-1 sm:flex-initial sm:w-56"
+                      className="border border-slate-200 bg-white rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-400 transition-all w-full sm:w-56"
                     />
-                    <div className="flex items-center gap-1 bg-slate-50 border border-slate-250 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-650 cursor-pointer">
+                    <div className="flex items-center justify-between bg-slate-50 border border-slate-250 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-650 cursor-pointer w-full sm:w-auto">
                       <span>All Status</span>
                       <ChevronDown size={14} className="text-slate-400" />
                     </div>
@@ -353,7 +445,7 @@ export default function ControlPostPage() {
                       return (
                         <div
                           key={item.id}
-                          className="flex flex-col sm:flex-row sm:items-center justify-between border border-slate-100 hover:border-slate-200/80 rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.01)] transition-all gap-4"
+                          className="flex flex-col sm:flex-row sm:items-center justify-between border border-slate-100 hover:border-slate-200/80 rounded-2xl p-3 sm:p-4 shadow-[0_1px_3px_rgba(0,0,0,0.01)] transition-all gap-4"
                         >
                           <div className="flex items-center gap-3.5 min-w-0">
                             {item.specific_post_thumbnail ? (
@@ -425,100 +517,8 @@ export default function ControlPostPage() {
                 </button>
               </div>
 
-            </div>
-
-            {/* RIGHT COLUMN: Connection Status, Stats, Progress Bars */}
-            <div className="lg:col-span-1 flex flex-col gap-6">
-              
-              {/* Connection Status Card */}
-              <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.01)] flex flex-col gap-4">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">Connection Status</h3>
-                  <div className="flex items-center gap-1.5 mt-2 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-1.5 text-emerald-800 text-[11px] font-bold self-start w-fit">
-                    <CheckCircle2 size={13} className="text-emerald-500 fill-emerald-50" />
-                    <span>All Systems Operational</span>
-                  </div>
-                </div>
-
-                <div className="space-y-3.5 text-xs font-bold text-slate-750">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-450">Instagram API</span>
-                    <span className="flex items-center gap-1.5 text-emerald-600">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      <span>Connected</span>
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-450">DM Webhook</span>
-                    <span className="flex items-center gap-1.5 text-emerald-600">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      <span>Connected</span>
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-450">Comment Webhook</span>
-                    <span className="flex items-center gap-1.5 text-emerald-600">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      <span>Connected</span>
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-450">Story Webhook</span>
-                    <span className="flex items-center gap-1.5 text-emerald-600">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      <span>Connected</span>
-                    </span>
-                  </div>
-                </div>
-
-                <div className="h-px bg-slate-50 w-full" />
-
-                <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold">
-                  <span>Last checked: 2 minutes ago</span>
-                  <button className="text-slate-400 hover:text-slate-700 transition-all">
-                    <RefreshCw size={12} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Quick Stats (7 Days) Card */}
-              <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.01)] flex flex-col gap-4">
-                <h3 className="text-sm font-bold text-slate-900">Quick Stats (7 Days)</h3>
-                
-                <div className="grid grid-cols-2 gap-3.5">
-                  
-                  <div className="bg-[#f8fafc] border border-slate-100 rounded-xl p-3 text-left">
-                    <span className="block text-[18px] font-black text-slate-900 leading-none">1,250</span>
-                    <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1 leading-none">Total DMs</span>
-                    <span className="block text-[9px] text-emerald-500 font-bold mt-1.5">↑ 24.5%</span>
-                  </div>
-
-                  <div className="bg-[#f8fafc] border border-slate-100 rounded-xl p-3 text-left">
-                    <span className="block text-[18px] font-black text-slate-900 leading-none">3,890</span>
-                    <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1 leading-none">Comments</span>
-                    <span className="block text-[9px] text-emerald-500 font-bold mt-1.5">↑ 32.1%</span>
-                  </div>
-
-                  <div className="bg-[#f8fafc] border border-slate-100 rounded-xl p-3 text-left">
-                    <span className="block text-[18px] font-black text-slate-900 leading-none">24</span>
-                    <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1 leading-none">Active Rules</span>
-                    <span className="block text-[9px] text-emerald-500 font-bold mt-1.5">↑ 14.3%</span>
-                  </div>
-
-                  <div className="bg-[#f8fafc] border border-slate-100 rounded-xl p-3 text-left">
-                    <span className="block text-[18px] font-black text-slate-900 leading-none">18.6%</span>
-                    <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1 leading-none">Conv. Rate</span>
-                    <span className="block text-[9px] text-emerald-500 font-bold mt-1.5">↑ 6.7%</span>
-                  </div>
-
-                </div>
-              </div>
-
               {/* Automation Types Progress Card */}
-              <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.01)] flex flex-col gap-4">
+              <div className="bg-white border border-slate-100 rounded-2xl p-4 sm:p-6 shadow-[0_2px_8px_rgba(0,0,0,0.01)] flex flex-col gap-4">
                 <h3 className="text-sm font-bold text-slate-900">Automation Types</h3>
                 
                 <div className="space-y-4">
@@ -566,12 +566,10 @@ export default function ControlPostPage() {
                 </div>
               </div>
 
-            </div>
-
           </div>
         ) : (
           /* ── NOT CONNECTED LAYOUT ── */
-          <div className="bg-white rounded-2xl border border-slate-100 p-16 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col items-center gap-6 text-center max-w-2xl mx-auto mt-12">
+          <div className="bg-white rounded-2xl border border-slate-100 p-6 sm:p-16 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col items-center gap-6 text-center max-w-2xl mx-auto mt-12">
             <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center text-slate-300">
               <Bot size={32} />
             </div>
@@ -582,7 +580,7 @@ export default function ControlPostPage() {
               </p>
             </div>
             <button
-              onClick={() => (window.location.href = "/api/auth/instagram/link")}
+              onClick={() => (window.location.href = "/api/auth/instagram/link?returnTo=/dashboard/control-post")}
               className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#e84c9f] via-[#b656e3] to-[#5a60f6] text-white text-[13.5px] font-bold rounded-full shadow-[0_8px_20px_-4px_rgba(182,86,227,0.25)] transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
             >
               Connect Instagram Account
@@ -591,6 +589,77 @@ export default function ControlPostPage() {
         )}
 
       </div>
+
+      {/* ADD ANOTHER ACCOUNT MODAL */}
+      {isAddAccountModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-100 relative">
+            <button
+              onClick={() => setIsAddAccountModalOpen(false)}
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-50 text-slate-400 hover:text-slate-650 transition-colors"
+            >
+              <X size={18} strokeWidth={2.5} />
+            </button>
+
+            <div className="flex flex-col items-center text-center mt-2">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 p-0.5 shadow-md mb-4 flex items-center justify-center">
+                <div className="w-full h-full rounded-[14px] bg-white flex items-center justify-center animate-pulse">
+                  <Instagram size={28} className="text-[#ee2a7b]" />
+                </div>
+              </div>
+
+              <h3 className="text-xl font-bold text-slate-900 tracking-tight">Connect another Instagram account</h3>
+              <p className="text-xs text-slate-400 font-semibold mt-2 max-w-xs leading-relaxed font-sans">
+                Link another professional Instagram Business account to manage its automations under the same workspace.
+              </p>
+
+              <button
+                onClick={() => {
+                  window.location.href = "/api/auth/instagram/link?returnTo=/dashboard/control-post";
+                }}
+                className="w-full mt-6 py-3.5 bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 text-white text-xs font-bold rounded-xl shadow-md transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Instagram size={14} />
+                <span>Connect Another Instagram</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SUCCESS MODAL */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-sm rounded-[2rem] p-6 md:p-8 shadow-2xl text-center space-y-6 border border-slate-100 relative">
+            <div className="flex justify-center">
+              <div className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg shadow-emerald-100 border-4 border-white ring-1 ring-slate-100">
+                <CheckCircle2 size={28} className="text-white" strokeWidth={3} />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <h2 className="text-xl font-bold text-slate-900 tracking-tight leading-tight">
+                Connected!
+              </h2>
+              <p className="text-xs text-slate-400 font-semibold leading-relaxed">
+                Your Instagram account has been linked successfully.
+              </p>
+            </div>
+
+            <button 
+              onClick={() => {
+                setShowSuccessModal(false);
+                loadAccounts();
+              }}
+              className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+            >
+              Continue
+              <ChevronRight size={14} strokeWidth={2.5} />
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

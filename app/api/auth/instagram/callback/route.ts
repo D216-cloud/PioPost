@@ -10,7 +10,14 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const code = searchParams.get("code");
   const error = searchParams.get("error");
+  const stateParam = searchParams.get("state") || "";
   const configuredBusinessId = process.env.INSTAGRAM_ACCOUNT_ID?.trim() || null;
+
+  let returnTo = "/dashboard/auto-dm";
+  if (stateParam.includes("||")) {
+    const parts = stateParam.split("||");
+    returnTo = parts[1] || "/dashboard/auto-dm";
+  }
 
   if (error || !code) {
     return NextResponse.redirect(`${origin}/instagram/connect?error=oauth_denied`);
@@ -123,7 +130,7 @@ export async function GET(req: Request) {
 
     if (upsertError) throw new Error(`DB upsert failed: ${upsertError.message}`);
 
-    return NextResponse.redirect(`${origin}/dashboard/auto-dm?connected=true`);
+    return NextResponse.redirect(`${origin}${returnTo}${returnTo.includes("?") ? "&" : "?"}connected=true`);
 
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : "Unknown error occurred";

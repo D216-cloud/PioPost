@@ -22,12 +22,15 @@ export async function GET(req: Request) {
     "instagram_business_manage_comments"
   ].join(",");
 
+  const { searchParams } = new URL(req.url);
+  const returnTo = searchParams.get("returnTo") || "/dashboard/auto-dm";
+
   const params = new URLSearchParams({
     client_id: CLIENT_ID!,
     redirect_uri: REDIRECT_URI,
     response_type: "code",
     scope: scope,
-    state: session.user.id
+    state: `${session.user.id}||${returnTo}`
   });
 
   const authUrl = `https://www.instagram.com/oauth/authorize?${params.toString()}`;

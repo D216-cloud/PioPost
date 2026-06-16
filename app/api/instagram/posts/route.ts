@@ -9,16 +9,25 @@ export async function GET(req: Request) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    // Get the user's Instagram account
-    const { data: igAccount, error: acctError } = await supabaseAdmin
+    const { searchParams } = new URL(req.url);
+    const accountId = searchParams.get("accountId");
+
+    let query = supabaseAdmin
       .from("instagram_accounts")
       .select("*")
-      .eq("user_id", session.user.id)
-      .single();
+      .eq("user_id", session.user.id);
 
-    if (acctError || !igAccount) {
+    if (accountId) {
+      query = query.eq("id", accountId);
+    }
+
+    const { data: accounts, error: acctError } = await query.order("created_at", { ascending: false });
+
+    if (acctError || !accounts || accounts.length === 0) {
       return NextResponse.json({ error: "Instagram account not connected" }, { status: 404 });
     }
+
+    const igAccount = accounts[0];
 
     // Fetch media from Instagram Graph API
     const mediaRes = await fetch(

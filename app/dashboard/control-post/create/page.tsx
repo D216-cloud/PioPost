@@ -24,7 +24,13 @@ import {
   Clock,
   MessageSquarePlus,
   Zap,
-  Shield
+  X,
+  ChevronUp,
+  ChevronDown,
+  Pencil,
+  CornerDownRight,
+  Trash2,
+  Maximize2
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -33,6 +39,9 @@ export default function CreateAutomationPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [selectedTrigger, setSelectedTrigger] = useState("comment");
+  const [commentTargetMode, setCommentTargetMode] = useState<"specific" | "any" | "next">("specific");
+
+  const isReviewStep = selectedTrigger === "comment" ? step === 5 : step === 4;
 
   // Account & Media State
   const [account, setAccount] = useState<any>(null);
@@ -46,10 +55,22 @@ export default function CreateAutomationPage() {
   const [keywords, setKeywords] = useState<string[]>(["GUIDE"]);
   const [keywordInput, setKeywordInput] = useState("");
   const [excludeKeywords, setExcludeKeywords] = useState<string[]>([]);
-  const [keywordMode, setKeywordMode] = useState<string>("any");
+  const [keywordMode, setKeywordMode] = useState<string>("any_comment");
+  const [excludeKeywordInput, setExcludeKeywordInput] = useState("");
+  const [autoCommentReply, setAutoCommentReply] = useState(true);
+  const [showMatchModeSettings, setShowMatchModeSettings] = useState(false);
+  const [showExcludeKeywordsInput, setShowExcludeKeywordsInput] = useState(false);
+  const [dmType, setDmType] = useState("text_button");
+  const [showButtonFields, setShowButtonFields] = useState(true);
+  const [showReferralPromo, setShowReferralPromo] = useState(true);
+  const [followGateCollapsed, setFollowGateCollapsed] = useState(false);
+  const [retryAction, setRetryAction] = useState("send_anyway");
 
   // Step 3: Messages State
   const [commentReplyText, setCommentReplyText] = useState("Thanks for the comment! Check your DMs 📩");
+  const [commentReplyTexts, setCommentReplyTexts] = useState<string[]>([
+    "Thanks for the comment! Check your DMs 📩"
+  ]);
   const [initialDmMessage, setInitialDmMessage] = useState(
     "Thanks for commenting! Tap below and I'll send you the access instantly 🚀"
   );
@@ -110,8 +131,23 @@ export default function CreateAutomationPage() {
     }
   };
 
+  const addExcludeKeyword = (raw: string) => {
+    const kw = raw.trim().replace(/,+$/, "").trim();
+    if (!kw) return;
+    if (excludeKeywords.length >= 3) return;
+    if (excludeKeywords.map((k) => k.toLowerCase()).includes(kw.toLowerCase())) return;
+    setExcludeKeywords((prev) => [...prev, kw]);
+    setExcludeKeywordInput("");
+  };
+
+  const removeExcludeKeyword = (kw: string) => {
+    setExcludeKeywords((prev) => prev.filter((k) => k !== kw));
+  };
+
   useEffect(() => {
-    fetch("/api/instagram/account")
+    const savedActiveId = typeof window !== "undefined" ? localStorage.getItem("active_instagram_account_id") : null;
+    const url = savedActiveId ? `/api/instagram/account?accountId=${encodeURIComponent(savedActiveId)}` : "/api/instagram/account";
+    fetch(url)
       .then((res) => {
         if (res.ok) return res.json();
         throw new Error("Not connected");
@@ -159,26 +195,60 @@ export default function CreateAutomationPage() {
         toast.error("Please connect your Instagram account first");
         return;
       }
-      if (selectedMediaIds.length === 0) {
+      if (commentTargetMode === "specific" && selectedMediaIds.length === 0) {
         toast.error("Please select at least one reel to monitor");
         return;
       }
       setStep(3);
     } else if (step === 3) {
-      if (!commentReplyText.trim()) {
-        toast.error("Comment reply text is required");
-        return;
+      if (selectedTrigger === "comment") {
+        if (keywordMode !== "any_comment" && keywords.length === 0) {
+          toast.error("Please add at least one trigger keyword or select 'Any comment'");
+          return;
+        }
+        if (autoCommentReply && commentReplyTexts.filter(t => t.trim()).length === 0) {
+          toast.error("At least one comment reply message is required");
+          return;
+        }
+        setStep(4);
+      } else {
+        // Non-comment trigger: this is the Primary DM & Gates step
+        if (!mainDmMessage.trim()) {
+          toast.error("Main DM message is required");
+          return;
+        }
+        if (dmType === "text_button" && (!dmButtonLabel.trim() || !dmButtonUrl.trim())) {
+          toast.error("Button label and redirect URL are required for Text + Button type");
+          return;
+        }
+        if (enableFollowUp && !followUpMessage.trim()) {
+          toast.error("Follow-up message text is required");
+          return;
+        }
+        setStep(4); // Review step for non-comment
       }
+    } else if (step === 4 && selectedTrigger === "comment") {
+      // Comment trigger: this is the Primary DM & Gates step
       if (!mainDmMessage.trim()) {
         toast.error("Main DM message is required");
         return;
       }
-      setStep(4);
+      if (dmType === "text_button" && (!dmButtonLabel.trim() || !dmButtonUrl.trim())) {
+        toast.error("Button label and redirect URL are required for Text + Button type");
+        return;
+      }
+      if (enableFollowUp && !followUpMessage.trim()) {
+        toast.error("Follow-up message text is required");
+        return;
+      }
+      setStep(5); // Review step for comment
     }
   };
 
   const handleBack = () => {
-    if (step > 1) {
+    if (isReviewStep) {
+      setStep(selectedTrigger === "comment" ? 4 : 3);
+    } else if (step > 1) {
       setStep(step - 1);
     } else {
       router.back();
@@ -195,16 +265,16 @@ export default function CreateAutomationPage() {
       trigger_type: postId ? "specific_post" : "all_posts",
       specific_post_id: postId || null,
       specific_post_thumbnail: post ? (post.thumbnail_url || post.media_url) : null,
-      trigger_keywords: keywords.length > 0 ? keywords : ["GUIDE"],
-      exclude_keywords: excludeKeywords,
+      trigger_keywords: keywordMode === "any_comment" ? [] : (keywords.length > 0 ? keywords : []),
+      exclude_keywords: keywordMode === "any_comment" ? [] : excludeKeywords,
       keyword_mode: keywordMode,
       dm_message_text: mainDmMessage,
       // For normal (no-gate) flow: dm_button_text is the "Send Access" postback label
-      dm_button_text: !requireFollow && !emailAsk ? dmButtonLabel : null,
-      dm_button_url: !requireFollow && !emailAsk ? (dmButtonUrl || null) : null,
-      dm_message_type: "text",
+      dm_button_text: !requireFollow && !emailAsk && dmType === "text_button" ? dmButtonLabel : null,
+      dm_button_url: !requireFollow && !emailAsk && dmType === "text_button" ? (dmButtonUrl || null) : null,
+      dm_message_type: dmType === "text_button" ? "text" : "text_only",
       // New 2-step DM flow fields
-      comment_reply_text: commentReplyText,
+      comment_reply_text: autoCommentReply ? commentReplyTexts.filter(t => t.trim()).join("||") : null,
       initial_dm_message: !requireFollow && !emailAsk ? initialDmMessage : null,
       
       // follow gate settings
@@ -241,7 +311,7 @@ export default function CreateAutomationPage() {
   const handleSaveAutomation = async () => {
     setSavingRule(true);
     try {
-      const isGlobal = selectedMediaIds.length === media.length;
+      const isGlobal = commentTargetMode === "any" || commentTargetMode === "next" || selectedMediaIds.length === media.length || selectedMediaIds.length === 0;
       const promises = isGlobal
         ? [saveRule(null)]
         : selectedMediaIds.map((id) => saveRule(id));
@@ -259,52 +329,40 @@ export default function CreateAutomationPage() {
   const triggers = [
     {
       id: "comment",
-      title: "Keyword in Comment",
-      description: "Trigger when someone comments with specific keywords on your posts or reels",
+      title: "Comments on your Post or Reel",
       icon: MessageCircle,
-      iconColor: "text-blue-600",
-      bgColor: "bg-blue-50",
-      popular: true,
-    },
-    {
-      id: "dm",
-      title: "Keyword in DM",
-      description: "Trigger when someone sends you a DM with specific keywords",
-      icon: Send,
       iconColor: "text-emerald-600",
       bgColor: "bg-emerald-50",
     },
     {
+      id: "dm",
+      title: "Sends you a DM",
+      icon: Send,
+      iconColor: "text-blue-600",
+      bgColor: "bg-blue-50",
+    },
+    {
       id: "story",
-      title: "Story Mention",
-      description: "Trigger when someone mentions you in their Instagram story",
+      title: "Replies to your Story",
       icon: AtSign,
       iconColor: "text-purple-600",
       bgColor: "bg-purple-50",
     },
     {
-      id: "follower",
-      title: "New Follower",
-      description: "Trigger when someone follows your Instagram account",
-      icon: Heart,
-      iconColor: "text-orange-600",
-      bgColor: "bg-orange-50",
+      id: "live",
+      title: "Comments on your Live",
+      icon: Zap,
+      iconColor: "text-rose-600",
+      bgColor: "bg-rose-50",
+      comingSoon: true,
     },
     {
-      id: "reel",
-      title: "Reel Interaction",
-      description: "Trigger when someone likes or comments on your reels",
-      icon: Film,
-      iconColor: "text-pink-600",
-      bgColor: "bg-pink-50",
-    },
-    {
-      id: "custom",
-      title: "Custom Event",
-      description: "Advanced trigger using webhook or custom events",
-      icon: Globe,
-      iconColor: "text-teal-600",
-      bgColor: "bg-teal-50",
+      id: "dm_post",
+      title: "DMs your Post or Reel",
+      icon: LinkIcon,
+      iconColor: "text-amber-600",
+      bgColor: "bg-amber-50",
+      comingSoon: true,
     },
   ];
 
@@ -327,1061 +385,511 @@ export default function CreateAutomationPage() {
           </button>
         </div>
 
-        {/* ── Steps Progress Indicator ── */}
-        <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-[0_1px_4px_rgba(0,0,0,0.01)]">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 lg:gap-4">
-            
-            {/* Step 1 */}
-            <div className="flex items-center gap-3">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-extrabold shrink-0 ${
-                step > 1 ? "bg-emerald-500 shadow-[0_2px_8px_rgba(16,185,129,0.25)]" : "bg-blue-600 shadow-[0_2px_8px_rgba(37,99,235,0.25)]"
-              }`}>
-                {step > 1 ? <Check size={14} strokeWidth={3} /> : "1"}
-              </div>
-              <div className="text-left leading-tight">
-                <p className={`text-xs font-extrabold uppercase tracking-wider ${
-                  step > 1 ? "text-emerald-600" : "text-blue-600"
-                }`}>Trigger</p>
-                <p className="text-[11px] text-slate-400 font-semibold mt-0.5">Choose trigger type</p>
-              </div>
-            </div>
- 
-            <div className="hidden lg:block h-px flex-1 bg-slate-100 mx-4" />
- 
-            {/* Step 2 */}
-            <div className={`flex items-center gap-3 ${step === 2 || step > 2 ? "" : "opacity-60"}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-extrabold shrink-0 ${
-                step === 2
-                  ? "bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,0.25)]"
-                  : step > 2
-                  ? "bg-emerald-500 text-white shadow-[0_2px_8px_rgba(16,185,129,0.25)]"
-                  : "border-2 border-slate-200 text-slate-500"
-              }`}>
-                {step > 2 ? <Check size={14} strokeWidth={3} /> : "2"}
-              </div>
-              <div className="text-left leading-tight">
-                <p className={`text-xs font-bold uppercase tracking-wider ${step === 2 ? "text-blue-600" : step > 2 ? "text-emerald-600" : "text-slate-700"}`}>Your Reels</p>
-                <p className="text-[11px] text-slate-400 font-semibold mt-0.5">Select reels to monitor</p>
-              </div>
-            </div>
- 
-            <div className="hidden lg:block h-px flex-1 bg-slate-100 mx-4" />
- 
-            {/* Step 3 */}
-            <div className={`flex items-center gap-3 ${step === 3 || step > 3 ? "" : "opacity-60"}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                step === 3
-                  ? "bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,0.25)]"
-                  : step > 3
-                  ? "bg-emerald-500 text-white shadow-[0_2px_8px_rgba(16,185,129,0.25)]"
-                  : "border-2 border-slate-200 text-slate-500"
-              }`}>
-                {step > 3 ? <Check size={14} strokeWidth={3} /> : "3"}
-              </div>
-              <div className="text-left leading-tight">
-                <p className={`text-xs font-bold uppercase tracking-wider ${step === 3 ? "text-blue-600" : step > 3 ? "text-emerald-600" : "text-slate-700"}`}>Messages & Actions</p>
-                <p className="text-[11px] text-slate-400 font-semibold mt-0.5">Configure messages & actions</p>
-              </div>
-            </div>
- 
-            <div className="hidden lg:block h-px flex-1 bg-slate-100 mx-4" />
- 
-            {/* Step 4 */}
-            <div className={`flex items-center gap-3 ${step === 4 ? "" : "opacity-60"}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                step === 4
-                  ? "bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,0.25)]"
-                  : "border-2 border-slate-200 text-slate-500"
-              }`}>
-                4
-              </div>
-              <div className="text-left leading-tight">
-                <p className={`text-xs font-bold uppercase tracking-wider ${step === 4 ? "text-blue-600" : "text-slate-700"}`}>Review</p>
-                <p className="text-[11px] text-slate-400 font-semibold mt-0.5">Review & activate</p>
-              </div>
-            </div>
- 
-          </div>
-        </div>
+
 
         {/* ── STEP 1 CONTENT: CHOOSE TRIGGER ── */}
         {step === 1 && (
-          <div className="flex flex-col gap-5 text-left">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">Choose Trigger</h2>
-              <p className="text-xs text-slate-400 font-semibold mt-1">Select what will trigger your automation</p>
-            </div>
-
-            {/* Trigger Options Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {triggers.map((item) => {
-                const Icon = item.icon;
-                const isSelected = selectedTrigger === item.id;
-
-                return (
-                  <div
-                    key={item.id}
-                    onClick={() => setSelectedTrigger(item.id)}
-                    className={`border rounded-2xl p-5 flex items-start gap-4 transition-all duration-200 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.01)] relative ${
-                      isSelected
-                        ? "border-blue-500 bg-blue-50/10 ring-2 ring-blue-500/10"
-                        : "border-slate-100 bg-white hover:border-slate-200/80"
-                    }`}
-                  >
-                    <div className={`w-11 h-11 rounded-full ${item.bgColor} flex items-center justify-center shrink-0`}>
-                      <Icon size={20} className={item.iconColor} />
-                    </div>
-
-                    <div className="flex-1 min-w-0 pr-6">
-                      <p className="text-sm font-bold text-slate-900">{item.title}</p>
-                      <p className="text-[11px] text-slate-400 font-semibold mt-1 leading-relaxed">
-                        {item.description}
-                      </p>
-                      
-                      {item.popular && (
-                        <span className="inline-flex items-center gap-1 mt-3 px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full text-[9px] font-black uppercase tracking-wider border border-blue-100">
-                          ★ Most Popular
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="absolute top-5 right-5">
-                      <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${
-                        isSelected ? "border-blue-600" : "border-slate-200"
-                      }`}>
-                        {isSelected && (
-                          <div className="w-2.5 h-2.5 rounded-full bg-blue-600" />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Keyword Input — shown for comment trigger */}
-            {selectedTrigger === "comment" && (
-              <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-[0_1px_4px_rgba(0,0,0,0.01)] flex flex-col gap-4">
-                
-                {/* Matching Mode Selector */}
-                <div className="flex flex-col gap-2">
-                  <h3 className="text-sm font-extrabold text-slate-900">Keyword Matching Mode</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                    {[
-                      { id: "any", label: "Contains Any", desc: "OR match" },
-                      { id: "all", label: "Contains All", desc: "AND match" },
-                      { id: "exact", label: "Exact Match", desc: "Equal match" },
-                      { id: "any_comment", label: "Any Comment", desc: "No keywords" },
-                    ].map((mode) => {
-                      const isSel = keywordMode === mode.id;
-                      return (
-                        <div
-                          key={mode.id}
-                          onClick={() => setKeywordMode(mode.id)}
-                          className={`border rounded-xl p-3 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 select-none ${
-                            isSel
-                              ? "border-blue-500 bg-blue-50/20 ring-2 ring-blue-500/10 text-blue-600 font-bold"
-                              : "border-slate-100 bg-white hover:border-slate-200/80 text-slate-500"
-                          }`}
-                        >
-                          <span className="text-xs font-bold leading-tight">{mode.label}</span>
-                          <span className={`text-[9px] font-semibold mt-0.5 leading-none ${isSel ? "text-blue-500/70" : "text-slate-400"}`}>
-                            {mode.desc}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {keywordMode !== "any_comment" ? (
-                  <div className="flex flex-col gap-3.5 pt-2 border-t border-slate-100/60 animate-in slide-in-from-top-2 duration-300">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-xs font-extrabold text-slate-900">
-                          {keywordMode === "exact" ? "Exact Keywords" : keywordMode === "all" ? "Required Keywords" : "Trigger Keywords"}
-                        </h3>
-                        <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
-                          {keywordMode === "exact"
-                            ? "Comment must match a keyword exactly (max 3)"
-                            : keywordMode === "all"
-                            ? "Comment must contain ALL of these keywords (max 3)"
-                            : "Comment contains ANY of these keywords (max 3)"}
-                        </p>
-                      </div>
-                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                        keywords.length >= 3 ? "bg-orange-50 text-orange-600 border border-orange-100" : "bg-slate-100 text-slate-500"
-                      }`}>
-                        {keywords.length}/3
-                      </span>
-                    </div>
-
-                    {/* Tag pills + input */}
-                    <div className="flex flex-wrap items-center gap-2 border border-slate-200 bg-slate-50/50 rounded-2xl px-3.5 py-2.5 min-h-[44px] focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-500/5 focus-within:bg-white transition-all">
-                      {keywords.map((kw) => (
-                        <span key={kw} className="inline-flex items-center gap-1.5 bg-blue-600 text-white text-[11px] font-bold px-2.5 py-1 rounded-full">
-                          {kw}
-                          <button
-                            type="button"
-                            onClick={() => removeKeyword(kw)}
-                            className="text-white/70 hover:text-white text-xs leading-none cursor-pointer"
-                            aria-label={`Remove keyword ${kw}`}
-                          >
-                            ✕
-                          </button>
-                        </span>
-                      ))}
-                      {keywords.length < 3 && (
-                        <input
-                          type="text"
-                          value={keywordInput}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (val.endsWith(",")) {
-                              addKeyword(val.slice(0, -1));
-                            } else {
-                              setKeywordInput(val);
-                            }
-                          }}
-                          onKeyDown={handleKeywordKeyDown}
-                          onBlur={() => addKeyword(keywordInput)}
-                          placeholder={keywords.length === 0 ? "Type keyword, press Enter" : "Add another..."}
-                          className="flex-1 min-w-[120px] bg-transparent text-xs font-bold text-slate-800 placeholder-slate-400 outline-none py-0.5"
-                        />
-                      )}
-                    </div>
-
-                    <p className="text-[10px] text-slate-450 font-semibold">
-                      💡 Press <kbd className="bg-slate-100 border border-slate-200 rounded px-1 py-0.5 text-[9px] font-mono">Enter</kbd> or <kbd className="bg-slate-100 border border-slate-200 rounded px-1 py-0.5 text-[9px] font-mono">,</kbd> to add a keyword.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-left animate-in slide-in-from-top-2 duration-300">
-                    <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                      👉 <strong>Any Comment Mode:</strong> Keywords are disabled. This automation will trigger for <strong>every comment</strong> left on the selected post(s).
-                    </p>
-                  </div>
-                )}
+          <div className="flex flex-col gap-6 text-left">
+            <div className="bg-white border border-slate-150 rounded-[28px] p-6 shadow-[0_12px_40px_rgba(0,0,0,0.03)] max-w-lg mx-auto w-full relative animate-in fade-in duration-300">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
+                <span className="font-extrabold text-slate-900 text-sm tracking-tight">Trigger AutoDM when someone...</span>
+                <button
+                  onClick={() => router.push("/dashboard/control-post")}
+                  className="text-slate-400 hover:text-slate-600 transition-colors p-1"
+                >
+                  <X size={18} />
+                </button>
               </div>
-            )}
 
-            {/* Info Bar */}
-            <div className="bg-blue-55/60 border border-blue-100 rounded-2xl p-4 flex items-center gap-3">
-              <Info size={18} className="text-blue-500 shrink-0" />
-              <p className="text-xs font-semibold text-blue-800">
-                {selectedTrigger === "comment"
-                  ? `Automation triggers when a comment contains any of your keywords above.`
-                  : "You can set advanced conditions in the next steps."}
-              </p>
+              {/* List */}
+              <div className="flex flex-col gap-3">
+                {triggers.map((item) => {
+                  const Icon = item.icon;
+                  const isSelected = selectedTrigger === item.id;
+                  
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => {
+                        if (item.comingSoon) {
+                          toast.info("This trigger will be available soon!");
+                          return;
+                        }
+                        setSelectedTrigger(item.id);
+                      }}
+                      className={`border rounded-[18px] p-4 flex items-center justify-between gap-4 transition-all duration-200 select-none ${
+                        item.comingSoon
+                          ? "opacity-50 cursor-not-allowed bg-slate-50/50 border-slate-100"
+                          : "cursor-pointer"
+                      } ${
+                        isSelected && !item.comingSoon
+                          ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500/10"
+                          : "border-slate-100 bg-white hover:border-slate-200/80 hover:shadow-sm"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3.5">
+                        <div className={`w-9 h-9 rounded-full ${item.bgColor} flex items-center justify-center shrink-0`}>
+                          <Icon size={16} className={item.iconColor} />
+                        </div>
+                        <span className={`text-xs font-bold ${
+                          isSelected && !item.comingSoon ? "text-blue-600 font-extrabold" : "text-slate-700"
+                        }`}>
+                          {item.title}
+                        </span>
+                      </div>
+                      
+                      {item.comingSoon ? (
+                        <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                          Soon
+                        </span>
+                      ) : (
+                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 transition-all ${
+                          isSelected ? "border-blue-600 bg-blue-600 text-white shadow-sm" : "border-slate-200 text-transparent"
+                        }`}>
+                          <Check size={10} strokeWidth={3} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Card Footer */}
+              <div className="border-t border-slate-100 pt-4 mt-5 flex items-center justify-between">
+                <span className="text-[11px] font-bold text-slate-400">
+                  {selectedTrigger === "comment" ? "Step 1 of 5" : "Step 1 of 4"}
+                </span>
+                <div className="flex items-center gap-2.5">
+                  <button
+                    onClick={handleBack}
+                    className="px-5 py-2 border border-slate-200 hover:bg-slate-55 rounded-full text-xs font-bold text-slate-700 transition-all cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleNext}
+                    className="px-5 py-2 bg-slate-900 hover:bg-black text-white rounded-full text-xs font-bold transition-all shadow-md cursor-pointer"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+
             </div>
           </div>
         )}
 
         {/* ── STEP 2 CONTENT: SELECT REELS ── */}
         {step === 2 && (
-          <div className="flex flex-col gap-6 text-left">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">Your Reels</h2>
-                <p className="text-xs text-slate-400 font-semibold mt-1">
-                  Select which reels this automation rule will monitor
-                </p>
+          <div className="bg-white border border-slate-150 rounded-[28px] p-0 shadow-[0_12px_40px_rgba(0,0,0,0.035)] max-w-md mx-auto w-full relative flex flex-col h-[640px] overflow-hidden animate-in fade-in duration-300">
+            
+            {/* Card Header */}
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 px-6 pt-6 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+                  <Film size={16} />
+                </div>
+                <span className="font-extrabold text-slate-800 text-xs">When someone comments on your Post/Reel</span>
               </div>
-
-              {account && media.length > 0 && (
-                <button
-                  onClick={selectAllMedia}
-                  className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-[0_1px_2px_rgba(0,0,0,0.02)] cursor-pointer self-start sm:self-auto"
-                >
-                  {selectedMediaIds.length === media.length ? "Deselect All" : "Select All Reels"}
-                </button>
-              )}
+              <button
+                onClick={() => router.push("/dashboard/control-post")}
+                className="text-slate-400 hover:text-slate-600 transition-colors p-1"
+              >
+                <X size={18} />
+              </button>
             </div>
 
-            {loadingAccount ? (
-              <div className="py-16 text-center">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent mx-auto" />
-              </div>
-            ) : account ? (
-              /* Connected Layout */
-              <div className="flex flex-col gap-5">
-                <div className="bg-white border border-slate-100 rounded-2xl p-4 flex items-center justify-between shadow-[0_1px_3px_rgba(0,0,0,0.01)]">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-100 overflow-hidden shrink-0">
-                      {account.profile_picture_url ? (
-                        <img src={account.profile_picture_url} alt="avatar" className="w-full h-full object-cover" />
+            {/* Card Body - Scrollable content area */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-5 scrollbar-thin">
+              
+              {loadingAccount ? (
+                <div className="py-16 text-center">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent mx-auto" />
+                </div>
+              ) : account ? (
+                <>
+                  {/* Profile Section */}
+                  <div className="flex flex-col items-center gap-1 my-1">
+                    <div className="w-16 h-16 rounded-full p-[2.5px] bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600">
+                      <div className="w-full h-full rounded-full bg-white p-[2px]">
+                        {account.profile_picture_url ? (
+                          <img src={account.profile_picture_url} className="w-full h-full rounded-full object-cover" alt="profile" />
+                        ) : (
+                          <div className="w-full h-full rounded-full bg-[#ec4899] flex items-center justify-center text-white text-base font-bold">
+                            {account.username?.[0]?.toUpperCase() || "M"}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <span className="font-extrabold text-slate-800 text-xs mt-1">@{account.username}</span>
+                    <button
+                      onClick={() => (window.location.href = "/api/auth/instagram/link")}
+                      className="text-[10px] font-bold text-blue-650 hover:underline transition-colors mt-0.5"
+                    >
+                      Switch account
+                    </button>
+                  </div>
+
+                  {/* Comment Target Selector */}
+                  <div className="flex flex-col gap-2.5">
+                    <p className="font-extrabold text-slate-900 text-[11px] uppercase tracking-wider text-slate-400 text-left">The Comment is on...</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { id: "specific", label: "Specific Post/Reel" },
+                        { id: "any", label: "Any Post/Reel" },
+                        { id: "next", label: "Next Post/Reel" }
+                      ].map((option) => {
+                        const isSelected = commentTargetMode === option.id;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => {
+                              setCommentTargetMode(option.id as any);
+                              if (option.id !== "specific") {
+                                setSelectedMediaIds([]);
+                              }
+                            }}
+                            className={`py-2.5 px-1.5 rounded-xl border text-[10px] font-extrabold transition-all text-center cursor-pointer select-none leading-tight ${
+                              isSelected
+                                ? "border-blue-500 bg-blue-50/20 text-blue-600 ring-2 ring-blue-500/10 font-black shadow-sm"
+                                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300"
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Specific Reels/Posts Grid */}
+                  {commentTargetMode === "specific" && (
+                    <div className="flex flex-col gap-3 animate-in fade-in duration-200">
+                      {loadingMedia ? (
+                        <div className="grid grid-cols-3 gap-3">
+                          {Array.from({ length: 6 }).map((_, i) => (
+                            <div key={i} className="aspect-[9/16] rounded-2xl bg-slate-100 animate-pulse" />
+                          ))}
+                        </div>
+                      ) : media.length === 0 ? (
+                        <div className="border border-slate-100 rounded-2xl p-8 text-center bg-slate-50/40">
+                          <Film className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                          <p className="text-xs font-bold text-slate-400">No media reels found.</p>
+                        </div>
                       ) : (
-                        <div className="w-full h-full bg-[#ec4899] flex items-center justify-center text-white text-xs font-bold">M</div>
+                        <div className="grid grid-cols-3 gap-3">
+                          {media.map((item) => {
+                            const isSelected = selectedMediaIds.includes(item.id);
+                            const thumb = item.thumbnail_url || item.media_url;
+
+                            return (
+                              <div
+                                key={item.id}
+                                onClick={() => toggleMediaSelection(item.id)}
+                                className={`group relative aspect-[9/16] rounded-2xl overflow-hidden border cursor-pointer transition-all duration-300 select-none ${
+                                  isSelected
+                                    ? "border-blue-500 ring-4 ring-blue-500/10 shadow-md"
+                                    : "border-slate-200 hover:border-slate-300"
+                                }`}
+                              >
+                                {thumb && (
+                                  <img
+                                    src={thumb}
+                                    alt={item.caption || "Instagram media"}
+                                    className="absolute inset-0 w-full h-full object-cover"
+                                  />
+                                )}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
+
+                                {/* Selected checkmark icon in center (from mockup) */}
+                                {isSelected ? (
+                                  <div className="absolute inset-0 bg-black/10 flex items-center justify-center">
+                                    <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-blue-600 shadow-lg scale-100 animate-in zoom-in-50 duration-150">
+                                      <Check size={16} strokeWidth={3.5} />
+                                    </div>
+                                  </div>
+                                ) : (
+                                  /* Expand icon in bottom right (from mockup) */
+                                  <div className="absolute bottom-2.5 right-2.5 z-10 w-6 h-6 rounded-lg bg-white/75 backdrop-blur-sm flex items-center justify-center border border-white/20 text-slate-800 hover:bg-white transition-all shadow-sm">
+                                    <Maximize2 size={11} className="stroke-[2.5]" />
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       )}
                     </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-900">Connected: @{account.username}</p>
-                      <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Media feed loaded successfully</p>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">
-                    {selectedMediaIds.length} Selected
-                  </span>
-                </div>
+                  )}
 
-                {loadingMedia ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    {Array.from({ length: 10 }).map((_, i) => (
-                      <div key={i} className="aspect-[9/16] rounded-2xl bg-slate-100 animate-pulse" />
-                    ))}
-                  </div>
-                ) : media.length === 0 ? (
-                  <div className="bg-white border border-slate-100 rounded-2xl p-16 text-center">
-                    <Film className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                    <p className="text-sm font-bold text-slate-500">No media reels found on this account.</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    {media.map((item) => {
-                      const isSelected = selectedMediaIds.includes(item.id);
-                      const thumb = item.thumbnail_url || item.media_url;
-
-                      return (
-                        <div
-                          key={item.id}
-                          onClick={() => toggleMediaSelection(item.id)}
-                          className={`group relative aspect-[9/16] rounded-2xl overflow-hidden border cursor-pointer transition-all duration-300 ${
-                            isSelected
-                              ? "border-blue-500 ring-4 ring-blue-500/10 shadow-lg"
-                              : "border-slate-200 hover:border-slate-35"
-                          }`}
-                        >
-                          {thumb && (
-                            <img
-                              src={thumb}
-                              alt={item.caption || "Instagram media"}
-                              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                            />
-                          )}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-
-                          {/* Selected check circle in top right */}
-                          <div className="absolute top-2.5 right-2.5 z-10">
-                            <div className={`w-6 h-6 rounded-full flex items-center justify-center border transition-all ${
-                              isSelected ? "bg-blue-600 border-blue-600 text-white" : "bg-black/35 border-white/40 text-transparent"
-                            }`}>
-                              <Check size={12} strokeWidth={3} />
-                            </div>
-                          </div>
-
-                          {/* Play button overlay on hover */}
-                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-lg">
-                              <Play size={14} className="text-white fill-white ml-0.5" />
-                            </div>
-                          </div>
-
-                          {/* Caption footer */}
-                          {item.caption && (
-                            <div className="absolute bottom-2 left-2.5 right-2.5">
-                              <p className="text-[10px] text-white/90 line-clamp-2 leading-snug font-semibold text-left">
-                                {item.caption}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            ) : (
-              /* Disconnected Layout */
-              <div className="bg-white rounded-2xl border border-slate-100 p-16 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col items-center gap-6 text-center max-w-xl mx-auto">
-                <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center text-slate-300">
-                  <Film size={28} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900 mb-1">No Instagram Account Connected</h3>
-                  <p className="text-sm text-slate-500 max-w-sm mx-auto leading-relaxed">
-                    Connect your Instagram Business Account to fetch and select your reels for automation.
-                  </p>
-                </div>
-                <button
-                  onClick={() => (window.location.href = "/api/auth/instagram/link")}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#e84c9f] via-[#b656e3] to-[#5a60f6] text-white text-[13px] font-bold rounded-full shadow-[0_8px_20px_-4px_rgba(182,86,227,0.25)] transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
-                >
-                  Connect Instagram Account
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── STEP 3 CONTENT: CONFIGURE MESSAGES ── */}
-        {step === 3 && (
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-            {/* Cards Config (Left 3 cols) */}
-            <div className="lg:col-span-3 flex flex-col gap-6">
-              <div className="mb-2">
-                <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                  <Sparkles size={20} className="text-blue-600" />
-                  <span>Configure Messages & Gates</span>
-                </h2>
-                <p className="text-xs text-slate-400 font-semibold mt-1">
-                  Define replies, entry gates (following/email requirements), and payload messages.
-                </p>
-              </div>
-
-              {/* Card 1: Comment Reply */}
-              <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-[0_2px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_4px_20px_rgba(0,0,0,0.04)] transition-all duration-300 flex items-start gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
-                  <MessageCircle size={20} className="text-blue-600" />
-                </div>
-                <div className="flex-1 flex flex-col gap-3.5">
-                  <div>
-                    <h4 className="text-[13px] font-extrabold text-slate-900 tracking-tight">Public Comment Reply</h4>
-                    <p className="text-[11px] text-slate-400 font-semibold mt-0.5 leading-relaxed">
-                      We'll automatically post this reply to users who comment on your monitored reels.
-                    </p>
-                  </div>
-                  <input
-                    type="text"
-                    value={commentReplyText}
-                    onChange={(e) => setCommentReplyText(e.target.value)}
-                    placeholder="e.g. Thanks for the comment! Check your DMs 📩"
-                    className="border border-slate-200 bg-slate-50/50 rounded-2xl px-4 py-3.5 text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500/40 focus:bg-white transition-all w-full shadow-inner"
-                  />
-                </div>
-              </div>
-
-              {/* Card 2: Require Follow First Gate */}
-              <div className={`bg-white border rounded-3xl p-6 shadow-[0_2px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_4px_20px_rgba(0,0,0,0.04)] transition-all duration-300 ${
-                requireFollow ? "border-pink-200 ring-2 ring-pink-500/5 bg-gradient-to-b from-white to-pink-50/5" : "border-slate-100"
-              }`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border transition-all ${
-                      requireFollow ? "bg-pink-50 border-pink-100 text-pink-600" : "bg-slate-50 border-slate-100 text-slate-400"
-                    }`}>
-                      <Heart size={20} className={requireFollow ? "text-pink-600" : "text-slate-400"} fill={requireFollow ? "currentColor" : "none"} />
-                    </div>
-                    <div>
-                      <h4 className="text-[13px] font-extrabold text-slate-900 tracking-tight flex items-center gap-1.5">
-                        <span>Require Follow First</span>
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-pink-100 text-pink-700 font-black uppercase tracking-wider">Follow Gate</span>
-                      </h4>
-                      <p className="text-[11px] text-slate-400 font-semibold mt-0.5 leading-relaxed">
-                        Verify users follow your account before they receive the DM payload.
+                  {/* Any Reels Message */}
+                  {commentTargetMode === "any" && (
+                    <div className="bg-slate-50 border border-slate-100 rounded-2xl p-6 text-center my-2 animate-in fade-in duration-200">
+                      <Film className="w-9 h-9 text-slate-400 mx-auto mb-2.5" />
+                      <p className="text-xs font-black text-slate-800">Comments on Any Post/Reel</p>
+                      <p className="text-[11px] text-slate-400 font-semibold mt-1 leading-relaxed max-w-[260px] mx-auto">
+                        This rule will automatically monitor and reply to comments on all current and past posts & reels.
                       </p>
                     </div>
-                  </div>
+                  )}
+
+                  {/* Next Reels Message */}
+                  {commentTargetMode === "next" && (
+                    <div className="bg-slate-50 border border-slate-100 rounded-2xl p-6 text-center my-2 animate-in fade-in duration-200">
+                      <Sparkles className="w-9 h-9 text-slate-400 mx-auto mb-2.5" />
+                      <p className="text-xs font-black text-slate-800">Comments on Next Post/Reel</p>
+                      <p className="text-[11px] text-slate-400 font-semibold mt-1 leading-relaxed max-w-[260px] mx-auto">
+                        This rule will automatically monitor and reply to comments on your next upcoming post or reel.
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* Connected account fallback layout */
+                <div className="py-12 flex flex-col items-center gap-4 text-center">
+                  <Film className="w-10 h-10 text-slate-300" />
+                  <p className="text-xs font-bold text-slate-500">Instagram account not connected</p>
                   <button
-                    onClick={() => {
-                      const nextVal = !requireFollow;
-                      setRequireFollow(nextVal);
-                      setSimStep("step1");
-                    }}
-                    className={`w-12 h-6.5 rounded-full relative transition-all duration-300 outline-none shrink-0 cursor-pointer ${
-                      requireFollow ? "bg-pink-550 shadow-[0_3px_10px_rgba(236,72,153,0.3)]" : "bg-slate-200"
-                    }`}
+                    onClick={() => (window.location.href = "/api/auth/instagram/link")}
+                    className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-sm"
                   >
-                    <span className={`w-5 h-5 bg-white rounded-full absolute top-[3px] transition-all duration-300 shadow-md ${
-                      requireFollow ? "left-[25px]" : "left-[3px]"
-                    }`} />
+                    Connect Instagram Account
                   </button>
-                </div>
-
-                {requireFollow && (
-                  <div className="mt-6 pt-5 border-t border-slate-100 flex flex-col gap-4 pl-1 animate-in slide-in-from-top-2 duration-300">
-                    <div className="bg-pink-50/50 border border-pink-100/60 p-4 rounded-2xl text-[11px] text-pink-700 leading-relaxed font-semibold">
-                      💡 <strong>Smart Gate Flow:</strong> User comments → Opener DM asking to follow → Clicking check verification checks status → If true, proceeds (or checks Email gate if enabled).
-                    </div>
-                    
-                    {/* Opener message */}
-                    <div className="border border-slate-100 rounded-2xl p-4 bg-slate-50/30 flex flex-col gap-3.5">
-                      <p className="text-[10px] font-black uppercase text-pink-600 tracking-widest">Opener DM Message</p>
-                      
-                      <div className="flex flex-col gap-1.5">
-                        <span className="text-[11px] text-slate-500 font-bold">Opening Message Text *</span>
-                        <textarea
-                          value={followOpeningMessage}
-                          onChange={(e) => setFollowOpeningMessage(e.target.value)}
-                          rows={3}
-                          className="border border-slate-200 bg-white rounded-2xl px-4 py-3 text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-pink-500/5 focus:border-pink-500/40 transition-all resize-none w-full shadow-inner"
-                        />
-                      </div>
-
-                      <div className="flex flex-col gap-1.5">
-                        <span className="text-[11px] text-slate-500 font-bold">Verification Button Label *</span>
-                        <input
-                          type="text"
-                          value={followOpeningBtnLabel}
-                          onChange={(e) => setFollowOpeningBtnLabel(e.target.value)}
-                          className="border border-slate-200 bg-white rounded-2xl px-4.5 py-3 text-xs font-bold text-slate-800 focus:outline-none focus:ring-4 focus:ring-pink-500/5 focus:border-pink-500/40 transition-all w-full shadow-inner"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Follow Check Message */}
-                    <div className="border border-slate-100 rounded-2xl p-4 bg-slate-50/30 flex flex-col gap-3.5">
-                      <p className="text-[10px] font-black uppercase text-pink-600 tracking-widest">Follow Check Reminder</p>
-                      
-                      <div className="flex flex-col gap-1.5">
-                        <span className="text-[11px] text-slate-500 font-bold">Reminder Message (if not following) *</span>
-                        <textarea
-                          value={followCheckMessage}
-                          onChange={(e) => setFollowCheckMessage(e.target.value)}
-                          rows={3}
-                          className="border border-slate-200 bg-white rounded-2xl px-4 py-3 text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-pink-500/5 focus:border-pink-500/40 transition-all resize-none w-full shadow-inner"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="flex flex-col gap-1.5">
-                          <span className="text-[11px] text-slate-550 font-bold">Button 1 Label *</span>
-                          <input
-                            type="text"
-                            value={followCheckBtn1Label}
-                            onChange={(e) => setFollowCheckBtn1Label(e.target.value)}
-                            className="border border-slate-200 bg-white rounded-2xl px-4 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-4 focus:ring-pink-500/5 focus:border-pink-500/40 transition-all w-full shadow-inner"
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                          <span className="text-[11px] text-slate-550 font-bold">Button 2 Label *</span>
-                          <input
-                            type="text"
-                            value={followCheckBtn2Label}
-                            onChange={(e) => setFollowCheckBtn2Label(e.target.value)}
-                            className="border border-slate-200 bg-white rounded-2xl px-4 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-4 focus:ring-pink-500/5 focus:border-pink-500/40 transition-all w-full shadow-inner"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Card 3: Collect Email First Gate */}
-              <div className={`bg-white border rounded-3xl p-6 shadow-[0_2px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_4px_20px_rgba(0,0,0,0.04)] transition-all duration-300 ${
-                emailAsk ? "border-indigo-200 ring-2 ring-indigo-500/5 bg-gradient-to-b from-white to-indigo-50/5" : "border-slate-100"
-              }`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border transition-all ${
-                      emailAsk ? "bg-indigo-50 border-indigo-100 text-indigo-600" : "bg-slate-50 border-slate-100 text-slate-400"
-                    }`}>
-                      <AtSign size={20} />
-                    </div>
-                    <div>
-                      <h4 className="text-[13px] font-extrabold text-slate-900 tracking-tight flex items-center gap-1.5">
-                        <span>Collect Email First</span>
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-black uppercase tracking-wider">Email Gate</span>
-                      </h4>
-                      <p className="text-[11px] text-slate-400 font-semibold mt-0.5 leading-relaxed">
-                        Collect lead emails via a branded landing page before delivering the guide.
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      const nextVal = !emailAsk;
-                      setEmailAsk(nextVal);
-                      setSimStep("step1");
-                    }}
-                    className={`w-12 h-6.5 rounded-full relative transition-all duration-300 outline-none shrink-0 cursor-pointer ${
-                      emailAsk ? "bg-indigo-550 shadow-[0_3px_10px_rgba(99,102,241,0.3)]" : "bg-slate-200"
-                    }`}
-                  >
-                    <span className={`w-5 h-5 bg-white rounded-full absolute top-[3px] transition-all duration-300 shadow-md ${
-                      emailAsk ? "left-[25px]" : "left-[3px]"
-                    }`} />
-                  </button>
-                </div>
-
-                {emailAsk && (
-                  <div className="mt-6 pt-5 border-t border-slate-100 flex flex-col gap-4 pl-1 animate-in slide-in-from-top-2 duration-300">
-                    <div className="bg-indigo-50/50 border border-indigo-100/60 p-4 rounded-2xl text-[11px] text-indigo-700 leading-relaxed font-semibold">
-                      📧 <strong>Email Gate Flow:</strong> System sends DM with a unique secure collection link → User enters email on branded page → Main payload is unlocked and sent.
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                      <span className="text-[11px] text-slate-550 font-bold">DM Message containing Link *</span>
-                      <textarea
-                        value={emailAskMessage}
-                        onChange={(e) => setEmailAskMessage(e.target.value)}
-                        rows={3}
-                        className="border border-slate-200 bg-white rounded-2xl px-4 py-3 text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500/40 transition-all resize-none w-full shadow-inner"
-                        placeholder="Use {link} variable to specify where the collect-email link will be inserted"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                      <span className="text-[11px] text-slate-550 font-bold">Button Label in DM *</span>
-                      <input
-                        type="text"
-                        value={emailAskBtnLabel}
-                        onChange={(e) => setEmailAskBtnLabel(e.target.value)}
-                        className="border border-slate-200 bg-white rounded-2xl px-4 py-3 text-xs font-bold text-slate-800 focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500/40 transition-all w-full shadow-inner"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Card 4: Initial DM Message (shown only when no gates active) */}
-              {!requireFollow && !emailAsk && (
-                <div className="bg-white border border-emerald-100 ring-2 ring-emerald-500/5 rounded-3xl p-6 shadow-[0_2px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_4px_20px_rgba(0,0,0,0.04)] transition-all duration-300 flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
-                    <Bot size={20} className="text-emerald-600" />
-                  </div>
-                  <div className="flex-1 flex flex-col gap-3.5">
-                    <div>
-                      <h4 className="text-[13px] font-extrabold text-slate-900 tracking-tight flex items-center gap-1.5">
-                        Initial DM Message
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-black uppercase tracking-wider">Step 1 of 2</span>
-                      </h4>
-                      <p className="text-[11px] text-slate-400 font-semibold mt-0.5 leading-relaxed">
-                        This greeting DM is sent first with a button. When the user clicks the button, the main message is delivered.
-                      </p>
-                    </div>
-
-                    {/* Initial DM text */}
-                    <div className="flex flex-col gap-1.5">
-                      <span className="text-[11px] text-slate-550 font-bold">Greeting Message Text *</span>
-                      <textarea
-                        value={initialDmMessage}
-                        onChange={(e) => setInitialDmMessage(e.target.value)}
-                        rows={3}
-                        placeholder="e.g. Thanks for commenting! Tap below and I'll send you the access instantly 🚀"
-                        className="border border-slate-200 bg-slate-50/50 rounded-2xl px-4 py-3 text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-500/40 focus:bg-white transition-all resize-none w-full shadow-inner"
-                      />
-                    </div>
-
-                    {/* Button config */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="flex flex-col gap-1.5">
-                        <span className="text-[11px] text-slate-550 font-bold">Access Button Label *</span>
-                        <input
-                          type="text"
-                          value={dmButtonLabel}
-                          onChange={(e) => setDmButtonLabel(e.target.value)}
-                          placeholder="e.g. Send Access"
-                          className="border border-slate-200 bg-slate-50/50 rounded-2xl px-4 py-3 text-xs font-bold text-slate-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-500/40 focus:bg-white transition-all w-full shadow-inner"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        <span className="text-[11px] text-slate-555 font-bold">Optional Redirect URL</span>
-                        <input
-                          type="text"
-                          value={dmButtonUrl}
-                          onChange={(e) => setDmButtonUrl(e.target.value)}
-                          placeholder="Optional: e.g. https://example.com"
-                          className="border border-slate-200 bg-slate-50/50 rounded-2xl px-4 py-3 text-xs font-bold text-slate-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-500/40 focus:bg-white transition-all w-full shadow-inner"
-                        />
-                      </div>
-                    </div>
-
-                    <p className="text-[10px] text-slate-400 font-semibold bg-emerald-50/60 border border-emerald-100/60 rounded-xl px-3 py-2">
-                      💡 When user clicks <strong>"{dmButtonLabel || "Send Access"}"</strong>, the main DM payload below is delivered instantly.
-                    </p>
-                  </div>
                 </div>
               )}
 
-              {/* Card 5: Main DM Message */}
-              <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-[0_2px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_4px_20px_rgba(0,0,0,0.04)] transition-all duration-300 flex items-start gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-center shrink-0">
-                  <Send size={20} className="text-purple-600" />
-                </div>
-                <div className="flex-1 flex flex-col gap-3.5">
-                  <div>
-                    <h4 className="text-[13px] font-extrabold text-slate-900 tracking-tight">
-                      {requireFollow || emailAsk ? "Main DM Message (Payload)" : "DM Message Text"}
-                    </h4>
-                    <p className="text-[11px] text-slate-400 font-semibold mt-0.5 leading-relaxed">
-                      The final message containing your links/files, delivered after they complete the step.
-                    </p>
-                  </div>
-                  <textarea
-                    value={mainDmMessage}
-                    onChange={(e) => setMainDmMessage(e.target.value)}
-                    placeholder="Type your main response containing details or files..."
-                    rows={4}
-                    className="border border-slate-200 bg-slate-50/50 rounded-2xl px-4 py-3.5 text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500/40 focus:bg-white transition-all resize-none w-full shadow-inner"
-                  />
-                </div>
-              </div>
-
             </div>
 
-            {/* Chat Simulator Preview (Right 2 cols) */}
-            <div className="lg:col-span-2 flex flex-col gap-4">
-              <div className="flex justify-between items-center px-1">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Interactive Live Preview</span>
-                {simStep !== "step1" && (
-                  <button
-                    onClick={() => setSimStep("step1")}
-                    className="text-[10px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer"
-                  >
-                    Reset Demo
-                  </button>
-                )}
-              </div>
-              
-              {/* Phone Container */}
-              <div className="border border-slate-250 bg-slate-900 rounded-[32px] p-3 shadow-xl max-w-sm mx-auto w-full aspect-[9/18] flex flex-col select-none">
-                <div className="w-full bg-slate-900 h-full rounded-[24px] overflow-hidden flex flex-col relative text-white text-[11px] font-sans pb-3">
-                  
-                  {/* Status Bar Mock */}
-                  <div className="flex justify-between items-center px-6 py-2 bg-slate-900 shrink-0">
-                    <span className="font-bold text-[10px]">9:41</span>
-                    <div className="w-16 h-4 bg-black rounded-full shrink-0" />
-                    <span className="font-bold text-[10px]">Active</span>
-                  </div>
-
-                  {/* Chat Header */}
-                  <div className="border-b border-slate-800 px-4 py-2 flex items-center gap-2 bg-slate-900 shrink-0">
-                    <div className="w-6 h-6 rounded-full bg-slate-750 flex items-center justify-center text-[10px] font-bold">C</div>
-                    <div>
-                      <p className="font-bold leading-none">Creator Account</p>
-                      <p className="text-[8px] text-slate-505 mt-0.5 leading-none">Instagram</p>
-                    </div>
-                  </div>
-
-                  {/* Chat Messages Body */}
-                  <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 bg-slate-950">
-                    
-                    {/* User comment mock */}
-                    <div className="flex flex-col gap-1 items-end self-end max-w-[75%] animate-in fade-in duration-300">
-                      <div className="bg-slate-850 text-white rounded-2xl rounded-tr-none px-3.5 py-2">
-                        giveaway
-                      </div>
-                      <span className="text-[8px] text-slate-650 mr-1 font-semibold">User Comment</span>
-                    </div>
-
-                    {/* Comment Reply mock */}
-                    <div className="flex flex-col gap-1 items-start self-start max-w-[75%] animate-in fade-in duration-500 delay-150">
-                      <div className="bg-blue-600/10 border border-blue-900/25 text-blue-300 rounded-2xl rounded-tl-none px-3.5 py-2 italic">
-                        "{commentReplyText || "Thanks for commenting!"}"
-                      </div>
-                      <span className="text-[8px] text-slate-650 ml-1 font-semibold">Public Reply</span>
-                    </div>
-
-                    {/* DM flows */}
-                    {/* DM flows */}
-                    {requireFollow && emailAsk ? (
-                      /* Both gates enabled */
-                      <>
-                        <div className="flex flex-col gap-2 items-start self-start max-w-[85%] animate-in fade-in duration-500 delay-300">
-                          <div className="bg-slate-900 border border-slate-850 text-white rounded-2xl rounded-tl-none p-3.5 flex flex-col gap-3 shadow-md w-full">
-                            <p className="leading-relaxed text-slate-200 whitespace-pre-line">{followOpeningMessage}</p>
-                            {simStep === "step1" ? (
-                              <button
-                                onClick={() => setSimStep("step2")}
-                                className="w-full text-center font-bold py-2 bg-pink-650 hover:bg-pink-700 text-white rounded-xl transition-all text-[10.5px] cursor-pointer relative shadow-md shadow-pink-500/15"
-                              >
-                                {followOpeningBtnLabel}
-                              </button>
-                            ) : (
-                              <div className="w-full text-center font-bold py-2 bg-slate-800 text-slate-500 rounded-xl text-[10.5px]">
-                                {followOpeningBtnLabel}
-                              </div>
-                            )}
-                          </div>
-                          <span className="text-[8px] text-slate-650 ml-1 font-semibold">Initial DM Gate Request</span>
-                        </div>
-
-                        {simStep !== "step1" && (
-                          <div className="flex flex-col gap-2 items-start self-start max-w-[85%] animate-in slide-in-from-bottom-2 fade-in duration-300">
-                            <div className="bg-slate-900 border border-slate-850 text-white rounded-2xl rounded-tl-none p-3.5 flex flex-col gap-2.5 shadow-md w-full">
-                              <p className="leading-relaxed text-slate-200 whitespace-pre-line">{followCheckMessage}</p>
-                              <div className="flex flex-col gap-2 w-full">
-                                <div className="w-full text-center font-bold py-1.5 border border-slate-700 text-slate-300 rounded-xl text-[10px]">
-                                  {followCheckBtn1Label}
-                                </div>
-                                {simStep === "step2" ? (
-                                  <button
-                                    onClick={() => setSimStep("step3")}
-                                    className="w-full text-center font-bold py-1.5 bg-pink-650 hover:bg-pink-700 text-white rounded-xl transition-all text-[10px] cursor-pointer relative"
-                                  >
-                                    {followCheckBtn2Label}
-                                  </button>
-                                ) : (
-                                  <div className="w-full text-center font-bold py-1.5 bg-slate-800 text-slate-500 rounded-xl text-[10px]">
-                                    {followCheckBtn2Label}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            <span className="text-[8px] text-slate-650 ml-1 font-semibold">Follow Gate Verification</span>
-                          </div>
-                        )}
-
-                        {(simStep === "step3" || simStep === "step4" || simStep === "step5") && (
-                          <div className="flex flex-col gap-2 items-start self-start max-w-[85%] animate-in slide-in-from-bottom-2 fade-in duration-300">
-                            <div className="bg-slate-900 border border-slate-850 text-white rounded-2xl rounded-tl-none p-3.5 flex flex-col gap-3 shadow-md w-full">
-                              <p className="leading-relaxed text-slate-200 whitespace-pre-line">
-                                {emailAskMessage.replace("{link}", "[Branded collection form URL]")}
-                              </p>
-                              {simStep === "step3" ? (
-                                <button
-                                  onClick={() => setSimStep("step4")}
-                                  className="w-full text-center font-bold py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-all text-[10.5px] cursor-pointer relative shadow-md shadow-indigo-500/15"
-                                >
-                                  {emailAskBtnLabel}
-                                </button>
-                              ) : (
-                                <div className="w-full text-center font-bold py-2 bg-slate-800 text-slate-500 rounded-xl text-[10.5px]">
-                                  {emailAskBtnLabel}
-                                </div>
-                              )}
-                            </div>
-                            <span className="text-[8px] text-slate-650 ml-1 font-semibold">Email Collection Gate</span>
-                          </div>
-                        )}
-
-                        {(simStep === "step4" || simStep === "step5") && (
-                          <div className="flex flex-col gap-1 items-start self-start max-w-[75%] animate-in slide-in-from-bottom-2 fade-in duration-300">
-                            <div className="bg-slate-900 border border-slate-850 text-slate-200 rounded-2xl rounded-tl-none px-3.5 py-2.5 shadow-md">
-                              {mainDmMessage}
-                            </div>
-                            <span className="text-[8px] text-slate-650 ml-1 font-semibold">Main Payload Delivered</span>
-                          </div>
-                        )}
-                      </>
-                    ) : requireFollow ? (
-                      /* Follow Gate Flow Simulator only */
-                      <>
-                        <div className="flex flex-col gap-2 items-start self-start max-w-[85%] animate-in fade-in duration-500 delay-300">
-                          <div className="bg-slate-900 border border-slate-850 text-white rounded-2xl rounded-tl-none p-3.5 flex flex-col gap-3 shadow-md w-full">
-                            <p className="leading-relaxed text-slate-200 whitespace-pre-line">{followOpeningMessage}</p>
-                            
-                            {simStep === "step1" ? (
-                              <button
-                                onClick={() => setSimStep("step2")}
-                                className="w-full text-center font-bold py-2 bg-pink-650 hover:bg-pink-700 text-white rounded-xl transition-all text-[10.5px] cursor-pointer relative shadow-md shadow-pink-500/15"
-                              >
-                                {followOpeningBtnLabel}
-                              </button>
-                            ) : (
-                              <div className="w-full text-center font-bold py-2 bg-slate-800 text-slate-500 rounded-xl text-[10.5px]">
-                                {followOpeningBtnLabel}
-                              </div>
-                            )}
-                          </div>
-                          <span className="text-[8px] text-slate-650 ml-1 font-semibold">Initial DM Gate Request</span>
-                        </div>
-
-                        {simStep !== "step1" && (
-                          <div className="flex flex-col gap-2 items-start self-start max-w-[85%] animate-in slide-in-from-bottom-2 fade-in duration-300">
-                            <div className="bg-slate-900 border border-slate-850 text-white rounded-2xl rounded-tl-none p-3.5 flex flex-col gap-2.5 shadow-md w-full">
-                              <p className="leading-relaxed text-slate-200 whitespace-pre-line">{followCheckMessage}</p>
-                              
-                              <div className="flex flex-col gap-2 w-full">
-                                <div className="w-full text-center font-bold py-1.5 border border-slate-700 text-slate-300 rounded-xl text-[10px]">
-                                  {followCheckBtn1Label}
-                                </div>
-                                
-                                {simStep === "step2" ? (
-                                  <button
-                                    onClick={() => setSimStep("step3")}
-                                    className="w-full text-center font-bold py-1.5 bg-pink-650 hover:bg-pink-700 text-white rounded-xl transition-all text-[10px] cursor-pointer relative"
-                                  >
-                                    {followCheckBtn2Label}
-                                  </button>
-                                ) : (
-                                  <div className="w-full text-center font-bold py-1.5 bg-slate-800 text-slate-500 rounded-xl text-[10px]">
-                                    {followCheckBtn2Label}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            <span className="text-[8px] text-slate-650 ml-1 font-semibold">Follow Gate Verification</span>
-                          </div>
-                        )}
-
-                        {(simStep === "step3" || simStep === "step4" || simStep === "step5") && (
-                          <div className="flex flex-col gap-1 items-start self-start max-w-[75%] animate-in slide-in-from-bottom-2 fade-in duration-300">
-                            <div className="bg-slate-900 border border-slate-850 text-slate-200 rounded-2xl rounded-tl-none px-3.5 py-2.5 shadow-md">
-                              {mainDmMessage}
-                            </div>
-                            <span className="text-[8px] text-slate-650 ml-1 font-semibold">Main Payload Delivered</span>
-                          </div>
-                        )}
-                      </>
-                    ) : emailAsk ? (
-                      /* Email Gate Flow Simulator only */
-                      <>
-                        <div className="flex flex-col gap-2 items-start self-start max-w-[85%] animate-in fade-in duration-500 delay-300">
-                          <div className="bg-slate-900 border border-slate-850 text-white rounded-2xl rounded-tl-none p-3.5 flex flex-col gap-3 shadow-md w-full">
-                            <p className="leading-relaxed text-slate-200 whitespace-pre-line">
-                              {emailAskMessage.replace("{link}", "[Branded collection form URL]")}
-                            </p>
-                            
-                            {simStep === "step1" ? (
-                              <button
-                                onClick={() => setSimStep("step2")}
-                                className="w-full text-center font-bold py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-all text-[10.5px] cursor-pointer relative shadow-md shadow-indigo-500/15"
-                              >
-                                {emailAskBtnLabel}
-                              </button>
-                            ) : (
-                              <div className="w-full text-center font-bold py-2 bg-slate-800 text-slate-500 rounded-xl text-[10.5px]">
-                                {emailAskBtnLabel}
-                              </div>
-                            )}
-                          </div>
-                          <span className="text-[8px] text-slate-650 ml-1 font-semibold">Email Collection Gate</span>
-                        </div>
-
-                        {simStep !== "step1" && (
-                          <div className="flex flex-col gap-1 items-start self-start max-w-[75%] animate-in slide-in-from-bottom-2 fade-in duration-300">
-                            <div className="bg-slate-900 border border-slate-850 text-slate-200 rounded-2xl rounded-tl-none px-3.5 py-2.5 shadow-md">
-                              {mainDmMessage}
-                            </div>
-                            <span className="text-[8px] text-slate-650 ml-1 font-semibold">Main Payload Delivered</span>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      /* Normal Flow Simulator */
-                      <>
-                        <div className="flex flex-col gap-2 items-start self-start max-w-[85%] animate-in fade-in duration-500 delay-300">
-                          <div className="bg-slate-900 border border-slate-850 text-white rounded-2xl rounded-tl-none p-3.5 flex flex-col gap-3 shadow-md w-full">
-                            <p className="leading-relaxed text-slate-200">
-                              {initialDmMessage || "Thanks for commenting! Tap below and I'll send you the access instantly 🚀"}
-                            </p>
-                            
-                            {simStep === "step1" ? (
-                              <button
-                                onClick={() => setSimStep("step2")}
-                                className="w-full text-center font-bold py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all text-[10.5px] cursor-pointer relative shadow-md shadow-blue-500/15"
-                              >
-                                {dmButtonLabel || "Send Access"}
-                              </button>
-                            ) : (
-                              <div className="w-full text-center font-bold py-2 bg-slate-800 text-slate-500 rounded-xl text-[10.5px]">
-                                {dmButtonLabel || "Send Access"}
-                              </div>
-                            )}
-                          </div>
-                          <span className="text-[8px] text-slate-650 ml-1 font-semibold">Initial DM Greeting</span>
-                        </div>
-
-                        {simStep !== "step1" && (
-                          <div className="flex flex-col gap-1 items-start self-start max-w-[75%] animate-in slide-in-from-bottom-2 fade-in duration-300">
-                            <div className="bg-slate-900 border border-slate-850 text-slate-200 rounded-2xl rounded-tl-none px-3.5 py-2.5 shadow-md">
-                              {mainDmMessage}
-                            </div>
-                            <span className="text-[8px] text-slate-650 ml-1 font-semibold">Main Payload Delivered</span>
-                          </div>
-                        )}
-                      </>
-                    )}
-
-                  </div>
-                </div>
+            {/* Card Footer */}
+            <div className="border-t border-slate-100 pt-4 px-6 pb-6 flex items-center justify-between shrink-0">
+              <span className="text-[11px] font-bold text-slate-400">Step 2 of 5</span>
+              <div className="flex items-center gap-2.5">
+                <button
+                  onClick={handleBack}
+                  className="px-5 py-2 border border-slate-200 hover:bg-slate-50 rounded-full text-xs font-bold text-slate-700 transition-all cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
+                >
+                  Back
+                </button>
+                <button
+                  onClick={handleNext}
+                  className="px-5 py-2 bg-slate-900 hover:bg-black text-white rounded-full text-xs font-bold transition-all shadow-md cursor-pointer"
+                >
+                  Next
+                </button>
               </div>
             </div>
+
           </div>
         )}
 
-        {/* ── STEP 4 CONTENT: REVIEW & SAVE ── */}
-        {step === 4 && (
-          <div className="bg-white border border-slate-100 rounded-2xl p-8 shadow-[0_2px_8px_rgba(0,0,0,0.01)] text-left max-w-2xl mx-auto flex flex-col gap-6">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900 font-sans tracking-tight">Review & Activate</h2>
-              <p className="text-xs text-slate-400 font-semibold mt-1">Review the configuration of your new automation rule</p>
+        {/* ── STEP 3 CONTENT: CONDITIONS (Comment Trigger Only) ── */}
+        {step === 3 && selectedTrigger === "comment" && (
+          <div className="bg-white border border-slate-150 rounded-[28px] p-0 shadow-[0_12px_40px_rgba(0,0,0,0.03)] max-w-md mx-auto w-full relative flex flex-col animate-in fade-in duration-300">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 px-6 pt-5 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+                  <Film size={16} />
+                </div>
+                <span className="font-bold text-slate-800 text-xs">When someone comments on your Post/Reel</span>
+              </div>
             </div>
 
-            <div className="space-y-6 text-xs text-slate-750">
+            {/* Content Wrapper (No fixed height / scroll) */}
+            <div className="px-6 py-4 flex flex-col gap-4.5 pb-6">
               
-              {/* Step 1 Review */}
-              <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-5 flex flex-col gap-3">
-                <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100/60 text-left">
-                  <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-extrabold">1</span>
-                  <span className="font-extrabold text-slate-900 text-xs">Step 1: Selected Trigger</span>
+              {/* Profile Avatar */}
+              <div className="flex flex-col items-center gap-2 my-2 shrink-0">
+                <div className="w-16 h-16 rounded-full p-[2.5px] bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-650">
+                  <div className="w-full h-full rounded-full bg-white p-[2px]">
+                    {account?.profile_picture_url ? (
+                      <img src={account.profile_picture_url} className="w-full h-full rounded-full object-cover" alt="profile" />
+                    ) : (
+                      <div className="w-full h-full rounded-full bg-[#ec4899] flex items-center justify-center text-white text-base font-bold">
+                        {account?.username?.[0]?.toUpperCase() || "M"}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 text-left">
-                  <div className="w-10 h-10 rounded-xl bg-blue-50/60 flex items-center justify-center shrink-0 border border-blue-100/30">
-                    {(() => {
-                      const triggerObj = triggers.find((t) => t.id === selectedTrigger);
-                      const Icon = triggerObj?.icon || MessageCircle;
-                      return <Icon className="text-blue-600" size={18} />;
-                    })()}
+                <span className="font-bold text-slate-800 text-xs">@{account?.username || "deep.1792816"}</span>
+              </div>
+
+              {/* Specific Keyword / Any Comment option selector */}
+              <div className="flex flex-col gap-2.5 shrink-0">
+                <p className="font-extrabold text-slate-900 text-xs text-left">What kind of comment should trigger this automation?</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setKeywordMode(keywordMode === "any_comment" ? "any" : keywordMode)}
+                    className={`py-3 px-4 rounded-xl border text-xs font-bold transition-all text-center cursor-pointer ${
+                      keywordMode !== "any_comment"
+                        ? "border-blue-500 bg-blue-50/20 text-blue-650 ring-2 ring-blue-500/10 font-bold"
+                        : "border-slate-200 bg-white text-slate-655 hover:bg-slate-50"
+                    }`}
+                  >
+                    Specific keyword
+                  </button>
+                  <button
+                    onClick={() => setKeywordMode("any_comment")}
+                    className={`py-3 px-4 rounded-xl border text-xs font-bold transition-all text-center cursor-pointer ${
+                      keywordMode === "any_comment"
+                        ? "border-blue-500 bg-blue-50/20 text-blue-650 ring-2 ring-blue-500/10 font-bold"
+                        : "border-slate-200 bg-white text-slate-655 hover:bg-slate-50"
+                    }`}
+                  >
+                    Any comment
+                  </button>
+                </div>
+              </div>
+
+              {keywordMode === "any_comment" && (
+                <div className="bg-[#eef2ff]/60 border border-[#e0e7ff] rounded-2xl p-6 flex flex-col items-center justify-center gap-3 animate-in fade-in duration-200 my-1">
+                  <div className="w-10 h-10 rounded-full bg-[#0084ff] flex items-center justify-center text-white shadow-md shadow-[#0084ff]/20">
+                    <Check size={20} strokeWidth={3} />
                   </div>
-                  <div>
-                    <p className="text-xs font-bold text-slate-900">
-                      {triggers.find((t) => t.id === selectedTrigger)?.title || "Keyword in Comment"}
-                    </p>
-                    <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
-                      {triggers.find((t) => t.id === selectedTrigger)?.description || "Trigger when someone comments on your posts"}
-                    </p>
+                  <p className="text-slate-505 text-xs font-bold">The automation will trigger for all comments</p>
+                </div>
+              )}
+
+              {/* Keywords list/input if not any_comment */}
+              {keywordMode !== "any_comment" && (
+                <div className="flex flex-col gap-2.5 animate-in fade-in duration-300 shrink-0">
+                  <p className="text-xs font-bold text-slate-800 text-left">Should include any of these:</p>
+                  <div className="relative flex items-center">
+                    <input
+                      type="text"
+                      value={keywordInput}
+                      onChange={(e) => setKeywordInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addKeyword(keywordInput);
+                        }
+                      }}
+                      placeholder="Type a keyword (min. 1 characters)"
+                      className="w-full border border-slate-200 rounded-xl pl-4 pr-24 py-3 text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 transition-all shadow-sm"
+                    />
+                    <button
+                      onClick={() => addKeyword(keywordInput)}
+                      className="absolute right-2 bg-white border border-slate-200 hover:bg-slate-55 text-slate-855 font-bold px-3 py-1.5 rounded-lg text-xs cursor-pointer transition-all shadow-sm"
+                    >
+                      + Add
+                    </button>
                   </div>
+
+                  {keywords.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {keywords.map((kw) => (
+                        <span key={kw} className="inline-flex items-center gap-1.5 bg-blue-50 border border-blue-100/50 text-blue-600 text-[11px] font-bold px-2.5 py-1 rounded-lg">
+                          {kw}
+                          <button
+                            type="button"
+                            onClick={() => removeKeyword(kw)}
+                            className="text-blue-600/70 hover:text-blue-600 font-bold ml-1 text-xs cursor-pointer"
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <p className="text-[11px] text-slate-400 font-semibold leading-relaxed mt-1 text-left">
+                    Keywords are not case-sensitive. Automations trigger only on exact keyword matches.
+                  </p>
+                </div>
+              )}
+
+              {/* Expandable links for advanced settings */}
+              <div className="flex flex-col gap-3.5 mt-1 border-t border-slate-100/60 pt-3.5 shrink-0">
+                <div className="flex items-center gap-4 text-xs font-bold text-blue-600">
+                  <button
+                    onClick={() => setShowExcludeKeywordsInput(!showExcludeKeywordsInput)}
+                    className="hover:text-blue-805 transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>{showExcludeKeywordsInput ? "Hide excluded keywords" : "Add excluded keywords?"}</span>
+                    <HelpCircle size={12} className="text-slate-400 shrink-0" />
+                  </button>
+
+                  {keywordMode !== "any_comment" && (
+                    <button
+                      onClick={() => setShowMatchModeSettings(!showMatchModeSettings)}
+                      className="hover:text-blue-805 transition-all flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>{showMatchModeSettings ? "Hide advanced settings" : "Advanced match settings?"}</span>
+                    </button>
+                  )}
                 </div>
 
-                {selectedTrigger === "comment" && (
-                  <div className="flex flex-col gap-2 mt-1 bg-white border border-slate-100 p-2.5 rounded-xl text-left">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Matching Mode:</span>
-                      <span className="text-[10px] font-extrabold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-md border border-blue-100/40">
-                        {keywordMode === "any_comment"
-                          ? "Any Comment (Matches everything)"
-                          : keywordMode === "exact"
-                          ? "Exact Match (Equals exactly)"
-                          : keywordMode === "all"
-                          ? "Contains All (AND Match)"
-                          : "Contains Any (OR Match)"}
-                      </span>
+                {/* Exclude Keywords Input */}
+                {showExcludeKeywordsInput && (
+                  <div className="border border-slate-100 rounded-2xl p-4 bg-slate-50/50 text-left animate-in slide-in-from-top-1 duration-200">
+                    <p className="text-xs font-bold text-slate-800 mb-2">Exclude Keywords:</p>
+                    <div className="relative flex items-center mb-3">
+                      <input
+                        type="text"
+                        value={excludeKeywordInput}
+                        onChange={(e) => setExcludeKeywordInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addExcludeKeyword(excludeKeywordInput);
+                          }
+                        }}
+                        placeholder="Type an exclude keyword..."
+                        className="w-full border border-slate-200 bg-white rounded-xl pl-4 pr-20 py-2.5 text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 transition-all shadow-sm"
+                      />
+                      <button
+                        onClick={() => addExcludeKeyword(excludeKeywordInput)}
+                        className="absolute right-2 bg-white border border-slate-200 hover:bg-slate-55 text-slate-855 font-bold px-3 py-1.5 rounded-lg text-xs cursor-pointer transition-all shadow-sm"
+                      >
+                        + Add
+                      </button>
                     </div>
-                    {keywordMode !== "any_comment" && (
-                      <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-slate-50 mt-1">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mr-1">Keywords:</span>
-                        {keywords.length === 0 ? (
-                          <span className="text-[10px] text-slate-500 italic font-semibold">Any comment (empty match)</span>
-                        ) : (
-                          keywords.map((kw, i) => (
-                            <span key={i} className="text-[10px] font-extrabold bg-blue-50 border border-blue-100/50 text-blue-600 px-2.5 py-0.5 rounded-md">
-                              {kw}
-                            </span>
-                          ))
-                        )}
+                    {excludeKeywords.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {excludeKeywords.map((kw) => (
+                          <span key={kw} className="inline-flex items-center gap-1.5 bg-rose-50 border border-rose-100 text-rose-600 text-[11px] font-bold px-2.5 py-1 rounded-lg">
+                            {kw}
+                            <button
+                              type="button"
+                              onClick={() => removeExcludeKeyword(kw)}
+                              className="text-rose-600/70 hover:text-rose-600 font-bold ml-1 text-xs cursor-pointer"
+                            >
+                              ✕
+                            </button>
+                          </span>
+                        ))}
                       </div>
                     )}
                   </div>
                 )}
-              </div>
 
-              {/* Step 2 Review */}
-              <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-5 flex flex-col gap-3">
-                <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100/60 text-left">
-                  <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-extrabold">2</span>
-                  <span className="font-extrabold text-slate-900 text-xs">Step 2: Monitored Reels</span>
-                </div>
-                
-                {selectedMediaIds.length === media.length || selectedMediaIds.length === 0 ? (
-                  <div className="flex items-center gap-3 bg-white border border-slate-100/80 p-3.5 rounded-xl text-left">
-                    <Film className="w-5 h-5 text-blue-600 shrink-0" />
-                    <div>
-                      <p className="text-xs font-bold text-slate-900">All Reels & Posts</p>
-                      <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Monitoring all reels and posts on this account</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-left">
-                    <p className="text-[11px] text-slate-500 font-semibold mb-2">
-                      Monitoring <span className="text-slate-900 font-extrabold">{selectedMediaIds.length}</span> selected {selectedMediaIds.length === 1 ? "reel/post" : "reels/posts"}:
-                    </p>
-                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 mt-2 bg-white border border-slate-100 p-3.5 rounded-2xl max-h-40 overflow-y-auto">
-                      {media.filter((m) => selectedMediaIds.includes(m.id)).map((item) => {
-                        const thumb = item.thumbnail_url || item.media_url;
+                {/* Match Mode Settings */}
+                {keywordMode !== "any_comment" && showMatchModeSettings && (
+                  <div className="border border-slate-100 rounded-2xl p-4 bg-slate-50/55 text-left animate-in slide-in-from-top-1 duration-200 flex flex-col gap-2.5">
+                    <h4 className="text-xs font-bold text-slate-800">Advanced Keyword Matching Mode</h4>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { id: "any", label: "Contains Any", desc: "OR match" },
+                        { id: "all", label: "Contains All", desc: "AND match" },
+                        { id: "exact", label: "Exact Match", desc: "Equal match" },
+                      ].map((mode) => {
+                        const isSel = keywordMode === mode.id;
                         return (
-                          <div key={item.id} className="relative aspect-[9/16] rounded-xl overflow-hidden border border-slate-200 shadow-sm group bg-slate-50 shrink-0">
-                            {thumb && (
-                              <img src={thumb} className="absolute inset-0 w-full h-full object-cover" alt="monitored reel" />
-                            )}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-                            {item.caption && (
-                              <div className="absolute bottom-1 left-1.5 right-1.5">
-                                <p className="text-[7.5px] text-white font-semibold line-clamp-2 leading-tight">{item.caption}</p>
-                              </div>
-                            )}
+                          <div
+                            key={mode.id}
+                            onClick={() => setKeywordMode(mode.id)}
+                            className={`border rounded-xl p-2.5 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 select-none ${
+                              isSel
+                                ? "border-blue-500 bg-blue-50/20 ring-2 ring-blue-500/10 text-blue-600 font-bold"
+                                : "border-slate-200 bg-white hover:border-slate-250 text-slate-555"
+                            }`}
+                          >
+                            <span className="text-[10px] font-bold leading-tight">{mode.label}</span>
+                            <span className="text-[8px] text-slate-400 mt-0.5 leading-none">{mode.desc}</span>
                           </div>
                         );
                       })}
@@ -1390,138 +898,781 @@ export default function CreateAutomationPage() {
                 )}
               </div>
 
-              {/* Step 3 Review */}
-              <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-5 flex flex-col gap-4">
-                <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100/60 text-left">
-                  <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-extrabold">3</span>
-                  <span className="font-extrabold text-slate-900 text-xs">Step 3: Messages & Gates</span>
+              {/* Auto-Reply Switch */}
+              <div className="flex flex-col gap-3 bg-slate-50 rounded-2xl p-4.5 border border-slate-100/50 mt-1 text-left shrink-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-slate-900">Auto-Reply to comments on the post</span>
+                  <button
+                    onClick={() => setAutoCommentReply(!autoCommentReply)}
+                    className={`w-12 h-6.5 rounded-full relative transition-all duration-300 outline-none shrink-0 cursor-pointer ${
+                      autoCommentReply ? "bg-slate-900 shadow-[0_3px_10px_rgba(0,0,0,0.15)]" : "bg-slate-200"
+                    }`}
+                  >
+                    <span className={`w-5 h-5 bg-white rounded-full absolute top-[3px] transition-all duration-300 shadow-md ${
+                      autoCommentReply ? "left-[25px]" : "left-[3px]"
+                    }`} />
+                  </button>
                 </div>
 
-                <div className="flex flex-col gap-3">
-                  <div className="flex justify-between items-start bg-white border border-slate-100/80 p-3.5 rounded-xl text-left">
-                    <div className="flex flex-col gap-0.5 pr-2">
-                      <span className="text-slate-400 font-bold">Comment Reply</span>
-                      <span className="text-[10px] text-slate-400 font-semibold">Sent publicly in the comments</span>
+                {autoCommentReply && (
+                  <div className="flex flex-col gap-3 pt-3 border-t border-slate-200/60 animate-in slide-in-from-top-1 duration-200">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-slate-505">Public Comment Reply Messages *</label>
+                      <span className="text-[10px] text-slate-400 font-bold">{commentReplyTexts.length}/5 messages</span>
                     </div>
-                    <span className="text-slate-800 max-w-[320px] text-right italic font-normal bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-xl leading-relaxed text-xs">
-                      "{commentReplyText}"
-                    </span>
-                  </div>
-
-                  {!requireFollow && !emailAsk && (
-                    <>
-                      <div className="flex justify-between items-start bg-white border border-slate-100/80 p-3.5 rounded-xl text-left">
-                        <div className="flex flex-col gap-0.5 pr-2">
-                          <span className="text-slate-400 font-bold">Initial DM Message</span>
-                          <span className="text-[10px] text-slate-400 font-semibold">Greeting sent with access button</span>
+                    
+                    <div className="flex flex-col gap-2.5">
+                      {commentReplyTexts.map((text, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={text}
+                            onChange={(e) => {
+                              const updated = [...commentReplyTexts];
+                              updated[index] = e.target.value;
+                              setCommentReplyTexts(updated);
+                              if (index === 0) {
+                                setCommentReplyText(e.target.value);
+                              }
+                            }}
+                            placeholder="e.g. Thanks for the comment! Check your DMs 📩"
+                            className="border border-slate-200 bg-white rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-400 transition-all flex-1 shadow-sm"
+                          />
+                          {commentReplyTexts.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = commentReplyTexts.filter((_, i) => i !== index);
+                                setCommentReplyTexts(updated);
+                                if (index === 0 && updated.length > 0) {
+                                  setCommentReplyText(updated[0]);
+                                }
+                              }}
+                              className="w-9 h-9 rounded-xl bg-rose-50 hover:bg-rose-100/80 text-rose-500 border border-rose-100 flex items-center justify-center transition-all cursor-pointer shrink-0"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
                         </div>
-                        <span className="text-slate-800 max-w-[320px] text-right italic font-normal bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-xl leading-relaxed text-xs">
-                          "{initialDmMessage || "Thanks for commenting! Tap below and I'll send you the access instantly 🚀"}"
-                        </span>
-                      </div>
-
-                      <div className="flex justify-between items-center bg-white border border-slate-100/80 p-3.5 rounded-xl text-left">
-                        <div className="flex flex-col gap-0.5 pr-2">
-                          <span className="text-slate-400 font-bold">DM Button Label</span>
-                          <span className="text-[10px] text-slate-400 font-semibold">Interactive button in greeting DM</span>
-                        </div>
-                        <span className="text-slate-800 bg-slate-50 border border-slate-100 px-3 py-1 rounded-xl text-xs">
-                          {dmButtonLabel || "Send Access"}
-                        </span>
-                      </div>
-                    </>
-                  )}
-
-                  <div className="flex justify-between items-start bg-white border border-slate-100/80 p-3.5 rounded-xl text-left">
-                    <div className="flex flex-col gap-0.5 pr-2">
-                      <span className="text-slate-400 font-bold">Main Message Payload</span>
-                      <span className="text-[10px] text-slate-400 font-semibold">Delivered in direct message</span>
+                      ))}
                     </div>
-                    <span className="text-slate-800 max-w-[320px] text-right font-medium bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-xl leading-relaxed whitespace-pre-wrap text-xs">
-                      {mainDmMessage}
-                    </span>
+
+                    {commentReplyTexts.length < 5 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCommentReplyTexts([...commentReplyTexts, ""]);
+                        }}
+                        className="mt-1 flex items-center justify-center gap-1.5 py-2 px-3.5 bg-blue-50 hover:bg-blue-100/80 text-blue-600 border border-blue-100 rounded-xl text-xs font-bold transition-all cursor-pointer w-fit"
+                      >
+                        <span>+ Add more</span>
+                      </button>
+                    )}
                   </div>
-
-                  {/* Gates Summary */}
-                  <div className="flex justify-between items-center bg-white border border-slate-100/80 p-3.5 rounded-xl text-left">
-                    <div className="flex flex-col gap-0.5 pr-2">
-                      <span className="text-slate-400 font-bold">Security Gates</span>
-                      <span className="text-[10px] text-slate-400 font-semibold">User requirements before unlock</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[9px] font-bold border ${
-                        requireFollow ? "bg-pink-50 text-pink-700 border-pink-100" : "bg-slate-50 text-slate-400 border-slate-100"
-                      }`}>
-                        {requireFollow ? "Follow Gate: Active" : "Follow Gate: Off"}
-                      </span>
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[9px] font-bold border ${
-                        emailAsk ? "bg-indigo-50 text-indigo-700 border-indigo-100" : "bg-slate-50 text-slate-400 border-slate-100"
-                      }`}>
-                        {emailAsk ? "Email Gate: Active" : "Email Gate: Off"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
 
             </div>
 
-            <div className="h-px bg-slate-100 w-full my-1" />
+            {/* Card Footer */}
+            <div className="border-t border-slate-100 pt-4 px-6 pb-6 flex items-center justify-between shrink-0">
+              <span className="text-[11px] font-bold text-slate-400">Step 3 of 5</span>
+              <div className="flex items-center gap-2.5">
+                <button
+                  onClick={handleBack}
+                  className="px-5 py-2 border border-slate-200 hover:bg-slate-55 rounded-full text-xs font-bold text-slate-700 transition-all cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
+                >
+                  Back
+                </button>
+                <button
+                  onClick={handleNext}
+                  className="px-5 py-2 bg-slate-900 hover:bg-black text-white rounded-full text-xs font-bold transition-all shadow-md cursor-pointer"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
 
-            <button
-              onClick={handleSaveAutomation}
-              disabled={savingRule}
-              className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl text-sm font-bold shadow-md shadow-blue-500/10 transition-all disabled:opacity-50 cursor-pointer"
-            >
-              {savingRule ? (
-                <>
-                  <Loader2 size={16} className="animate-spin text-white" />
-                  <span>Creating Automation...</span>
-                </>
-              ) : (
-                <>
-                  <Check size={16} strokeWidth={3} />
-                  <span>Save & Activate Rule</span>
-                </>
+          </div>
+        )}
+
+        {/* ── STEP 3/4 CONTENT: PRIMARY DM & GATES ── */}
+        {((selectedTrigger === "comment" ? step === 4 : step === 3)) && (
+          <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-[0_2px_12px_rgba(0,0,0,0.02)] max-w-lg mx-auto flex flex-col gap-5 text-left relative animate-in fade-in duration-300">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+                  <Film size={16} />
+                </div>
+                <span className="font-bold text-slate-800 text-sm">
+                  {selectedTrigger === "comment" ? "When someone comments on your Post/Reel" : "When someone sends a message/reply"}
+                </span>
+              </div>
+            </div>
+
+            {/* Profile Avatar */}
+            <div className="flex flex-col items-center gap-2 my-2">
+              <div className="w-20 h-20 rounded-full p-[3px] bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600">
+                <div className="w-full h-full rounded-full bg-white p-[2px]">
+                  {account?.profile_picture_url ? (
+                    <img src={account.profile_picture_url} className="w-full h-full rounded-full object-cover" alt="profile" />
+                  ) : (
+                    <div className="w-full h-full rounded-full bg-[#ec4899] flex items-center justify-center text-white text-xl font-bold">
+                      {account?.username?.[0]?.toUpperCase() || "M"}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <span className="font-bold text-slate-800 text-sm">@{account?.username || "deep.1792816"}</span>
+            </div>
+
+            {/* Section 1: Before you send your primary DM, send them... */}
+            <div className="flex flex-col gap-2.5">
+              <p className="font-extrabold text-slate-900 text-xs">Before you send your primary DM, send them...</p>
+              
+              {/* Gate 1: Follow Gate */}
+              <div className={`border border-slate-150 rounded-2xl bg-slate-50 flex flex-col transition-all duration-300 ${
+                requireFollow ? "shadow-inner border-slate-200" : "border-slate-100"
+              }`}>
+                {/* Header row */}
+                <div className="flex items-center justify-between p-4 cursor-pointer select-none" onClick={() => {
+                  if (requireFollow) {
+                    setFollowGateCollapsed(!followGateCollapsed);
+                  } else {
+                    setRequireFollow(true);
+                    setFollowGateCollapsed(false);
+                  }
+                }}>
+                  <div className="flex items-center gap-2">
+                    {requireFollow && (
+                      <span className="text-slate-500 hover:text-slate-850 p-0.5 transition-all">
+                        {followGateCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                      </span>
+                    )}
+                    <span className="text-xs font-bold text-slate-800">a DM asking to follow you</span>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const nextVal = !requireFollow;
+                      setRequireFollow(nextVal);
+                      if (nextVal) setFollowGateCollapsed(false);
+                    }}
+                    className={`w-12 h-6.5 rounded-full relative transition-all duration-300 outline-none shrink-0 cursor-pointer ${
+                      requireFollow ? "bg-[#10b981] shadow-[0_3px_10px_rgba(16,185,129,0.25)]" : "bg-slate-200"
+                    }`}
+                  >
+                    <span className={`w-5 h-5 bg-white rounded-full absolute top-[3px] transition-all duration-300 shadow-md ${
+                      requireFollow ? "left-[25px]" : "left-[3px]"
+                    }`} />
+                  </button>
+                </div>
+
+                {/* Expanded content details with scrollbar */}
+                {requireFollow && !followGateCollapsed && (
+                  <div className="px-4 pb-4 border-t border-slate-200/60 pt-4 flex flex-col gap-4 max-h-[380px] overflow-y-auto pr-2 relative text-left">
+                    
+                    {/* Opening Message */}
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center gap-1">
+                        <label className="text-[11px] font-bold text-slate-800">Opening Message *</label>
+                        <span title="The initial message sent asking the user to follow.">
+                          <HelpCircle size={12} className="text-slate-400 cursor-pointer" />
+                        </span>
+                      </div>
+                      <textarea
+                        value={followOpeningMessage}
+                        onChange={(e) => setFollowOpeningMessage(e.target.value)}
+                        rows={3}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 bg-white placeholder-slate-400 focus:outline-none focus:border-blue-400 transition-all resize-none shadow-sm"
+                      />
+                      <span className="text-[10px] font-semibold text-slate-400 text-right">
+                        {followOpeningMessage.length}/1000
+                      </span>
+                    </div>
+
+                    {/* Send me the access button config */}
+                    <div className="relative flex items-center justify-center">
+                      <input
+                        type="text"
+                        value={followOpeningBtnLabel}
+                        onChange={(e) => setFollowOpeningBtnLabel(e.target.value)}
+                        className="w-full border border-slate-200 rounded-xl py-2 px-8 text-center text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-400 bg-white shadow-sm"
+                      />
+                      <Pencil size={12} className="absolute right-4 text-slate-400 pointer-events-none" />
+                    </div>
+
+                    {/* Follow Check Message */}
+                    <div className="flex flex-col gap-1.5 mt-1">
+                      <div className="flex items-center gap-1">
+                        <label className="text-[11px] font-bold text-slate-800">Follow Check Message *</label>
+                        <span title="The message sent when check verification fails.">
+                          <HelpCircle size={12} className="text-slate-400 cursor-pointer" />
+                        </span>
+                      </div>
+                      <textarea
+                        value={followCheckMessage}
+                        onChange={(e) => setFollowCheckMessage(e.target.value)}
+                        rows={3}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 bg-white placeholder-slate-400 focus:outline-none focus:border-blue-400 transition-all resize-none shadow-sm"
+                      />
+                      <span className="text-[10px] font-semibold text-slate-400 text-right">
+                        {followCheckMessage.length}/1000
+                      </span>
+                    </div>
+
+                    {/* Visit Profile button config */}
+                    <div className="relative flex items-center justify-center">
+                      <input
+                        type="text"
+                        value={followCheckBtn1Label}
+                        onChange={(e) => setFollowCheckBtn1Label(e.target.value)}
+                        className="w-full border border-slate-200 rounded-xl py-2 px-8 text-center text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-400 bg-white shadow-sm"
+                      />
+                      <Pencil size={12} className="absolute right-4 text-slate-400 pointer-events-none" />
+                    </div>
+
+                    {/* I'm following button config */}
+                    <div className="relative flex items-center justify-center">
+                      <input
+                        type="text"
+                        value={followCheckBtn2Label}
+                        onChange={(e) => setFollowCheckBtn2Label(e.target.value)}
+                        className="w-full border border-slate-200 rounded-xl py-2 px-8 text-center text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-400 bg-white shadow-sm"
+                      />
+                      <Pencil size={12} className="absolute right-4 text-slate-400 pointer-events-none" />
+                    </div>
+
+                    {/* Retry Radio Options */}
+                    <div className="flex flex-col gap-2 pt-2 border-t border-slate-200/50 mt-1">
+                      <label className="text-[11px] font-bold text-slate-800 leading-tight">
+                        Retry 3 times and if the user still hasn't followed:
+                      </label>
+                      <div className="flex flex-col gap-2">
+                        <label className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+                          <input
+                            type="radio"
+                            name="retryAction"
+                            value="send_anyway"
+                            checked={retryAction === "send_anyway"}
+                            onChange={() => setRetryAction("send_anyway")}
+                            className="w-3.5 h-3.5 text-blue-600 border-slate-300 focus:ring-blue-500 cursor-pointer"
+                          />
+                          <span>Send them the DM anyway</span>
+                        </label>
+                        <label className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+                          <input
+                            type="radio"
+                            name="retryAction"
+                            value="dont_send"
+                            checked={retryAction === "dont_send"}
+                            onChange={() => setRetryAction("dont_send")}
+                            className="w-3.5 h-3.5 text-blue-600 border-slate-300 focus:ring-blue-500 cursor-pointer"
+                          />
+                          <span>Don't send them the DM</span>
+                        </label>
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+              </div>
+
+              {/* Gate 2: Email Gate */}
+              <div className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+                <span className="text-xs font-bold text-slate-800">a DM asking to share their email</span>
+                <button
+                  onClick={() => setEmailAsk(!emailAsk)}
+                  className={`w-12 h-6.5 rounded-full relative transition-all duration-300 outline-none shrink-0 cursor-pointer ${
+                    emailAsk ? "bg-slate-900 shadow-[0_3px_10px_rgba(0,0,0,0.15)]" : "bg-slate-200"
+                  }`}
+                >
+                  <span className={`w-5 h-5 bg-white rounded-full absolute top-[3px] transition-all duration-300 shadow-md ${
+                    emailAsk ? "left-[25px]" : "left-[3px]"
+                  }`} />
+                </button>
+              </div>
+            </div>
+
+            {/* Section 2: Then send the primary DM... */}
+            <div className="flex flex-col gap-3">
+              <p className="font-extrabold text-slate-900 text-xs">
+                {!requireFollow && !emailAsk ? "Setup your 2-step AutoDM" : "Then send the primary DM..."}
+              </p>
+              
+              {!requireFollow && !emailAsk && (
+                <div className="border border-emerald-100 bg-emerald-50/20 rounded-2xl p-4 flex flex-col gap-3.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-black uppercase text-emerald-600 tracking-wider">Step 1: Greeting Message *</span>
+                    <span title="This message is sent first with a button. When they click the button, the main payload below is sent.">
+                      <HelpCircle size={12} className="text-slate-400 cursor-pointer" />
+                    </span>
+                  </div>
+                  <textarea
+                    value={initialDmMessage}
+                    onChange={(e) => setInitialDmMessage(e.target.value)}
+                    rows={2}
+                    placeholder="e.g. Thanks for commenting! Tap below and I'll send you the access instantly 🚀"
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 bg-white placeholder-slate-400 focus:outline-none focus:border-emerald-400 transition-all resize-none shadow-sm"
+                  />
+                </div>
               )}
-            </button>
+
+              <p className="text-[11px] text-slate-400 font-semibold leading-relaxed">
+                {!requireFollow && !emailAsk 
+                  ? "Step 2: Write the message containing your link or file, delivered after they click the button above." 
+                  : "Write the message you want to auto-send with a button that takes them to your link or product."}
+              </p>
+
+              <div className="border border-slate-200 rounded-2xl p-4 bg-white flex flex-col gap-4">
+
+                {/* DM Content Textarea */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-bold text-slate-500">DM content</label>
+                  <textarea
+                    value={mainDmMessage}
+                    onChange={(e) => setMainDmMessage(e.target.value)}
+                    rows={4}
+                    placeholder="Type your main response containing details or files..."
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-805 placeholder-slate-400 focus:outline-none focus:border-blue-400 transition-all resize-none shadow-sm"
+                  />
+                  <div className="flex items-center justify-between mt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMainDmMessage((prev) => prev + " {username}");
+                      }}
+                      className="border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-3 py-1.5 rounded-lg text-xs cursor-pointer transition-all shadow-sm"
+                    >
+                      # Add a variable
+                    </button>
+                    <span className="text-[11px] font-semibold text-slate-400">
+                      {mainDmMessage.length}/900
+                    </span>
+                  </div>
+                </div>
+
+                {/* Button Settings (dynamic UI matching mockup) */}
+                {dmType === "text_only" ? (
+                  /* Second Image: + Add a button container */
+                  <div 
+                    onClick={() => {
+                      setDmType("text_button");
+                      setDmButtonLabel("Click me");
+                      setDmButtonUrl("");
+                    }}
+                    className="border-2 border-dashed border-slate-200 hover:border-slate-350 rounded-2xl py-3.5 text-center cursor-pointer hover:bg-slate-50 transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <span className="text-xs font-bold text-slate-700">+ Add a button</span>
+                  </div>
+                ) : (
+                  /* Third Image: Button #1 Configuration Card */
+                  <div className="flex flex-col gap-3">
+                    <div className="border border-slate-200 border-dashed rounded-2xl p-4 bg-white flex flex-col gap-3 relative">
+                      
+                      {/* Button Card Header */}
+                      <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
+                        <span className="text-xs font-bold text-slate-800">Button #1</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDmType("text_only");
+                            setDmButtonLabel("");
+                            setDmButtonUrl("");
+                          }}
+                          className="text-slate-400 hover:text-rose-500 transition-colors p-1 cursor-pointer"
+                          title="Delete button"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+
+                      {/* Button Label Input */}
+                      <div className="relative flex items-center">
+                        <input
+                          type="text"
+                          value={dmButtonLabel}
+                          maxLength={60}
+                          onChange={(e) => setDmButtonLabel(e.target.value)}
+                          placeholder="Button Label"
+                          className="w-full border border-slate-200 rounded-xl pl-4 pr-16 py-2.5 text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 transition-all bg-white shadow-sm"
+                        />
+                        <span className="absolute right-3.5 text-[9px] font-bold text-slate-400">
+                          {dmButtonLabel.length}/60
+                        </span>
+                      </div>
+
+                      {/* Redirect URL Input */}
+                      <div className="relative flex items-center">
+                        <span className="absolute left-3.5 text-slate-400">
+                          <LinkIcon size={13} />
+                        </span>
+                        <input
+                          type="text"
+                          value={dmButtonUrl}
+                          onChange={(e) => setDmButtonUrl(e.target.value)}
+                          placeholder="Add link here"
+                          className="w-full border border-slate-200 rounded-xl pl-9 pr-9 py-2.5 text-xs font-bold text-slate-808 placeholder-slate-400 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 transition-all bg-white shadow-sm"
+                        />
+                        <span className="absolute right-3.5 text-slate-400">
+                          <ChevronDown size={14} />
+                        </span>
+                      </div>
+
+                    </div>
+
+                    {/* Add another button dashed block */}
+                    <div 
+                      className="border border-dashed border-slate-100 rounded-2xl p-2.5 text-center cursor-not-allowed opacity-50 flex items-center justify-center gap-1.5"
+                    >
+                      <span className="text-[11px] font-bold text-slate-400">+ Add another button</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Follow-up Message Settings */}
+                <div className="flex flex-col gap-3">
+                  <div
+                    onClick={() => setEnableFollowUp(!enableFollowUp)}
+                    className={`border border-dashed rounded-xl p-3.5 flex items-center justify-center gap-2 cursor-pointer transition-all ${
+                      enableFollowUp
+                        ? "border-blue-300 bg-blue-50/20 text-blue-600 font-bold"
+                        : "border-slate-200 hover:border-slate-300 text-slate-500"
+                    }`}
+                  >
+                    <span className="text-xs font-bold">
+                      {enableFollowUp ? "✓ Follow-up message enabled" : "+ Add follow-up message"}
+                    </span>
+                  </div>
+
+                  {enableFollowUp && (
+                    <div className="border border-slate-100 rounded-xl p-4 bg-slate-50/50 flex flex-col gap-3.5 animate-in slide-in-from-top-1 duration-200">
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold text-slate-500">Follow-up Message Text *</label>
+                        <textarea
+                          value={followUpMessage}
+                          onChange={(e) => setFollowUpMessage(e.target.value)}
+                          rows={3}
+                          placeholder="e.g. Hey, just checking if you were able to access the guide! let me know if you have any questions."
+                          className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-400 transition-all resize-none shadow-sm"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold text-slate-500">Delay (Minutes) *</label>
+                        <input
+                          type="number"
+                          value={followUpDelay}
+                          onChange={(e) => setFollowUpDelay(parseInt(e.target.value) || 60)}
+                          className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-400 transition-all shadow-sm"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            </div>
+
+            {/* Passive income promo block */}
+            {showReferralPromo && (
+              <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4.5 flex items-start justify-between gap-3 relative animate-in fade-in duration-300">
+                <span className="text-blue-600 shrink-0 mt-0.5 font-bold text-base">₹</span>
+                <div className="flex-1 text-left">
+                  <p className="text-xs font-bold text-blue-900">Your AutoDMs can earn passive income for you</p>
+                  <p className="text-[11px] text-blue-700/80 font-semibold mt-1 leading-relaxed">
+                    Share your referral link and earn 20% recurring commission on every upgrade. You'll keep earning as long as they stay subscribed.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowReferralPromo(false)}
+                  className="text-blue-400 hover:text-blue-600 p-0.5 rounded transition-all cursor-pointer bg-transparent border-0"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+
+            {/* Card Footer */}
+            <div className="border-t border-slate-100 pt-4 flex items-center justify-between mt-4 shrink-0">
+              <span className="text-[11px] font-bold text-slate-400">
+                {selectedTrigger === "comment" ? "Step 4 of 5" : "Step 3 of 4"}
+              </span>
+              <div className="flex items-center gap-2.5">
+                <button
+                  onClick={handleBack}
+                  className="px-5 py-2 border border-slate-200 hover:bg-slate-55 rounded-full text-xs font-bold text-slate-700 transition-all cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
+                >
+                  Back
+                </button>
+                <button
+                  onClick={handleNext}
+                  className="px-5 py-2 bg-slate-900 hover:bg-black text-white rounded-full text-xs font-bold transition-all shadow-md cursor-pointer"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* ── STEP 6 CONTENT: REVIEW & SAVE ── */}
+        {isReviewStep && (
+          <div className="bg-white border border-slate-150 rounded-[28px] p-6 shadow-[0_12px_40px_rgba(0,0,0,0.06)] text-left max-w-md mx-auto flex flex-col w-full relative animate-in fade-in duration-300">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 shrink-0">
+              <span className="font-extrabold text-slate-900 text-sm tracking-tight">Launch AutoDM</span>
+              <button 
+                onClick={handleBack} 
+                className="text-slate-400 hover:text-slate-655 transition-colors p-1"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Content Area (No scroll system) */}
+            <div className="py-4 flex flex-col gap-5">
+              
+              <h3 className="font-black text-slate-900 text-[15px] leading-tight mt-0.5">
+                Awesome! Let's review once before we launch!
+              </h3>
+
+              <div className="flex flex-col gap-5">
+                
+                {/* 1. When someone... */}
+                <div className="flex flex-col gap-2">
+                  <span className="font-black text-slate-900 text-[10.5px] uppercase tracking-wider text-slate-400">When someone...</span>
+                  
+                  {selectedMediaIds.length === media.length || selectedMediaIds.length === 0 ? (
+                    <div className="flex flex-col gap-1.5 pl-1">
+                      <span className="font-semibold text-slate-800 text-xs">comments on any post or reel</span>
+                      <div className="flex items-start gap-1.5">
+                        <CornerDownRight className="text-slate-300 w-4 h-4 shrink-0 mt-0.5" />
+                        <div className="bg-slate-50 border border-slate-150/70 px-4 py-2 rounded-xl font-bold text-slate-600 text-xs w-full">
+                          All Posts & Reels
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-1.5 pl-1">
+                      <span className="font-semibold text-slate-800 text-xs">comments on this specific post</span>
+                      <div className="flex items-start gap-1.5">
+                        <CornerDownRight className="text-slate-300 w-4 h-4 shrink-0 mt-0.5" />
+                        <div className="flex gap-3 bg-white border border-slate-150/80 p-3 rounded-2xl w-full shadow-[0_1px_3px_rgba(0,0,0,0.01)]">
+                          {(() => {
+                            const post = media.find((m) => selectedMediaIds.includes(m.id));
+                            const thumb = post?.thumbnail_url || post?.media_url;
+                            return (
+                              <>
+                                {thumb ? (
+                                  <img src={thumb} className="w-16 h-16 rounded-xl object-cover border border-slate-100 shrink-0 shadow-sm" alt="post thumb" />
+                                ) : (
+                                  <div className="w-16 h-16 rounded-xl bg-slate-50 border border-slate-150 flex items-center justify-center shrink-0 text-slate-400 text-[9px] font-bold">
+                                    No Image
+                                  </div>
+                                )}
+                                <div className="flex flex-col gap-1 overflow-hidden">
+                                  <span className="text-[9px] font-black text-slate-400 tracking-wider">CAPTION</span>
+                                  <p className="text-[10.5px] text-slate-700 font-semibold line-clamp-3 leading-relaxed">
+                                    {post?.caption || "No caption provided"}
+                                  </p>
+                                </div>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. and comments... */}
+                <div className="flex flex-col gap-2">
+                  <span className="font-black text-slate-900 text-[10.5px] uppercase tracking-wider text-slate-400">and comments...</span>
+                  <div className="flex items-start gap-1.5 pl-1">
+                    <CornerDownRight className="text-slate-300 w-4 h-4 shrink-0 mt-1.5" />
+                    <div className="flex flex-wrap gap-1.5">
+                      {keywordMode === "any_comment" ? (
+                        <span className="inline-block bg-white border border-slate-200 text-slate-705 px-4 py-2 rounded-xl text-xs font-bold shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                          Any comment
+                        </span>
+                      ) : (
+                        keywords.map((kw, i) => (
+                          <span key={i} className="inline-block bg-white border border-slate-200 text-slate-705 px-3 py-1.5 rounded-xl text-xs font-bold shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                            {kw}
+                          </span>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. then ask them to follow you */}
+                {requireFollow && (
+                  <div className="flex flex-col gap-2">
+                    <span className="font-black text-slate-900 text-[10.5px] uppercase tracking-wider text-slate-400">then ask them to follow you</span>
+                    <div className="flex items-start gap-1.5 pl-1">
+                      <CornerDownRight className="text-slate-300 w-4 h-4 shrink-0 mt-1" />
+                      <div className="flex-1 flex flex-col gap-2 max-w-[85%]">
+                        <div className="bg-slate-100 text-slate-800 rounded-2xl rounded-tl-none p-3.5 text-[11px] leading-relaxed font-semibold">
+                          {followCheckMessage || "Oops! Looks like you haven't followed me yet 👀\nIt would mean a lot if you could visit my profile and hit that follow button 😅."}
+                        </div>
+                        <div className="bg-slate-200/60 hover:bg-slate-200 text-slate-800 font-black py-2 rounded-xl text-center text-[11px] transition-colors cursor-default">
+                          {followCheckBtn1Label || "Visit Profile"}
+                        </div>
+                        <div className="bg-slate-200/60 hover:bg-slate-200 text-slate-800 font-black py-2 rounded-xl text-center text-[11px] transition-colors cursor-default">
+                          {followCheckBtn2Label || "I'm following ✅"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. then ask them to share their email */}
+                {emailAsk && (
+                  <div className="flex flex-col gap-2">
+                    <span className="font-black text-slate-900 text-[10.5px] uppercase tracking-wider text-slate-400">then ask them to share their email</span>
+                    <div className="flex items-start gap-1.5 pl-1">
+                      <CornerDownRight className="text-slate-300 w-4 h-4 shrink-0 mt-1" />
+                      <div className="flex-1 flex flex-col gap-2 max-w-[85%]">
+                        <div className="bg-slate-100 text-slate-800 rounded-2xl rounded-tl-none p-3.5 text-[11px] leading-relaxed font-semibold">
+                          {emailAskMessage ? emailAskMessage.replace("{link}", "[Email Form URL]") : "Please enter your email to get access link 📩"}
+                        </div>
+                        <div className="bg-slate-200/60 hover:bg-slate-200 text-slate-850 font-black py-2 rounded-xl text-center text-[11px] transition-colors cursor-default">
+                          {emailAskBtnLabel || "Submit Email"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 5. leave a reply to their comment on the post */}
+                {autoCommentReply && (
+                  <div className="flex flex-col gap-2">
+                    <span className="font-black text-slate-900 text-[10.5px] uppercase tracking-wider text-slate-400">leave a reply to their comment on the post</span>
+                    <div className="flex items-start gap-1.5 pl-1">
+                      <CornerDownRight className="text-slate-300 w-4 h-4 shrink-0 mt-1" />
+                      <div className="flex-1 bg-slate-55 border border-slate-150/80 p-3.5 rounded-2xl flex flex-col gap-3 w-full shadow-[0_1px_3px_rgba(0,0,0,0.01)]">
+                        {/* Commenter */}
+                        <div className="flex items-start gap-2.5">
+                          <div className="w-6 h-6 rounded-full bg-slate-900 flex items-center justify-center shrink-0">
+                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                          </div>
+                          <div className="flex flex-col text-left">
+                            <span className="text-[10px] font-black text-slate-900 leading-none">User</span>
+                            <span className="text-[11px] text-slate-700 mt-1 font-semibold">This is a comment</span>
+                          </div>
+                        </div>
+
+                        {/* Creator Reply */}
+                        <div className="flex items-start gap-2.5 pl-6">
+                          <div className="w-6 h-6 rounded-full overflow-hidden border border-slate-200 shrink-0">
+                            {account?.profile_picture_url ? (
+                              <img src={account.profile_picture_url} className="w-full h-full object-cover" alt="profile" />
+                            ) : (
+                              <div className="w-full h-full bg-[#f43f5e] flex items-center justify-center text-white text-[9px] font-black">
+                                {account?.username?.[0]?.toUpperCase() || "Y"}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex flex-col text-left">
+                            <span className="text-[10px] font-black text-slate-900 leading-none">You</span>
+                            <span className="text-[11px] text-slate-755 mt-1 font-semibold leading-relaxed">
+                              <span className="text-blue-500 font-bold mr-1">@{account?.username || "user"}</span>
+                              {((commentReplyTexts && commentReplyTexts[0]) || commentReplyText) || "Sent you a message! Check it out!"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 6. Once they follow, send them the following DM */}
+                <div className="flex flex-col gap-2">
+                  <span className="font-black text-slate-900 text-[10.5px] uppercase tracking-wider text-slate-400">
+                    {requireFollow && emailAsk
+                      ? "Once they follow & share email, send them the following DM"
+                      : requireFollow
+                      ? "Once they follow, send them the following DM"
+                      : emailAsk
+                      ? "Once they share email, send them the following DM"
+                      : "Once they comment, send them the following DM"}
+                  </span>
+                  <div className="flex items-start gap-1.5 pl-1">
+                    <CornerDownRight className="text-slate-300 w-4 h-4 shrink-0 mt-1" />
+                    <div className="flex-1 flex flex-col gap-2 max-w-[85%]">
+                      <div className="bg-slate-100 text-slate-800 rounded-2xl rounded-tl-none p-3.5 text-[11px] leading-relaxed font-semibold whitespace-pre-line">
+                        {mainDmMessage || "Hey there!\nThanks for commenting 🙌\nHere's the link I mentioned ⬇️"}
+                      </div>
+                      {dmType === "text_button" && dmButtonLabel && (
+                        <div className="bg-slate-200/60 hover:bg-slate-200 text-slate-800 font-black py-2 rounded-xl text-center text-[11px] transition-colors cursor-default">
+                          {dmButtonLabel}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-slate-100 pt-4 mt-1.5 flex items-center justify-end gap-3 shrink-0">
+              <button
+                onClick={handleBack}
+                className="flex items-center justify-center border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 px-6 py-2.5 rounded-full text-xs font-black transition-all shadow-[0_1px_2px_rgba(0,0,0,0.02)] cursor-pointer min-w-[80px]"
+              >
+                Back
+              </button>
+              
+              <button
+                onClick={handleSaveAutomation}
+                disabled={savingRule}
+                className="flex items-center justify-center bg-[#18181b] hover:bg-black text-white px-6 py-2.5 rounded-full text-xs font-black transition-all shadow-md disabled:opacity-50 cursor-pointer min-w-[140px]"
+              >
+                {savingRule ? (
+                  <>
+                    <Loader2 size={12} className="animate-spin text-white mr-1.5" />
+                    <span>Launching...</span>
+                  </>
+                ) : (
+                  <span>Confirm & launch</span>
+                )}
+              </button>
+            </div>
+
           </div>
         )}
 
         {/* ── Footer Actions ── */}
-        <div className="flex items-center justify-between border-t border-slate-100 pt-6 mt-2">
-          {step < 4 && (
-            <>
-              <button
-                onClick={handleBack}
-                className="flex items-center gap-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-650 hover:text-slate-800 px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-[0_1px_2px_rgba(0,0,0,0.02)] cursor-pointer"
-              >
-                <ArrowLeft size={14} />
-                <span>{step === 1 ? "Cancel" : "Back"}</span>
-              </button>
-              
-              <button
-                onClick={handleNext}
-                className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
-              >
-                <span>Next Step</span>
-                <ArrowRight size={14} />
-              </button>
-            </>
-          )}
-
-          {step === 4 && (
+        {false && (
+          <div className="flex items-center justify-between border-t border-slate-100 pt-6 mt-2">
             <button
               onClick={handleBack}
-              className="flex items-center gap-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-655 hover:text-slate-800 px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-[0_1px_2px_rgba(0,0,0,0.02)] cursor-pointer mr-auto"
+              className="flex items-center gap-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-655 hover:text-slate-800 px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-[0_1px_2px_rgba(0,0,0,0.02)] cursor-pointer"
             >
               <ArrowLeft size={14} />
-              <span>Back</span>
+              <span>{step === 1 ? "Cancel" : "Back"}</span>
             </button>
-          )}
-        </div>
+            
+            <button
+              onClick={handleNext}
+              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+            >
+              <span>Next Step</span>
+              <ArrowRight size={14} />
+            </button>
+          </div>
+        )}
 
       </div>
     </div>
   );
 }
+
