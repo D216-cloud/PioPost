@@ -74,6 +74,7 @@ export default function CreateAutomationPage() {
   const [initialDmMessage, setInitialDmMessage] = useState(
     "Thanks for commenting! Tap below and I'll send you the access instantly 🚀"
   );
+  const [useTwoStep, setUseTwoStep] = useState(true);
   const [dmButtonLabel, setDmButtonLabel] = useState("Send Access");
   const [dmButtonUrl, setDmButtonUrl] = useState("");
   const [mainDmMessage, setMainDmMessage] = useState("Here is your main access link! 🚀");
@@ -233,6 +234,10 @@ export default function CreateAutomationPage() {
         toast.error("Main DM message is required");
         return;
       }
+      if (!requireFollow && !emailAsk && useTwoStep && !initialDmMessage.trim()) {
+        toast.error("Greeting message is required for 2-step AutoDM");
+        return;
+      }
       if (dmType === "text_button" && (!dmButtonLabel.trim() || !dmButtonUrl.trim())) {
         toast.error("Button label and redirect URL are required for Text + Button type");
         return;
@@ -270,12 +275,12 @@ export default function CreateAutomationPage() {
       keyword_mode: keywordMode,
       dm_message_text: mainDmMessage,
       // For normal (no-gate) flow: dm_button_text is the "Send Access" postback label
-      dm_button_text: !requireFollow && !emailAsk && dmType === "text_button" ? dmButtonLabel : null,
-      dm_button_url: !requireFollow && !emailAsk && dmType === "text_button" ? (dmButtonUrl || null) : null,
+      dm_button_text: dmType === "text_button" ? dmButtonLabel : null,
+      dm_button_url: dmType === "text_button" ? (dmButtonUrl || null) : null,
       dm_message_type: dmType === "text_button" ? "text" : "text_only",
       // New 2-step DM flow fields
       comment_reply_text: autoCommentReply ? commentReplyTexts.filter(t => t.trim()).join("||") : null,
-      initial_dm_message: !requireFollow && !emailAsk ? initialDmMessage : null,
+      initial_dm_message: !requireFollow && !emailAsk && useTwoStep ? initialDmMessage : null,
       
       // follow gate settings
       follow_first_enabled: requireFollow,
@@ -1199,10 +1204,33 @@ export default function CreateAutomationPage() {
             {/* Section 2: Then send the primary DM... */}
             <div className="flex flex-col gap-3">
               <p className="font-extrabold text-slate-900 text-xs">
-                {!requireFollow && !emailAsk ? "Setup your 2-step AutoDM" : "Then send the primary DM..."}
+                {!requireFollow && !emailAsk ? "Setup your AutoDM" : "Then send the primary DM..."}
               </p>
-              
+
               {!requireFollow && !emailAsk && (
+                <div className="flex bg-slate-100 p-1 rounded-xl w-full">
+                  <button
+                    type="button"
+                    onClick={() => setUseTwoStep(false)}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      !useTwoStep ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                    }`}
+                  >
+                    1-Step (Direct DM)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUseTwoStep(true)}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      useTwoStep ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                    }`}
+                  >
+                    2-Step (Greeting First)
+                  </button>
+                </div>
+              )}
+              
+              {!requireFollow && !emailAsk && useTwoStep && (
                 <div className="border border-emerald-100 bg-emerald-50/20 rounded-2xl p-4 flex flex-col gap-3.5">
                   <div className="flex items-center gap-1.5">
                     <span className="text-[10px] font-black uppercase text-emerald-600 tracking-wider">Step 1: Greeting Message *</span>
@@ -1222,7 +1250,9 @@ export default function CreateAutomationPage() {
 
               <p className="text-[11px] text-slate-400 font-semibold leading-relaxed">
                 {!requireFollow && !emailAsk 
-                  ? "Step 2: Write the message containing your link or file, delivered after they click the button above." 
+                  ? (useTwoStep 
+                      ? "Step 2: Write the message containing your link or file, delivered after they click the button above." 
+                      : "Write the message containing your link or file, sent directly after they comment.")
                   : "Write the message you want to auto-send with a button that takes them to your link or product."}
               </p>
 
@@ -1593,31 +1623,73 @@ export default function CreateAutomationPage() {
                   </div>
                 )}
 
-                {/* 6. Once they follow, send them the following DM */}
-                <div className="flex flex-col gap-2">
-                  <span className="font-black text-slate-900 text-[10.5px] uppercase tracking-wider text-slate-400">
-                    {requireFollow && emailAsk
-                      ? "Once they follow & share email, send them the following DM"
-                      : requireFollow
-                      ? "Once they follow, send them the following DM"
-                      : emailAsk
-                      ? "Once they share email, send them the following DM"
-                      : "Once they comment, send them the following DM"}
-                  </span>
-                  <div className="flex items-start gap-1.5 pl-1">
-                    <CornerDownRight className="text-slate-300 w-4 h-4 shrink-0 mt-1" />
-                    <div className="flex-1 flex flex-col gap-2 max-w-[85%]">
-                      <div className="bg-slate-100 text-slate-800 rounded-2xl rounded-tl-none p-3.5 text-[11px] leading-relaxed font-semibold whitespace-pre-line">
-                        {mainDmMessage || "Hey there!\nThanks for commenting 🙌\nHere's the link I mentioned ⬇️"}
-                      </div>
-                      {dmType === "text_button" && dmButtonLabel && (
-                        <div className="bg-slate-200/60 hover:bg-slate-200 text-slate-800 font-black py-2 rounded-xl text-center text-[11px] transition-colors cursor-default">
-                          {dmButtonLabel}
+                {/* 6. DM Delivery Step */}
+                {!requireFollow && !emailAsk && useTwoStep ? (
+                  <div className="flex flex-col gap-4">
+                    {/* Greeting Message */}
+                    <div className="flex flex-col gap-2">
+                      <span className="font-black text-slate-900 text-[10.5px] uppercase tracking-wider text-slate-400">
+                        First send them a greeting DM
+                      </span>
+                      <div className="flex items-start gap-1.5 pl-1">
+                        <CornerDownRight className="text-slate-300 w-4 h-4 shrink-0 mt-1" />
+                        <div className="flex-1 flex flex-col gap-2 max-w-[85%]">
+                          <div className="bg-slate-100 text-slate-800 rounded-2xl rounded-tl-none p-3.5 text-[11px] leading-relaxed font-semibold whitespace-pre-line">
+                            {initialDmMessage || "Thanks for commenting! Tap below and I'll send you the access instantly 🚀"}
+                          </div>
+                          <div className="bg-slate-200/60 hover:bg-slate-200 text-slate-800 font-black py-2 rounded-xl text-center text-[11px] transition-colors cursor-default">
+                            {dmType === "text_button" ? dmButtonLabel : "Send Access"}
+                          </div>
                         </div>
-                      )}
+                      </div>
+                    </div>
+
+                    {/* Main payload DM */}
+                    <div className="flex flex-col gap-2">
+                      <span className="font-black text-slate-900 text-[10.5px] uppercase tracking-wider text-slate-400">
+                        Once they tap the button, send the primary DM
+                      </span>
+                      <div className="flex items-start gap-1.5 pl-1">
+                        <CornerDownRight className="text-slate-300 w-4 h-4 shrink-0 mt-1" />
+                        <div className="flex-1 flex flex-col gap-2 max-w-[85%]">
+                          <div className="bg-slate-100 text-slate-800 rounded-2xl rounded-tl-none p-3.5 text-[11px] leading-relaxed font-semibold whitespace-pre-line">
+                            {mainDmMessage || "Here is your main access link! 🚀"}
+                          </div>
+                          {dmType === "text_button" && dmButtonLabel && (
+                            <div className="bg-slate-200/60 hover:bg-slate-200 text-slate-800 font-black py-2 rounded-xl text-center text-[11px] transition-colors cursor-default">
+                              {dmButtonLabel}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <span className="font-black text-slate-900 text-[10.5px] uppercase tracking-wider text-slate-400">
+                      {requireFollow && emailAsk
+                        ? "Once they follow & share email, send them the following DM"
+                        : requireFollow
+                        ? "Once they follow, send them the following DM"
+                        : emailAsk
+                        ? "Once they share email, send them the following DM"
+                        : "Directly send them the following DM"}
+                    </span>
+                    <div className="flex items-start gap-1.5 pl-1">
+                      <CornerDownRight className="text-slate-300 w-4 h-4 shrink-0 mt-1" />
+                      <div className="flex-1 flex flex-col gap-2 max-w-[85%]">
+                        <div className="bg-slate-100 text-slate-800 rounded-2xl rounded-tl-none p-3.5 text-[11px] leading-relaxed font-semibold whitespace-pre-line">
+                          {mainDmMessage || "Hey there!\nThanks for commenting 🙌\nHere's the link I mentioned ⬇️"}
+                        </div>
+                        {dmType === "text_button" && dmButtonLabel && (
+                          <div className="bg-slate-200/60 hover:bg-slate-200 text-slate-800 font-black py-2 rounded-xl text-center text-[11px] transition-colors cursor-default">
+                            {dmButtonLabel}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
               </div>
             </div>
