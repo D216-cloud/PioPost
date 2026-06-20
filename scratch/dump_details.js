@@ -21,24 +21,16 @@ const env = loadEnv();
 const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
 async function run() {
-  const { data, error } = await supabase
-    .from('webhook_events')
-    .select('*');
-  
-  if (error) {
-    console.error(error);
-  } else {
-    console.log("Total webhook events:", data.length);
-    let messagingCount = 0;
-    data.forEach(event => {
-      const payloadStr = JSON.stringify(event.payload);
-      if (payloadStr.includes('"messaging"') || payloadStr.includes('"postback"')) {
-        messagingCount++;
-        console.log(`--- Messaging Event ID: ${event.id} Created At: ${event.created_at} ---`);
-        console.log(JSON.stringify(event.payload, null, 2));
-      }
-    });
-    console.log("Total messaging webhook events found:", messagingCount);
+  const { data: automations } = await supabase.from('automations').select('*').limit(1);
+  if (automations && automations.length > 0) {
+    const auto = automations[0];
+    console.log("Automation ID:", auto.id);
+    console.log("Specific Post ID:", auto.specific_post_id);
+    
+    const { data: accounts } = await supabase.from('instagram_accounts').select('*').eq('id', auto.instagram_account_id);
+    if (accounts && accounts.length > 0) {
+      console.log("Instagram Business ID:", accounts[0].instagram_business_id);
+    }
   }
 }
 

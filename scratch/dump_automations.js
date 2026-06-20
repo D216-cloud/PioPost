@@ -21,24 +21,22 @@ const env = loadEnv();
 const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
 async function run() {
-  const { data, error } = await supabase
-    .from('webhook_events')
-    .select('*');
-  
+  const { data: automations, error } = await supabase.from('automations').select('*');
   if (error) {
     console.error(error);
   } else {
-    console.log("Total webhook events:", data.length);
-    let messagingCount = 0;
-    data.forEach(event => {
-      const payloadStr = JSON.stringify(event.payload);
-      if (payloadStr.includes('"messaging"') || payloadStr.includes('"postback"')) {
-        messagingCount++;
-        console.log(`--- Messaging Event ID: ${event.id} Created At: ${event.created_at} ---`);
-        console.log(JSON.stringify(event.payload, null, 2));
-      }
+    console.log(`Found ${automations.length} automations:`);
+    automations.forEach(a => {
+      console.log(`ID: ${a.id}`);
+      console.log(`- Name: "${a.name}"`);
+      console.log(`- Trigger Type: ${a.trigger_type}`);
+      console.log(`- Keywords: ${JSON.stringify(a.trigger_keywords)}`);
+      console.log(`- Follow First: ${a.follow_first_enabled}`);
+      console.log(`- Initial DM Message: "${a.initial_dm_message}"`);
+      console.log(`- Main DM Message: "${a.dm_message_text}"`);
+      console.log(`- Active: ${a.is_active}`);
+      console.log('---------------------------------------------');
     });
-    console.log("Total messaging webhook events found:", messagingCount);
   }
 }
 

@@ -238,7 +238,10 @@ async function handleFollowPostback(
     // 3. Verify follow status
     const followCheck = await checkIfUserFollows(senderId, igAccount.access_token);
     
-    if (followCheck.follows) {
+    // Safety check fallback: if verified is false, let it pass (avoid blocking on API error)
+    const passedFollowCheck = followCheck.follows || !followCheck.verified;
+    
+    if (passedFollowCheck) {
       if (automation.email_ask_enabled) {
         // Both gates enabled! Transition to Email Gate
         const token = crypto.randomUUID();
@@ -286,30 +289,30 @@ async function handleFollowPostback(
           error_message: dmRes.error ?? null
         });
       } else {
-        const initialMsg = (automation.initial_dm_message || "").trim();
+        // User follows! Send the Main DM directly! (2-step click-to-verify flow)
+        const dmText = (automation.dm_message_text || "").toString().trim();
         
-        if (initialMsg) {
-          // User follows! Send initial DM with "Send Access" postback button (2-step flow)
-          const accessBtnLabel = (automation.dm_button_text || "").trim() || "Send Access";
-          const payload = `send_access:${automation.id}:${commentId}`;
-          console.log(`[DEBUG] Sending button with payload: ${payload}`);
+        if (dmText) {
+          const hasUrlButton = !!automation.dm_button_url;
+          const urlBtnLabel = automation.dm_button_text || "Access Link";
 
           const dmResult = await sendInstagramDM(
             { id: senderId },
-            initialMsg,
+            dmText,
             igAccount.access_token,
-            [{ type: "postback", title: accessBtnLabel, payload }]
+            hasUrlButton ? urlBtnLabel : null,
+            hasUrlButton ? automation.dm_button_url : null
           );
 
-          // Log initial DM log
+          // Log final DM log
           await supabaseAdmin.from("automation_logs").insert({
             automation_id: automation.id,
             commenter_username: "[Postback Verified]",
             commenter_instagram_id: senderId,
-            comment_text: "[Follow Gate Passed - Sent Initial DM]",
+            comment_text: "[Follow Gate Passed - Sent Main DM Directly]",
             matched_keyword: null,
             follow_check_passed: true,
-            dm_sent_status: dmResult.success ? "pending" : "failed",
+            dm_sent_status: dmResult.success ? "success" : "failed",
             error_message: dmResult.error ?? null
           });
 
@@ -324,54 +327,10 @@ async function handleFollowPostback(
             await supabaseAdmin
               .from("automations")
               .update({
-                total_triggers: (automation.total_triggers || 0) + 1
+                total_triggers: (automation.total_triggers || 0) + 1,
+                total_success: (automation.total_success || 0) + 1
               })
               .eq("id", automation.id);
-          }
-        } else {
-          // User follows! Send direct payload DM (1-step flow)
-          const dmText = (automation.dm_message_text || "").toString().trim();
-          
-          if (dmText) {
-            const hasUrlButton = !!automation.dm_button_url;
-            const urlBtnLabel = automation.dm_button_text || "Access Link";
-
-            const dmResult = await sendInstagramDM(
-              { id: senderId },
-              dmText,
-              igAccount.access_token,
-              hasUrlButton ? urlBtnLabel : null,
-              hasUrlButton ? automation.dm_button_url : null
-            );
-
-            // Log final DM log
-            await supabaseAdmin.from("automation_logs").insert({
-              automation_id: automation.id,
-              commenter_username: "[Postback Verified]",
-              commenter_instagram_id: senderId,
-              comment_text: "[Follow Gate Passed - Sent Main DM Directly]",
-              matched_keyword: null,
-              follow_check_passed: true,
-              dm_sent_status: dmResult.success ? "success" : "failed",
-              error_message: dmResult.error ?? null
-            });
-
-            // Update pending follow request status
-            await supabaseAdmin
-              .from("pending_follow_requests")
-              .update({ status: "completed" })
-              .eq("automation_id", automation.id)
-              .eq("commenter_id", senderId);
-
-            if (dmResult.success) {
-              await supabaseAdmin
-                .from("automations")
-                .update({
-                  total_triggers: (automation.total_triggers || 0) + 1,
-                  total_success: (automation.total_success || 0) + 1
-                })
-                .eq("id", automation.id);
-            }
           }
         }
       }
@@ -459,9 +418,13 @@ async function handleSendAccessPostback(
       const followCheck = await checkIfUserFollows(senderId, igAccount.access_token);
       console.log(`[SEND-ACCESS] Follow check result: follows=${followCheck.follows}, verified=${followCheck.verified}`);
 
-      if (!followCheck.follows) {
+      // Safety fallback logic: only block if verified that they are NOT following.
+      // If verification fails or is unverified, allow them to pass to avoid breaking on API errors.
+      const isVerifiedNotFollowing = followCheck.verified && !followCheck.follows;
+
+      if (isVerifiedNotFollowing) {
         // User is NOT following — send "please follow first" DM
-        console.log(`[SEND-ACCESS] User not following. Sending follow-gate message.`);
+        console.log(`[SEND-ACCESS] User verified not following. Sending follow-gate message.`);
 
         const followMsg = automation.follow_check_msg ||
           "Oops! Looks like you haven't followed me yet 👀\nIt would mean a lot if you could visit my profile and hit that follow button 😅";
@@ -511,7 +474,7 @@ async function handleSendAccessPostback(
         return; // Stop here — don't send main DM
       }
 
-      console.log(`[SEND-ACCESS] ✅ User IS following. Proceeding to send main DM.`);
+      console.log(`[SEND-ACCESS] ✅ User IS following (or API check unverified). Proceeding to send main DM.`);
     } else {
       console.log(`[SEND-ACCESS] follow_first_enabled=false, skipping follow check.`);
     }
@@ -882,120 +845,39 @@ export async function POST(req: Request) {
 
           // 5. Handle Gates
           if (automation.follow_first_enabled) {
-            // --- Follow First Gate ---
-            const followCheck = await checkIfUserFollows(commenterId, tokenToUse);
-            
-            if (followCheck.follows) {
-              // Already following, check if email collection is also required
-              if (automation.email_ask_enabled) {
-                await triggerEmailGate();
-              } else {
-                const initialMsg = (automation.initial_dm_message || "").trim();
-                
-                if (initialMsg) {
-                  // Already following, transition to 2-step flow (Initial DM + Send Access button)
-                  const accessBtnLabel = (automation.dm_button_text || "").trim() || "Send Access";
-                  const payload = `send_access:${automation.id}:${commentId}`;
-                  console.log(`[DEBUG] Sending button with payload: ${payload}`);
+            // --- Follow First Gate (Restructured to 2-step click-to-verify flow) ---
+            const initialMsg = (automation.initial_dm_message || automation.follow_first_opening_message || "Thanks for commenting! Tap below to get access 📩").trim();
+            const accessBtnLabel = (automation.dm_button_text || automation.follow_first_btn_label || "Send Access").trim();
+            const payload = `send_access:${automation.id}:${commentId}`;
 
-                  const dmResult = await sendInstagramDM(
-                    { comment_id: commentId },
-                    initialMsg,
-                    tokenToUse,
-                    [{ type: "postback", title: accessBtnLabel, payload }]
-                  );
+            console.log(`[Webhook/FollowFirst] Sending initial gate DM for auto=${automation.id} to user=${commenterId}`);
 
-                  await supabaseAdmin.from("automation_logs").insert({
-                    automation_id: automation.id,
-                    commenter_username: commenterUsername,
-                    commenter_instagram_id: commenterId,
-                    comment_text: commentText,
-                    matched_keyword: matchedKeyword,
-                    follow_check_passed: true,
-                    dm_sent_status: dmResult.success ? "pending" : "failed",
-                    error_message: dmResult.error ?? null
-                  });
+            const dmResult = await sendInstagramDM(
+              { comment_id: commentId },
+              initialMsg,
+              tokenToUse,
+              [{ type: "postback", title: accessBtnLabel, payload }]
+            );
 
-                  if (dmResult.success) {
-                    await supabaseAdmin
-                      .from("automations")
-                      .update({
-                        total_triggers: (automation.total_triggers || 0) + 1
-                      })
-                      .eq("id", automation.id);
-                  }
-                } else {
-                  // Already following, transition to 1-step flow (Direct DM)
-                  const dmText = (automation.dm_message_text || "").toString().trim();
-                  
-                  if (dmText) {
-                    const hasUrlButton = !!automation.dm_button_url;
-                    const urlBtnLabel = automation.dm_button_text || "Access Link";
+            // Log trigger
+            await supabaseAdmin.from("automation_logs").insert({
+              automation_id: automation.id,
+              commenter_username: commenterUsername,
+              commenter_instagram_id: commenterId,
+              comment_text: commentText,
+              matched_keyword: matchedKeyword,
+              follow_check_passed: false, // will check when they click button
+              dm_sent_status: dmResult.success ? "pending" : "failed",
+              error_message: dmResult.error ?? null
+            });
 
-                    const dmResult = await sendInstagramDM(
-                      { comment_id: commentId },
-                      dmText,
-                      tokenToUse,
-                      hasUrlButton ? urlBtnLabel : null,
-                      hasUrlButton ? automation.dm_button_url : null
-                    );
-
-                    await supabaseAdmin.from("automation_logs").insert({
-                      automation_id: automation.id,
-                      commenter_username: commenterUsername,
-                      commenter_instagram_id: commenterId,
-                      comment_text: commentText,
-                      matched_keyword: matchedKeyword,
-                      follow_check_passed: true,
-                      dm_sent_status: dmResult.success ? "success" : "failed",
-                      error_message: dmResult.error ?? null
-                    });
-
-                    if (dmResult.success) {
-                      await supabaseAdmin
-                        .from("automations")
-                        .update({
-                          total_triggers: (automation.total_triggers || 0) + 1,
-                          total_success: (automation.total_success || 0) + 1
-                        })
-                        .eq("id", automation.id);
-                    }
-                  }
-                }
-              }
-            } else {
-              // Not following, send initial follow-gate DM ("a DM asking to follow you")
-              const openingMsg = automation.follow_first_opening_message || "Hey! I'm so glad you're here - thanks a ton for stopping by 😊\n\nTap below and I'll send you the access in just a moment ✨";
-              const btnLabel = automation.follow_first_btn_label || "Send me the access";
-
-              // Log pending follow request
-              await supabaseAdmin.from("pending_follow_requests").insert({
-                automation_id: automation.id,
-                commenter_id: commenterId,
-                status: "waiting"
-              });
-
-              // Send the initial follow DM with a postback button
-              const dmResult = await sendInstagramDM(
-                { comment_id: commentId },
-                openingMsg,
-                tokenToUse,
-                [
-                  { type: "postback", title: btnLabel, payload: `verify_follow_initial:${automation.id}:${commentId}` }
-                ]
-              );
-
-              // Log in logs
-              await supabaseAdmin.from("automation_logs").insert({
-                automation_id: automation.id,
-                commenter_username: commenterUsername,
-                commenter_instagram_id: commenterId,
-                comment_text: `[Follow Gate Opener] ${commentText}`,
-                matched_keyword: matchedKeyword,
-                follow_check_passed: false,
-                dm_sent_status: dmResult.success ? "pending" : "failed",
-                error_message: dmResult.error ?? null
-              });
+            if (dmResult.success) {
+              await supabaseAdmin
+                .from("automations")
+                .update({
+                  total_triggers: (automation.total_triggers || 0) + 1
+                })
+                .eq("id", automation.id);
             }
           } else if (automation.email_ask_enabled) {
             // --- Only Email Gate active ---
